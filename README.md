@@ -58,4 +58,4 @@ JOINTERs are used to create composite glyphs. LONG GLYPH provides underscores th
 
 Ameji relies on UCSUR-compliant fonts to function. To download such fonts, please visit [this spreadsheet](https://docs.google.com/spreadsheets/d/1xwgTAxwgn4ZAc4DBnHte0cqta1aaxe112Wh1rv9w5Yk/htmlview?gid=1195574771).
 
-The font used above is [Nishiki-teki](https://umihotaru.work/).
+The preferred font is [Nishiki-teki](https://umihotaru.work/). If you want to use other fonts, you need to modify the content of `weasel.custom.yaml` accordingly.
