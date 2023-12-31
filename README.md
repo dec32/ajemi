@@ -29,6 +29,7 @@ To type an ideograph, simply type its spelling, and press space to confirm.
 Suggestions from pop-ups will help you type faster. Press space to accept the highlighted one. Press number keys to pick any of them.
 
 ![](./doc/kije.gif)
+
 To type punctuators, type: 
 
 - `.` for MIDDLE DOT (U+F199C)
