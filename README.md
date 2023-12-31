@@ -6,21 +6,23 @@ Ajemi is an IME (input method editor) for Toki Pona. With proper font support, i
 
 ## Install
 
-1. Install RIME from its [offical site](https://rime.im/)
-2. Copy following files:  
+1. Install the font [Nishiki-teki](https://umihotaru.work/nishiki-teki.zip)
+2. Install RIME from its [offical site](https://rime.im/)
+3. Download the zipped [config files](https://codeload.github.com/dec32/Ajemi/zip/refs/heads/master)
+4. Copy all four config files:
+
     - `ajemi.schema.yaml`
     - `ajemi.dict.yaml`
+    - `weasel.custom.yaml`
+    - `default.custom.yaml`
 
-   into:
-   
-    - `%APPDATA%\Rime` if using Windows
-    - `~/Library/Rime/` if using Mac
-    - `~/.config/ibus/rime/` if using GNU/Linux
+   into: `C:/User/{YOUR_ACCOUNT}/AppData/Roaming/Rime`
 
-
-For more detail, please refer to [this Wiki page](https://github.com/rime/home/wiki/RimeWithSchemata#rime-%E4%B8%AD%E7%9A%84%E6%95%B8%E6%93%9A%E6%96%87%E4%BB%B6%E5%88%86%E4%BD%88%E5%8F%8A%E4%BD%9C%E7%94%A8).
+5. Restart your computer
 
 ## Usage
+
+Use Windows+SPACE to switch IME. Make sure you are switched to RIME.
 
 To type an ideograph, simply type its spelling, and press space to confirm. 
 
@@ -46,6 +48,11 @@ To type control characters, type:
 JOINTERs are used to create composite glyphs. LONG GLYPH provides underscores that works well with certain ideographs (especially pi). CARTOUCHE are indicators for proper names. Here's a rough demonstration of their behavior using the phrase "pi toki pona":
 
 ![](./doc/control.png)
+
+## Uninstall
+
+1. Run `C:\Program Files (x86)\Rime\weasel-VERSION\uninstall.exe`
+2. Restart your computer
 
 ## Fonts
 
