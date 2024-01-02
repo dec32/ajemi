@@ -35,17 +35,7 @@ speller:
   auto_select: false
 
 punctuator: 
-  full_shape: 
-    '[' : 󱦗
-    ']' : 󱦘
-    '<' : 󱦐
-    '>' : 󱦑
-    '+' : 󱦕
-    '-' : 󱦖
-    '.' : 󱦜
-    ':' : 󱦝
-    
-  half_shape: &symtable
+  half_shape: 
     '[' : 󱦗
     ']' : 󱦘
     '<' : 󱦐
