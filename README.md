@@ -26,16 +26,15 @@ P.S. If you are using mac or Linux, copy the config files into:
 
 |Platform                        |Directory                    |
 |--------------------------------|-----------------------------|
-|Mac OS                          |`~/Library/Rime`             |
+|macOS                           |`~/Library/Rime`             |
 |Linux                           |`~/.config/ibus/rime/`       |
 |Linux with ibus 0.9.1 or lower  |`~/.ibus/rime/`              |
 |Linux with fcitx5               |`~/.local/share/fcitx5/rime/`|
 
 ## Usage
 
-Use WIN + SPACE to switch IMEs. Make sure you are switched to RIME.
 
-To type an ideograph, simply type its spelling, and press SPACE to confirm. 
+To type a glyph, simply type its spelling, and press SPACE to confirm. 
 
 ![](./doc/kijetesantakalu.gif)
 
@@ -52,21 +51,38 @@ To type control characters, type:
 
 - `+` for STACKING JOINTER (U+F1995)
 - `-` for SCALING JOINER (U+F1996)
-- `[` for START OF LONG GLYPH (U+F1997)
-- `]` for END OF LONG GLYPH (U+F1998)
-- `<` for START OF CARTOUCHE (U+F1990)
-- `>` for END OF CARTOUCHE (U+F1991)
+- `(` for START OF LONG GLYPH (U+F1997)
+- `)` for END OF LONG GLYPH (U+F1998)
+- `{` for START OF REVERSE LONG GLYPH (U+F199A)
+- `}` for END OF REVERSE LONG GLYPH (U+F199B)
+- `[` for START OF CARTOUCHE (U+F1990)
+- `]` for END OF CARTOUCHE (U+F1991)
 
 
-JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characters provide underscores that work well with certain ideographs (especially pi). CARTOUCHE control characters provide cartouches for proper names. Here's a rough demonstration of their behavior using the phrase "pi toki pona":
+JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characters provide underscores that work well with certain glyphs (especially pi). CARTOUCHE control characters provide cartouches for proper names. Here's a rough demonstration of their behavior:
 
-![](./doc/control.png)
+|Spelling          |Glyph                                   |
+|------------------|-----------------------------------------|
+|`toki+pona`       |![](./doc/control-stacking.png)          |
+|`toki-pona`       |![](./doc/control-scaling.png)           |
+|`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
+|`{toki-pona} kama`|![](./doc/control-reverse-long-glyph.png)|
+|`[toki pona]`     |![](./doc/control-cartoche.png)          |
+
+
+## Customize
+
+Ameji relies on RIME, which is a highly customizable imput method. Here's a very breif instruction on how to customize a couple of things.
+
+To use a different font for the input method, edit the value of `"style/font_face"` in `weasel.custom.yaml`. Notice that Ameji relies on UCSUR-compliant fonts to function. To find and install such fonts, please visit [this spreadsheet](https://docs.google.com/spreadsheets/d/1xwgTAxwgn4ZAc4DBnHte0cqta1aaxe112Wh1rv9w5Yk/htmlview?gid=1195574771).
+
+To customize the spellings of the glyphs, go to `ajemi.dict.yaml` to edit the mapping. Each glyph and its corresponding spelling are seperated by a TAB character. You can also map a sequence of glyphs to a spelling. That will create a phrase.
+
+To customize punctuators and control characters, edit the `punctuator` section of `ajemi.schema.yaml`.
+
+Remember to reload RIME after editing the config files to deploy the customization.
 
 ## Uninstall
 
 1. Run `C:\Program Files (x86)\Rime\weasel-{VERSION}\uninstall.exe`
-2. Restart your computer
-
-## Fonts
-
-Ameji relies on UCSUR-compliant fonts to function. To find and install such fonts, please visit [this spreadsheet](https://docs.google.com/spreadsheets/d/1xwgTAxwgn4ZAc4DBnHte0cqta1aaxe112Wh1rv9w5Yk/htmlview?gid=1195574771).The preferred font is [Nishiki-teki](https://umihotaru.work/). If you want to use other fonts, you need to modify the content of `weasel.custom.yaml` accordingly.
+2. Reboot your device
