@@ -36,14 +36,16 @@ speller:
 
 punctuator: 
   half_shape: 
-    '[' : 󱦗
-    ']' : 󱦘
-    '<' : 󱦐
-    '>' : 󱦑
-    '+' : 󱦕
-    '-' : 󱦖
-    '.' : 󱦜
-    ':' : 󱦝
+    '[' : 󱦐   # U+F1990 SITELEN PONA START OF CARTOUCHE
+    ']' : 󱦑   # U+F1991 SITELEN PONA END OF CARTOUCHE
+    '+' : 󱦕   # U+F1995 SITELEN PONA STACKING JOINER
+    '-' : 󱦖   # U+F1996 SITELEN PONA SCALING JOINER
+    '(' : 󱦗   # U+F1997 SITELEN PONA START OF LONG GLYPH
+    ')' : 󱦘   # U+F1998 SITELEN PONA END OF LONG GLYPH
+    '{' : 󱦚   # U+F199A SITELEN PONA START OF REVERSE LONG GLYPH
+    '}' : 󱦛   # U+F199B SITELEN PONA END OF REVERSE LONG GLYPH
+    '.' : 󱦜   # U+F199C SITELEN PONA MIDDLE DOT
+    ':' : 󱦝   # U+F199D SITELEN PONA COLON
 
 translator:
   dictionary: ajemi
