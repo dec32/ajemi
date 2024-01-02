@@ -42,7 +42,7 @@ Suggestions from pop-ups will help you type faster. Press SPACE to accept the hi
 
 ![](./doc/kije.gif)
 
-Pressing ENTER will cancel the input and “release” the raw ASCII texts.
+Pressing ENTER will release the raw ASCII text.
 
 ![](./doc/release.gif)
 
@@ -76,7 +76,7 @@ JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characte
 
 ## Customize
 
-Ameji relies on RIME, which is a highly customizable input method. Here's a very breif instruction on how to customize a couple of things.
+Ajemi relies on RIME, which is a highly customizable input method. Here's a very breif instruction on how to customize a couple of things.
 
 To use a different font for the input method, edit the value of `"style/font_face"` in `weasel.custom.yaml`. Notice that Ameji relies on UCSUR-compliant fonts to function. To find and install such fonts, please visit [this spreadsheet](https://docs.google.com/spreadsheets/d/1xwgTAxwgn4ZAc4DBnHte0cqta1aaxe112Wh1rv9w5Yk/htmlview?gid=1195574771).
 
