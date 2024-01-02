@@ -18,8 +18,8 @@ Ajemi is an IME (input method) for Toki Pona. With proper font support, it allow
 
    into: `C:/User/{YOUR_ACCOUNT}/AppData/Roaming/Rime`
 
-5. Press WIN + SPACE to switch to RIME.
-6. Reload RIME via: 
+5. Press WIN + SPACE to switch to RIME and reload it via:
+
     ![](./doc/reload.jpg)
 
 P.S. If you are using mac or Linux, copy the config files into:
