@@ -8,7 +8,7 @@ Ajemi is an IME (input method) for Toki Pona. With proper font support, it allow
 
 1. Install [RIME](https://rime.im/)
 2. Install the font [Nishiki-teki](https://umihotaru.work/nishiki-teki.zip)
-3. Download the zipped [config files](https://codeload.github.com/dec32/Ajemi/zip/refs/heads/master)
+3. Download the zipped [config files](https://github.com/dec32/Ajemi/releases/download/v1.0-rime/Ajemi.zip)
 4. Copy all four config files:
 
     - `ajemi.schema.yaml`
