@@ -1,0 +1,3 @@
+use windows::core::GUID;
+
+pub const AJEMI_CLSID: GUID = GUID::from("C93D3D59-2FAC-40E0-ABC6-A3658749E2FA");

@@ -1,11 +1,14 @@
 mod ime;
-use std::ffi::c_void;
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}}, core::{GUID, HRESULT, implement, IUnknown, Result}};
+mod register;
+mod consts;
+use std::{mem, ptr, ffi::c_void};
+use register::*;
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl, CoCreateInstance, CoCreateInstanceEx, CLSCTX_INPROC_SERVER, MULTI_QI}}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
 
 
 //----------------------------------------------------------------------------
 //
-//  The four exposed functions.
+//  Entry for the DLL
 //
 //----------------------------------------------------------------------------
 
@@ -26,33 +29,48 @@ extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut()) -
     true
 }
 
-// 看起来进程和 dll 交互时会调用这里，并把自己的 ID 传过来
+//----------------------------------------------------------------------------
+//
+//  The four exposed functions.
+//
+//----------------------------------------------------------------------------
+
+// Returns the factory object.
 #[allow(non_snake_case, dead_code)]
-extern "system" fn DllGetClassObject(_rclsid: *const GUID, _riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
-    // todo what to do here
-    // 把一个 ICClassFactory 对象赋值给 ppv
-    // 这个工厂对象负责创建 IME 实例
-    // IME 实例需要继承 ITfTextInputProcessorEx
-    // 逻辑大概就在这个实现类里面了
+extern "system" fn DllGetClassObject(_rclsid: *const GUID, rrid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+    unsafe {
+        // rrid probably stands for required interface ID, idk
+        if *rrid != IClassFactory::IID && *rrid != IUnknown::IID {
+            CLASS_E_CLASSNOTAVAILABLE
+        } else {
+            *ppv = mem::transmute(&CLASS_FACTORY);
+            S_OK
+        }
+    }
+}
+
+// Register the IME into the OS. See register.rs.
+#[allow(non_snake_case, dead_code)]
+unsafe extern "system" fn DllRegisterServer() -> HRESULT {
+    if !register_server() || !register_profiles() || !register_categories() {
+        DllUnregisterServer();
+        E_FAIL
+    } else {
+        S_OK
+    }
+}
+
+// Unregister the IME from the OS.
+#[allow(non_snake_case, dead_code)]
+extern "system" fn DllUnregisterServer() -> HRESULT {
     todo!();
     S_OK
 }
+
 
 #[allow(non_snake_case, dead_code)]
 extern "system" fn DllCanUnloadNow() -> HRESULT {
-    // todo what to do here
-    todo!();
-    S_OK
-}
-
-#[allow(non_snake_case, dead_code)]
-extern "system" fn DllRegisterServer() -> HRESULT {
-    todo!();
-    S_OK
-}
-
-#[allow(non_snake_case, dead_code)]
-extern "system" fn DllUnregisterServer() -> HRESULT {
+    // todo ref count maybe?
     todo!();
     S_OK
 }
@@ -64,17 +82,15 @@ extern "system" fn DllUnregisterServer() -> HRESULT {
 //
 //----------------------------------------------------------------------------
 
+const CLASS_FACTORY: ClassFactory= ClassFactory{};
 #[implement(IClassFactory)]
 struct ClassFactory{
     
 }
 
-impl ClassFactory {
-
-}
-
 impl IClassFactory_Impl for ClassFactory {
     #[allow(non_snake_case)]
+    // Get the IME instance and convert it to a interface pointer
     fn CreateInstance(&self, punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
         todo!()
         // riid 用来标记所请求的 interface 的类型
