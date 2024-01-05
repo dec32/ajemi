@@ -12,18 +12,19 @@ use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILA
 //
 //----------------------------------------------------------------------------
 
+#[no_mangle]
 #[allow(non_snake_case, dead_code)]
 extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut()) -> bool {
     // 传递句柄、注册窗口等
     match call_reason {
         DLL_PROCESS_ATTACH => {
-            todo!()
+
         },
         DLL_PROCESS_DETACH => {
-            todo!()
+
         },
         _ => {
-            todo!()
+
         }
     }
     true
@@ -35,44 +36,54 @@ extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut()) -
 //
 //----------------------------------------------------------------------------
 
+
+// Register the IME into the OS. See register.rs.
+#[no_mangle]
+#[allow(non_snake_case, dead_code)]
+unsafe extern "system" fn DllRegisterServer() -> HRESULT {
+    if register().is_ok() {
+        S_OK
+    } else {
+        let _ = unregister();
+        // there's nothing we can do
+        E_FAIL
+    }
+}
+
+// Unregister the IME from the OS. See register.rs.
+
+#[no_mangle]
+#[allow(non_snake_case, dead_code)]
+unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
+    if unregister().is_ok() {
+        S_OK
+    } else {
+        E_FAIL
+    }
+}
+
+
+#[no_mangle]
+#[allow(non_snake_case, dead_code)]
+extern "system" fn DllCanUnloadNow() -> HRESULT {
+    // todo ref count maybe?
+    S_OK
+}
+
 // Returns the factory object.
 #[allow(non_snake_case, dead_code)]
+#[no_mangle]
 extern "system" fn DllGetClassObject(_rclsid: *const GUID, rrid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
     unsafe {
         // rrid probably stands for required interface ID, idk
         if *rrid != IClassFactory::IID && *rrid != IUnknown::IID {
             CLASS_E_CLASSNOTAVAILABLE
         } else {
-            *ppv = mem::transmute(&CLASS_FACTORY);
+            // todo make sure class facotry is not null?
+            *ppv = &mut CLASS_FACTORY  as *mut _ as *mut c_void;
             S_OK
         }
     }
-}
-
-// Register the IME into the OS. See register.rs.
-#[allow(non_snake_case, dead_code)]
-unsafe extern "system" fn DllRegisterServer() -> HRESULT {
-    if !register_server() || !register_profiles() || !register_categories() {
-        DllUnregisterServer();
-        E_FAIL
-    } else {
-        S_OK
-    }
-}
-
-// Unregister the IME from the OS.
-#[allow(non_snake_case, dead_code)]
-extern "system" fn DllUnregisterServer() -> HRESULT {
-    todo!();
-    S_OK
-}
-
-
-#[allow(non_snake_case, dead_code)]
-extern "system" fn DllCanUnloadNow() -> HRESULT {
-    // todo ref count maybe?
-    todo!();
-    S_OK
 }
 
 
@@ -82,7 +93,7 @@ extern "system" fn DllCanUnloadNow() -> HRESULT {
 //
 //----------------------------------------------------------------------------
 
-const CLASS_FACTORY: ClassFactory= ClassFactory{};
+static mut CLASS_FACTORY: ClassFactory= ClassFactory{};
 #[implement(IClassFactory)]
 struct ClassFactory{
     
