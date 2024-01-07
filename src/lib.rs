@@ -1,15 +1,14 @@
 mod ime;
 mod register;
-mod consts;
-mod log;
 mod global;
-use std::{ffi::c_void, ptr, fmt::format};
-use log::{debug, error};
+mod log;
+
+use std::{ffi::c_void, ptr};
+use ::log::{debug, error};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
+use global::*;
+use ime::Ime;
 use register::*;
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl, CoCreateInstance, CoCreateInstanceEx, CLSCTX_INPROC_SERVER, MULTI_QI}}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
-
-use crate::ime::Ime;
-
 
 //----------------------------------------------------------------------------
 //
@@ -20,13 +19,14 @@ use crate::ime::Ime;
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
+    let _ = log::setup();
     // store dll_module for later use
     match call_reason {
         DLL_PROCESS_ATTACH => {
-            unsafe { global::dll_module = Some(dll_module) };
+            unsafe { DLL_MOUDLE = Some(dll_module) };
         },
         DLL_PROCESS_DETACH => {
-            unsafe { global::dll_module = None }
+            unsafe { DLL_MOUDLE = None }
         },
         _ => {
 
@@ -46,10 +46,12 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
-    debug("<DllRegisterServer>");
+    debug!("Registering server...");
     if register_server().is_ok() && register_ime().is_ok(){
+        debug!("Registered server successfully.");
         S_OK
     } else {
+        error!("Failed to register server.");
         let _ = DllUnregisterServer();
         E_FAIL
     }
@@ -59,10 +61,12 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    debug("<DllUnregisterServer>");
+    debug!("Unregistering server...");
     if unregister_ime().is_ok() && unregister_server().is_ok() {
+        debug!("Unegistered server successfully.");
         S_OK
     } else {
+        error!("Failed to unregister server.");
         E_FAIL
     }
 }
@@ -71,7 +75,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
-    debug("<DllCanUnloadNow>");
+    debug!("DllCanUnloadNow");
     // todo ref count maybe?
     S_OK
 }
@@ -80,13 +84,13 @@ extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
 #[allow(non_snake_case, dead_code)]
 #[no_mangle]
 extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
-    debug("<DllGetClassObject>");
+    debug!("Getting class objects...");
     unsafe {
         if *riid != IClassFactory::IID && *riid != IUnknown::IID {
-            error("<DllGetClassObject> unrecognizable riid.");
+            error!("Unrecognizable riid.");
             CLASS_E_CLASSNOTAVAILABLE
         } else {
-            debug("<DllGetClassObject> returning CLASS_FACTORY");
+            debug!("Got the class object successfully.");
             *ppv = &mut CLASS_FACTORY  as *mut _ as *mut c_void;
             S_OK
         }
@@ -112,7 +116,7 @@ impl IClassFactory_Impl for ClassFactory {
     #[allow(non_snake_case)]
     // Get the IME instance and convert it to a interface pointer
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
-        debug("<IClassFactory_Impl> now creating instance...");
+        debug!("Creating instance...");
         // riid: requested interface id
         // todo: the ime instance will be recycled by rust compiler, creating a dangling ptr
         let mut ime = Ime::new();

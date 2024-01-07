@@ -1,16 +1,26 @@
-use std::{fs::File, io::Write, time::SystemTime};
+use std::{time::SystemTime, fmt::Debug};
 
-pub fn debug(text: &str) {
-    log(&format!("[DEBUG] {text}"));
+use chrono::Local;
+
+
+pub fn setup() -> Result<(), fern::InitError>{
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{} [{}] {}",
+                now(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Debug)
+        .chain(std::io::stdout())
+        .chain(fern::log_file("C:\\ajemi.log")?)
+        .apply()?;
+    Ok(())   
 }
 
-pub fn error(text: &str) {
-    log(&format!("[ERROR] {text}"));
+fn now() -> String {
+    Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-fn log(text: &str) {
-    let mut file = File::options().write(true).append(true).open("C:\\ajemi.log").unwrap();
-    file.write(text.as_bytes()).unwrap();
-    file.write(b"\n").unwrap();
-    file.flush().unwrap();
-}

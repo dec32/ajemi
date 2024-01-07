@@ -1,8 +1,8 @@
 use std::{ptr, ffi::c_void, mem};
 
+use log::debug;
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfEditSession, ITfContextComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface}};
 use windows::core::Result;
-use crate::debug;
 
 use super::Ime;
 
@@ -24,8 +24,7 @@ impl ITfKeyEventSink_Impl for Ime {
     // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
     #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, key_code: WPARAM, flag:LPARAM) -> Result<BOOL> {
-        debug("<ITfKeyEventSink_Impl> OnKeyDown.");
-
+        debug!("OnKeyDown.");
         let Some(context) = context else {
             // context is needed for editing
             return Ok(FALSE);

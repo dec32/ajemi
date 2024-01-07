@@ -14,7 +14,7 @@ impl ITfTextInputProcessor_Impl for Ime {
     fn Activate(&self, thread_mgr: Option<&ITfThreadMgr>, client_id: u32) -> Result<()> {
         // self.thread_mgr = thread_mgr.map(|it|it as *const ITfThreadMgr).unwrap_or(ptr::null());
         // self.client_id = Some(client_id);
-        debug("<ITfTextInputProcessor_Impl> Activate");
+        debug!("Activate");
         Ok(())
     }
 
