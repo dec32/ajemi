@@ -1,7 +1,16 @@
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt, sync::OnceLock};
-use windows::core::GUID;
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt, sync::OnceLock, mem};
+use windows::{core::GUID, Win32::Foundation::HINSTANCE};
+
+// todo migrate the constants into a config file
+pub const IME_NAME: &str = "Ajemi";
+pub const IME_NAME_ASCII: &str = "Ajemi";
+pub const IME_ID: &str = "C93D3D59-2FAC-40E0-ABC6-A3658749E2FA";
+pub const LANG_ID: u16 = 0x409; // en-US
+pub const LANG_PROFILE_ID: &str = "A411A7FC-A082-4B8A-8741-AA4A72613933";
+pub const ICON_FILE: &str = "./res/icon.ico";
 
 
+/*
 // Randomly generated class ID for the input method.
 pub fn ime_id() -> &'static GUID {
     static IME_ID: OnceLock<GUID> = OnceLock::new();
@@ -30,3 +39,6 @@ pub fn icon_file() -> &'static[u16] {
     static ICON_FILE:OnceLock<Vec<u16>> = OnceLock::new();
     ICON_FILE.get_or_init(||OsStr::new("./res/icon.ico").encode_wide().chain(Some(0).into_iter()).collect())
 } 
+
+
+ */

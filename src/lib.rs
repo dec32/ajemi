@@ -1,9 +1,14 @@
 mod ime;
 mod register;
 mod consts;
-use std::{mem, ptr, ffi::c_void};
+mod log;
+mod global;
+use std::{ffi::c_void, ptr, fmt::format};
+use log::{debug, error};
 use register::*;
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl, CoCreateInstance, CoCreateInstanceEx, CLSCTX_INPROC_SERVER, MULTI_QI}}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
+
+use crate::ime::Ime;
 
 
 //----------------------------------------------------------------------------
@@ -14,14 +19,14 @@ use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILA
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut()) -> bool {
-    // 传递句柄、注册窗口等
+extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
+    // store dll_module for later use
     match call_reason {
         DLL_PROCESS_ATTACH => {
-
+            unsafe { global::dll_module = Some(dll_module) };
         },
         DLL_PROCESS_DETACH => {
-
+            unsafe { global::dll_module = None }
         },
         _ => {
 
@@ -40,22 +45,22 @@ extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut()) -
 // Register the IME into the OS. See register.rs.
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-unsafe extern "system" fn DllRegisterServer() -> HRESULT {
-    if register().is_ok() {
+unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
+    debug("<DllRegisterServer>");
+    if register_server().is_ok() && register_ime().is_ok(){
         S_OK
     } else {
-        let _ = unregister();
-        // there's nothing we can do
+        let _ = DllUnregisterServer();
         E_FAIL
     }
 }
 
 // Unregister the IME from the OS. See register.rs.
-
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    if unregister().is_ok() {
+    debug("<DllUnregisterServer>");
+    if unregister_ime().is_ok() && unregister_server().is_ok() {
         S_OK
     } else {
         E_FAIL
@@ -65,7 +70,8 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-extern "system" fn DllCanUnloadNow() -> HRESULT {
+extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
+    debug("<DllCanUnloadNow>");
     // todo ref count maybe?
     S_OK
 }
@@ -73,13 +79,14 @@ extern "system" fn DllCanUnloadNow() -> HRESULT {
 // Returns the factory object.
 #[allow(non_snake_case, dead_code)]
 #[no_mangle]
-extern "system" fn DllGetClassObject(_rclsid: *const GUID, rrid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+    debug("<DllGetClassObject>");
     unsafe {
-        // rrid probably stands for required interface ID, idk
-        if *rrid != IClassFactory::IID && *rrid != IUnknown::IID {
+        if *riid != IClassFactory::IID && *riid != IUnknown::IID {
+            error("<DllGetClassObject> unrecognizable riid.");
             CLASS_E_CLASSNOTAVAILABLE
         } else {
-            // todo make sure class facotry is not null?
+            debug("<DllGetClassObject> returning CLASS_FACTORY");
             *ppv = &mut CLASS_FACTORY  as *mut _ as *mut c_void;
             S_OK
         }
@@ -99,14 +106,22 @@ struct ClassFactory{
     
 }
 
+// for now the Ime struct is completely stateless
+static mut IME: Ime = Ime{};
 impl IClassFactory_Impl for ClassFactory {
     #[allow(non_snake_case)]
     // Get the IME instance and convert it to a interface pointer
-    fn CreateInstance(&self, punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
-        todo!()
-        // riid 用来标记所请求的 interface 的类型
-        // 根据 interface 获取到对应的对象后，将地址返回给 ppvobject
-        // 可以让一个 struct 实现多个 interface 然后强转
+    fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
+        debug("<IClassFactory_Impl> now creating instance...");
+        // riid: requested interface id
+        // todo: the ime instance will be recycled by rust compiler, creating a dangling ptr
+        let mut ime = Ime::new();
+        unsafe {
+            *ppvobject = ptr::null_mut();
+            // *ppvobject = ime.query_interface(riid)?;
+            *ppvobject = IME.query_interface(riid)?;
+        }
+        Ok(())
     }
 
     #[allow(non_snake_case)]
