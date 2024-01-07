@@ -46,6 +46,10 @@ punctuator:
     '}' : 󱦛   # U+F199B SITELEN PONA END OF REVERSE LONG GLYPH
     '.' : 󱦜   # U+F199C SITELEN PONA MIDDLE DOT
     ':' : 󱦝   # U+F199D SITELEN PONA COLON
+    '"'  : { pair: [ '「', '」' ] } # CJK corner quotes. Delete or comment this line to disable
+    '''' : { pair: [ '「', '」' ] } # CJK corner quotes. Delete or comment this line to disable
+    '<'  : 「                       # CJK corner quotes. Delete or comment this line to disable
+    '>'  : 」                       # CJK corner quotes. Delete or comment this line to disable
 
 translator:
   dictionary: ajemi_swift
