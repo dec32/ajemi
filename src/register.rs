@@ -13,7 +13,6 @@ use windows::Win32::System::Registry::RegCreateKeyExA;
 //
 //----------------------------------------------------------------------------
 
-
 // FIXME 无法注册到注册表中
 pub unsafe fn register_server() -> Result<()> {
     

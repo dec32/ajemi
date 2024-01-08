@@ -1,7 +1,7 @@
 use std::{ptr, ffi::c_void, mem};
 
-use log::debug;
-use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfEditSession, ITfContextComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface}};
+use log::{debug, trace};
+use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfKeyEventSink, ITfContextComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface, implement}};
 use windows::core::Result;
 
 use super::Ime;
@@ -12,7 +12,15 @@ use super::Ime;
 //
 //----------------------------------------------------------------------------
 
-impl ITfKeyEventSink_Impl for Ime {
+#[implement(ITfKeyEventSink)]
+pub struct KeyEventSink;
+
+impl KeyEventSink {
+    fn new() -> ITfKeyEventSink {
+        KeyEventSink{}.into();
+    }
+}
+impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
         Ok(())
@@ -24,19 +32,13 @@ impl ITfKeyEventSink_Impl for Ime {
     // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
     #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, key_code: WPARAM, flag:LPARAM) -> Result<BOOL> {
-        debug!("OnKeyDown.");
+        trace!("OnKeyDown");
         let Some(context) = context else {
             // context is needed for editing
             return Ok(FALSE);
         };
 
-        let context_composition: &ITfContextComposition = unsafe {
-            let mut context_composition: *mut c_void = mem::zeroed();
-            context.query(&ITfContextComposition::IID as *const GUID, &mut context_composition as *mut *mut c_void);
-            // todo: who is in charge of dropping this thing?
-            mem::transmute(context_composition)
-        };
-
+        let context_composition = context.cast::<ITfContextComposition>()?;
 
         // just eat every 'a' for now for testing
         if key_code.0 as i32 == 0x41 {
@@ -49,21 +51,25 @@ impl ITfKeyEventSink_Impl for Ime {
 
     #[allow(non_snake_case)]
     fn OnKeyUp(&self,context: Option<&ITfContext>,wparam:WPARAM,lparam:LPARAM) -> Result<BOOL> {
+        trace!("OnKeyUp");
         Ok(FALSE)
     }
 
     #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM,lparam:LPARAM) -> Result<BOOL> {
-        Ok(FALSE)
+        trace!("OnTestKeyDown");
+        Ok(TRUE)
     }
 
     #[allow(non_snake_case)]
     fn OnTestKeyUp(&self,context: Option<&ITfContext>,wparam:WPARAM,lparam:LPARAM) -> Result<BOOL> {
+        trace!("OnTestKeyUp");
         Ok(FALSE)
     }
 
     #[allow(non_snake_case)]
     fn OnPreservedKey(&self,context: Option<&ITfContext>,rguid: *const GUID) -> Result<BOOL> {
+        trace!("OnPreservedKey");
         Ok(FALSE)
     }
 }

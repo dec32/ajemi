@@ -9,6 +9,7 @@ edition = "2021"
 log = "0.4"
 fern = "0.6"
 chrono = "0.4.*"
+atomic-counter = "1.0.*"
 
 [dependencies.windows]
 version = "0.*"
