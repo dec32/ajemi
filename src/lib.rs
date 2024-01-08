@@ -3,9 +3,9 @@ mod register;
 mod global;
 mod log;
 
-use std::{ffi::c_void, ptr};
+use std::{ffi::c_void, ptr, mem, sync::OnceLock};
 use ::log::{debug, error};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
 use global::*;
 use ime::Ime;
 use register::*;
@@ -46,7 +46,7 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
-    debug!("Registering server...");
+    debug!("Registering server.");
     if register_server().is_ok() && register_ime().is_ok(){
         debug!("Registered server successfully.");
         S_OK
@@ -61,7 +61,7 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    debug!("Unregistering server...");
+    debug!("Unregistering server.");
     if unregister_ime().is_ok() && unregister_server().is_ok() {
         debug!("Unegistered server successfully.");
         S_OK
@@ -71,66 +71,71 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
     }
 }
 
+// Returns the required object. For a COM dll like an IME, the required object is always a class factory.
+#[allow(non_snake_case, dead_code)]
+#[no_mangle]
+extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+    debug!("Creating class objects.");
+    // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
+    // the return value is a C++ vptr pointing to the moved object under the hood
+    unsafe {
+        match *riid {
+            IUnknown::IID => {
+                debug!("IUnknown is required.");
+                // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and will crash the system
+                *ppv = mem::transmute(IUnknown::from(ClassFactory::new()));
+                S_OK
+            },
+            IClassFactory::IID => {
+                debug!("IClassFactory is required.");
+                *ppv = mem::transmute(IClassFactory::from(ClassFactory::new()));
+                S_OK
+            },
+            _ => {
+                error!("The required interface is not available.");
+                *ppv = ptr::null_mut();
+                CLASS_E_CLASSNOTAVAILABLE
+            }
+        }
+    }
+}
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     debug!("DllCanUnloadNow");
     // todo ref count maybe?
-    S_OK
-}
-
-// Returns the factory object.
-#[allow(non_snake_case, dead_code)]
-#[no_mangle]
-extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
-    debug!("Getting class objects...");
-    unsafe {
-        if *riid != IClassFactory::IID && *riid != IUnknown::IID {
-            error!("Unrecognizable riid.");
-            CLASS_E_CLASSNOTAVAILABLE
-        } else {
-            debug!("Got the class object successfully.");
-            *ppv = &mut CLASS_FACTORY  as *mut _ as *mut c_void;
-            S_OK
-        }
-    }
+    S_FALSE
 }
 
 
 //----------------------------------------------------------------------------
 //
-//  ClassFactory. It creates IME instances.
+//  ClassFactory. It creates nothing but IME instances.
 //
 //----------------------------------------------------------------------------
 
-static mut CLASS_FACTORY: ClassFactory= ClassFactory{};
 #[implement(IClassFactory)]
-struct ClassFactory{
-    
+struct ClassFactory;
+
+impl ClassFactory {
+    fn new() -> ClassFactory {ClassFactory{}}
 }
 
-// for now the Ime struct is completely stateless
-static mut IME: Ime = Ime{};
 impl IClassFactory_Impl for ClassFactory {
     #[allow(non_snake_case)]
-    // Get the IME instance and convert it to a interface pointer
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
-        debug!("Creating instance...");
-        // riid: requested interface id
-        // todo: the ime instance will be recycled by rust compiler, creating a dangling ptr
-        let mut ime = Ime::new();
+        debug!("Creating IME instance.");
         unsafe {
-            *ppvobject = ptr::null_mut();
-            // *ppvobject = ime.query_interface(riid)?;
-            *ppvobject = IME.query_interface(riid)?;
+            // There're way to may interfaces so we'll leave that for the ime instance itself to handle
+            Ime::new().query_interface(riid, ppvobject)
         }
-        Ok(())
     }
 
     #[allow(non_snake_case)]
-    fn LockServer(&self, flock: BOOL) -> Result<()> {
-        todo!()
+    fn LockServer(&self, _flock: BOOL) -> Result<()> {
+        debug!("LockServer");
+        Ok(())
     }
 }
 
@@ -146,6 +151,6 @@ impl IClassFactory_Impl for ClassFactory {
 mod tests {
     #[test]
     fn it_works() {
-        todo!()
+        
     }
 }

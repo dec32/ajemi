@@ -1,4 +1,5 @@
 use std::{mem, ffi::{OsStr, CString}, os::windows::ffi::OsStrExt};
+use log::debug;
 use windows::core::IntoParam;
 use windows::{Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, Registry::{KEY_WRITE, REG_OPTION_NON_VOLATILE, HKEY_CLASSES_ROOT, HKEY, REG_CREATE_KEY_DISPOSITION, RegSetValueExA, REG_SZ, RegCloseKey, RegDeleteKeyA, RegOpenKeyA}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr, GUID_TFCAT_CATEGORY_OF_TIP, GUID_TFCAT_TIP_KEYBOARD, GUID_TFCAT_TIPCAP_SECUREMODE, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, GUID_TFCAT_TIPCAP_COMLESS, GUID_TFCAT_TIPCAP_WOW16, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, GUID_TFCAT_PROP_AUDIODATA, GUID_TFCAT_PROP_INKDATA, GUID_TFCAT_PROPSTYLE_STATIC, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY}}, core::{Result, GUID, ComInterface, PCSTR, HSTRING}};
 use crate::global::*;
@@ -13,16 +14,16 @@ use windows::Win32::System::Registry::RegCreateKeyExA;
 //----------------------------------------------------------------------------
 
 
-// 
+// FIXME 无法注册到注册表中
 pub unsafe fn register_server() -> Result<()> {
     
-    // creating key: HKEY_CLASSES_ROOT/{IME_ID}/
+    // creating key: HKEY_CLASSES_ROOT/CLSID/{IME_ID}
     let mut ime_id: HKEY = mem::zeroed();
     let mut disposition: REG_CREATE_KEY_DISPOSITION = mem::zeroed();
 
     RegCreateKeyExA(
         HKEY_CLASSES_ROOT, 
-        pcstr(IME_ID), 
+        pcstr(&format!("CLSID\\{{{IME_ID}}}")), 
         0, 
         None, 
         REG_OPTION_NON_VOLATILE, 
@@ -31,11 +32,12 @@ pub unsafe fn register_server() -> Result<()> {
         &mut ime_id as *mut HKEY, 
         Some(&mut disposition as *mut REG_CREATE_KEY_DISPOSITION))?;
 
-    // Register the IME's ASCII name under HKEY_CLASSES_ROOT/{IME_ID}/
+    // Register the IME's ASCII name under HKEY_CLASSES_ROOT/CLSID/{IME_ID}
     RegSetValueExA(ime_id, None, 0, REG_SZ, Some(IME_NAME_ASCII.as_bytes()))?;
 
-    // creating key: HKEY_CLASSES_ROOT/{IME_ID}/InprocServer32
-    let mut inpro_server_32: HKEY = mem::zeroed();
+
+    // creating key: HKEY_CLASSES_ROOT/CLSID/{IME_ID}/InprocServer32
+    let mut inproc_server_32: HKEY = mem::zeroed();
     RegCreateKeyExA(
         ime_id, 
         pcstr("InprocServer32"), 
@@ -44,17 +46,18 @@ pub unsafe fn register_server() -> Result<()> {
         REG_OPTION_NON_VOLATILE, 
         KEY_WRITE, 
         None, 
-        &mut inpro_server_32 as *mut HKEY, 
+        &mut inproc_server_32 as *mut HKEY, 
         Some(&mut disposition as *mut REG_CREATE_KEY_DISPOSITION))?;
 
     // register the dll file under HKEY_CLASSES_ROOT/{IME_ID}/InprocServer32
     let mut file_name: Vec<u8> = Vec::with_capacity(260);
     GetModuleFileNameA(DLL_MOUDLE.unwrap(), &mut file_name);
-    RegSetValueExA(inpro_server_32, None, 0, REG_SZ, Some(&file_name))?;
-    // register the thread model under HKEY_CLASSES_ROOT/{IME_ID}/InprocServer32
-    RegSetValueExA(inpro_server_32, pcstr("ThreadingModel") , 0, REG_SZ, Some("Apartment".as_bytes()))?;
+    RegSetValueExA(inproc_server_32, None, 0, REG_SZ, Some(&file_name))?;
+    debug!("Registered dll path: {}", String::from_utf8(file_name.clone()).unwrap());
 
-    RegCloseKey(inpro_server_32)?;
+    // register the thread model under HKEY_CLASSES_ROOT/{IME_ID}/InprocServer32
+    RegSetValueExA(inproc_server_32, pcstr("ThreadingModel") , 0, REG_SZ, Some("Apartment".as_bytes()))?;
+    RegCloseKey(inproc_server_32)?;
     RegCloseKey(ime_id)?;
     Ok(())
 }

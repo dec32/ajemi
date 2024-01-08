@@ -2,10 +2,12 @@ mod text_input_processor_ex;
 mod key_event_sink;
 
 use std::ffi::c_void;
-use std::ptr;
+use std::{ptr, mem};
 
+use log::{debug, error};
+use windows::Win32::Foundation::E_NOINTERFACE;
 use windows::Win32::UI::TextServices::{ITfTextInputProcessorEx, ITfKeyEventSink, ITfThreadMgr};
-use windows::core::{implement, GUID, Result};
+use windows::core::{implement, GUID, Result, ComInterface, Error};
 
 //----------------------------------------------------------------------------
 //
@@ -55,9 +57,24 @@ impl Ime {
         }
     }
 
-    pub fn query_interface(&mut self, _interface_id: *const GUID) -> Result<*mut c_void> {
-        // todo unsure if this is valid
-        Ok(self as *mut _ as *mut c_void)
+    pub unsafe fn query_interface(self, riid: *const GUID, out: *mut *mut c_void) -> Result<()>{
+        let mut result = Ok(());
+        *out = match *riid {
+            ITfTextInputProcessorEx::IID => {
+                debug!("ITfTextInputProcessorEx is required.");
+                mem::transmute(ITfTextInputProcessorEx::from(self))
+            },
+            ITfKeyEventSink::IID => {
+                debug!("ITfKeyEventSink is required.");
+                mem::transmute(ITfKeyEventSink::from(self))
+            },
+            _ => {
+                error!("The required interface is not implemented.");
+                result = Err(Error::from(E_NOINTERFACE));
+                ptr::null_mut()
+            }
+        };
+        result
     }
 }
 
