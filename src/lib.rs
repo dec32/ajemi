@@ -1,18 +1,17 @@
-mod ime;
 mod register;
 mod global;
 mod log;
 mod extend;
+mod ime;
 
 use std::{ffi::c_void, ptr, mem};
-use atomic_counter::AtomicCounter;
 use ::log::{debug, error, trace};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}, UI::TextServices::ITfTextInputProcessor}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
-use ime::Ime;
 use register::*;
+use ime::text_input_processor;
 
-use crate::extend::GUIDExt;
+use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 
 //----------------------------------------------------------------------------
 //
@@ -126,21 +125,25 @@ extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
 struct ClassFactory;
 
 impl ClassFactory {
-    fn new() -> ClassFactory {ClassFactory{}}
+    fn new() -> ClassFactory {ClassFactory{}.into()}
 }
 
 impl IClassFactory_Impl for ClassFactory {
     #[allow(non_snake_case)]
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
         trace!("CreateInstance");
+        let mut result = Ok(());
         unsafe {
-            *ppv = match *riid {
-                ITfTextInputProcessor::IID =>
-                ITfTextInputProcessorEx::IID =>
-            }
-            // There're way too may interfaces so we'll leave that for the IME object itself to handle
-            Ime::new().query_interface(riid, ppvobject)
+            *ppvobject = match *riid {
+                ITfTextInputProcessor::IID => mem::transmute(ITfTextInputProcessor::from(TextInputProcessor::new())),
+                ITfTextInputProcessorEx::IID => mem::transmute(ITfTextInputProcessorEx::from(TextInputProcessor::new())),
+                _ => {
+                    result = Err(Error::from(E_NOINTERFACE));
+                    ptr::null_mut()
+                }
+            };
         }
+        Ok(())
     }
 
     #[allow(non_snake_case)]

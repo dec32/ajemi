@@ -1,14 +1,10 @@
-use std::{ptr, ffi::c_void, mem};
-
 use log::{debug, trace};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfKeyEventSink, ITfContextComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface, implement}};
 use windows::core::Result;
 
-use super::Ime;
-
 //----------------------------------------------------------------------------
 //
-//  implement to receive key events. from here on the processing of inputs begins.
+//  A "sink" for key events. from here on the processing of inputs begins.
 //
 //----------------------------------------------------------------------------
 
@@ -16,8 +12,8 @@ use super::Ime;
 pub struct KeyEventSink;
 
 impl KeyEventSink {
-    fn new() -> ITfKeyEventSink {
-        KeyEventSink{}.into();
+    pub fn new() -> KeyEventSink {
+        KeyEventSink{}
     }
 }
 impl ITfKeyEventSink_Impl for KeyEventSink {
