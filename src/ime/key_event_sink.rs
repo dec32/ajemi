@@ -54,7 +54,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM,lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown");
-        Ok(TRUE)
+        Ok(FALSE)
     }
 
     #[allow(non_snake_case)]
