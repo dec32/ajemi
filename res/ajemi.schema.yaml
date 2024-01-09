@@ -60,3 +60,7 @@ translator:
 
 key_binder:
   import_preset: default
+  
+style: 
+  font_face: Nishiki-teki
+  horizontal: false
