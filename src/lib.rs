@@ -9,7 +9,7 @@ use ::log::{debug, error, trace};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
-use ime::text_input_processor;
+
 
 use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 
