@@ -143,7 +143,7 @@ impl IClassFactory_Impl for ClassFactory {
                 }
             };
         }
-        Ok(())
+        result
     }
 
     #[allow(non_snake_case)]

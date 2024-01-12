@@ -1,6 +1,8 @@
 use std::cell::Cell;
 
-use windows::core::{implement, Result, ComInterface, AsImpl};
+use log::{trace, debug, error};
+use windows::Win32::Foundation::S_OK;
+use windows::core::{implement, Result, ComInterface, AsImpl, Error};
 use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY};
 
 //----------------------------------------------------------------------------
@@ -12,7 +14,7 @@ use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfC
 //----------------------------------------------------------------------------
 
 pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCompositionSink) -> Result<ITfComposition> {
-
+    trace!("start_composition");
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
@@ -23,18 +25,25 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
         fn DoEditSession(&self, ec: u32) -> Result<()> {
-            // to get the current range (namely where the cursor is) you insert "nothing"
+            // to get the current range (namely the selected text or simply the cursor) you insert "nothing"
             // which genius came up with these APIs?
             let range = unsafe {
                 self.context.cast::<ITfInsertAtSelection>()?
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?
             };
-
+            debug!("Fetched the range successfully.");
             let context_composition = self.context.cast::<ITfContextComposition>()?;
             let composition = unsafe {
-                context_composition.StartComposition(
-                    ec, &range, self.composition_sink)?
+                let res = context_composition.StartComposition(
+                    ec, &range, self.composition_sink);
+                if let Err(e) = res {
+                    error!("Can not start composition.");
+                    error!("{}", e);
+                    return Err(e);
+                }
+                res.unwrap()
             };
+            debug!("Started composition.");
             self.composition.set(Some(composition));
             Ok(())
         }
@@ -49,14 +58,20 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     unsafe {
         // todo dwflags
         // https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcontext-requesteditsession
-        context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
-        let session: &Session = session.as_impl();
-        Ok(session.composition.take().expect("Composition is None."))
+        let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
+        debug!("Requested a edit session to start composition");
+        if result != S_OK {
+            Err(Error::from(result))
+        } else {
+            let session: &Session = session.as_impl();
+            Ok(session.composition.take().expect("Composition is None."))
+        }
     }
 }
 
 
 pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfComposition) -> Result<()>{
+    trace!("end_composition");
     #[implement(ITfEditSession)]
     struct Session<'a> (&'a ITfComposition);
     impl ITfEditSession_Impl for Session<'_> {
@@ -67,7 +82,11 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
     }
     let session = ITfEditSession::from(Session(composition));
     unsafe {
-        context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
-        Ok(())
+        let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
+        if result != S_OK {
+            Err(Error::from(result))
+        } else {
+            Ok(())
+        }
     }
 }

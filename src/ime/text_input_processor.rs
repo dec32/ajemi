@@ -1,13 +1,9 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::{RefCell, Cell};
-use std::mem;
-
-use log::{trace, error, warn};
-use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfKeystrokeMgr_Impl, ITfTextInputProcessorEx_Impl, ITfTextInputProcessorEx, ITfThreadMgrEventSink, ITfSource, ITfCompositionSink};
+use log::{trace, warn, debug};
+use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfKeystrokeMgr_Impl, ITfTextInputProcessorEx_Impl, ITfTextInputProcessorEx, ITfThreadMgrEventSink, ITfSource};
 use windows::core::{Result, ComInterface, implement};
 
-use crate::ime::key_event_sink::{KeyEventSink, self};
-use crate::ime::thread_mgr_event_sink::{self, ThreadMgrEventSink};
+use crate::ime::key_event_sink::KeyEventSink;
+use crate::ime::thread_mgr_event_sink::ThreadMgrEventSink;
 
 
 #[implement(ITfTextInputProcessor, ITfTextInputProcessorEx)]
@@ -54,9 +50,10 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
         unsafe{
             thread_mgr.cast::<ITfSource>()?.AdviseSink(
                 &ITfThreadMgrEventSink::IID, &ITfThreadMgrEventSink::from(thread_mgr_event_sink))?;
-
+            debug!("Added thread manager event sink.");    
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
                 tid, &ITfKeyEventSink::from(key_event_sink) , true)?;
+            debug!("Added key event sink.");
         }
         Ok(())
     }
@@ -72,7 +69,7 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
 
 impl ITfTextInputProcessorEx_Impl for TextInputProcessor {
     #[allow(non_snake_case)]
-    fn ActivateEx(&self, ptim: Option<&ITfThreadMgr>, tid: u32, dwflags: u32) -> Result<()> {
+    fn ActivateEx(&self, ptim: Option<&ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
         self.Activate(ptim, tid)
     }
 }
