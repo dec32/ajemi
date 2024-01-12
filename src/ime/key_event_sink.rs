@@ -1,10 +1,10 @@
-use std::sync::RwLock;
+use std::{sync::RwLock, ffi::OsStr, os::windows::ffi::OsStrExt};
 
 use log::trace;
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfKeyEventSink, ITfComposition, ITfCompositionSink_Impl, ITfCompositionSink}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface, implement}};
 use windows::core::Result;
 
-use crate::ime::{edit_session::{start_composition, end_composition}, composition_sink::CompositionSink};
+use crate::ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink};
 
 //----------------------------------------------------------------------------
 //
@@ -103,9 +103,8 @@ enum KeyEvent{
 pub struct Inner {
     tid: u32,
     composition: Option<ITfComposition>,
-    letters: Vec<u8>
+    letters: Vec<u16> // ANSI
 }
-
 
 impl Inner {
     pub fn new(tid: u32) -> Inner {
@@ -116,8 +115,12 @@ impl Inner {
         }
     }
 
-    fn append_letter(&mut self, letter: u8) {
-        self.letters.push(letter);
+    fn update_compostition(&self, context: &ITfContext) -> Result<()>{
+        set_text(
+            self.tid, 
+            context, 
+            unsafe { &self.composition.as_ref().unwrap().GetRange()? }, 
+            &self.letters)
     }
 
     fn on_event(&mut self, event: KeyEvent, context: &ITfContext) -> Result<BOOL> {
@@ -129,7 +132,9 @@ impl Inner {
                     Letter(letter) => {
                         let composition_sink = CompositionSink{}.into();
                         self.composition = Some(start_composition(self.tid, context, &composition_sink)?);
-                        self.append_letter(letter);
+                        self.letters.clear();
+                        self.letters.push(letter.into());
+                        self.update_compostition(context)?;
                         Ok(TRUE)
                     },
                     // Punct(punct) => {
@@ -143,12 +148,16 @@ impl Inner {
                 match event {
                     // append
                     Letter(letter) => {
-                        self.append_letter(letter);
+                        self.letters.push(letter.into());
+                        self.update_compostition(context)?;
                     },
                     // end composition
                     Space => {
                         // todo select word
+                        self.letters = OsStr::new("天杀的微软文档").encode_wide().chain(Some(0).into_iter()).collect();
+                        self.update_compostition(context)?;
                         end_composition(self.tid, context, &composition)?;
+                        self.composition = None;
                     },
                     Punct(punct) => {
     

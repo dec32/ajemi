@@ -1,9 +1,10 @@
 use std::cell::Cell;
+use std::ffi::OsStr;
 
 use log::{trace, debug, error};
 use windows::Win32::Foundation::S_OK;
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------
 //
@@ -81,6 +82,33 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
         }
     }
     let session = ITfEditSession::from(Session(composition));
+    unsafe {
+        let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
+        if result != S_OK {
+            Err(Error::from(result))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+pub fn set_text(tid:u32, context: &ITfContext, range: &ITfRange, text: &[u16]) -> Result<()> {
+    #[implement(ITfEditSession)]
+    struct Session<'a> {
+        range: &'a ITfRange,
+        text: &'a [u16],
+    };
+
+    impl ITfEditSession_Impl for Session<'_> {
+        #[allow(non_snake_case)]
+        fn DoEditSession(&self, ec:u32) -> Result<()> {
+            unsafe {
+                self.range.SetText(ec, TF_ST_CORRECTION, self.text)
+            }
+        }
+    }
+
+    let session = ITfEditSession::from(Session{range: range, text: text});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
