@@ -64,11 +64,13 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
             }
             // TODO punct
             0x20 => KeyEvent::Space,
+            0x0D => KeyEvent::Enter,
             0x08 => KeyEvent::Backspace,
             _ => {
                 return Ok(FALSE);
             }
         };
+        // TODO repeat
         self.0.write().unwrap().on_event(key_event, context)
     }
 
@@ -98,6 +100,7 @@ enum KeyEvent{
     Punct(u8),
     Space,
     Backspace,
+    Enter,
 }
 
 pub struct Inner {
@@ -115,14 +118,6 @@ impl Inner {
         }
     }
 
-    fn update_compostition(&self, context: &ITfContext) -> Result<()>{
-        set_text(
-            self.tid, 
-            context, 
-            unsafe { &self.composition.as_ref().unwrap().GetRange()? }, 
-            &self.letters)
-    }
-
     fn on_event(&mut self, event: KeyEvent, context: &ITfContext) -> Result<BOOL> {
         use self::KeyEvent::*;
         match &self.composition {
@@ -134,7 +129,7 @@ impl Inner {
                         self.composition = Some(start_composition(self.tid, context, &composition_sink)?);
                         self.letters.clear();
                         self.letters.push(letter.into());
-                        self.update_compostition(context)?;
+                        self.update(context)?;
                         Ok(TRUE)
                     },
                     // Punct(punct) => {
@@ -144,32 +139,77 @@ impl Inner {
                 }
             },
 
-            Some(composition) => {
+            Some(_composition) => {
                 match event {
                     // append
                     Letter(letter) => {
                         self.letters.push(letter.into());
-                        self.update_compostition(context)?;
+                        self.update(context)?;
                     },
                     // end composition
-                    Space => {
-                        // todo select word
-                        self.letters = OsStr::new("天杀的微软文档").encode_wide().chain(Some(0).into_iter()).collect();
-                        self.update_compostition(context)?;
-                        end_composition(self.tid, context, &composition)?;
-                        self.composition = None;
-                    },
-                    Punct(punct) => {
-    
-                    },
+                    Space => self.accept(context)?,
+                    Enter => self.release(context)?,
+                    Punct(punct) => {},
                     Backspace => {
-    
+                        self.letters.pop();
+                        if self.letters.is_empty() {
+                            self.abort(context)?;
+                        } else {
+                            self.update(context)?;
+                        }
                     }
                 };
                 Ok(TRUE)
-
-
             }
         }
+    }
+
+    fn update(&self, context: &ITfContext) -> Result<()>{
+        // todo look up dicitonary
+        // candidante [言]toki
+        // todo auto-commit
+        set_text(
+            self.tid, 
+            context, 
+            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
+            &self.letters)
+    }
+
+    // for v0.1 there's no candidates, only accept everything or release the raw ascii chars
+    fn accept(&mut self, context: &ITfContext) -> Result<()>{
+        let composition = self.composition.as_ref().unwrap();
+        let text:Vec<u16> = OsStr::new("天杀的微软文档").encode_wide().chain(Some(0).into_iter()).collect();
+        set_text(
+            self.tid, 
+            context, 
+            unsafe { composition.GetRange()? }, 
+            &text)?;
+        end_composition(self.tid, context, composition)?;
+        self.composition = None;
+        Ok(())
+    }
+
+    // todo append a space maybe
+    fn release(&mut self, context: &ITfContext) -> Result<()> {
+        let composition = self.composition.as_ref().unwrap();
+        set_text(
+            self.tid, 
+            context, 
+            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
+            &self.letters)?;
+        end_composition(self.tid, context, composition)?;
+        self.composition = None;
+        Ok(())
+    }
+
+    fn abort(&mut self, context: &ITfContext) -> Result<()> {
+        set_text(
+            self.tid, 
+            context, 
+            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
+            &[])?;
+        end_composition(self.tid, context, &self.composition.as_ref().unwrap())?;
+        self.composition = None;
+        Ok(())
     }
 }

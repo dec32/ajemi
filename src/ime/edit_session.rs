@@ -92,10 +92,10 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
     }
 }
 
-pub fn set_text(tid:u32, context: &ITfContext, range: &ITfRange, text: &[u16]) -> Result<()> {
+pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) -> Result<()> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
-        range: &'a ITfRange,
+        range: ITfRange,
         text: &'a [u16],
     };
 
