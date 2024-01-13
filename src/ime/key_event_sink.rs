@@ -1,10 +1,10 @@
-use std::{sync::RwLock, ffi::OsStr, os::windows::ffi::OsStrExt};
+use std::{sync::RwLock, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
 
 use log::trace;
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
-use crate::ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink};
+use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink, dict}, extend::OsStrExt2};
 
 //----------------------------------------------------------------------------
 //
@@ -209,6 +209,8 @@ impl KeyEventSinkInner {
             }
         } else {
             match event {
+                // calling these function while not composing would cause the program to crash
+                //
                 Letter(letter) => self.composition.push(context, letter)?,
                 Space => self.composition.accept(context)?,
                 Enter => self.composition.release(context)?,
@@ -230,7 +232,8 @@ impl KeyEventSinkInner {
 struct Composition {
     tid: u32,
     composition: Option<ITfComposition>,
-    letters: Vec<u16>
+    letters: Vec<u16>,
+    suggestion: Vec<u16>,
 }
 
 impl Composition {
@@ -238,7 +241,8 @@ impl Composition {
         Composition {
             tid: tid,
             composition: None,
-            letters: Vec::new()
+            letters: Vec::new(),
+            suggestion: Vec::new(),
         }
     }
 
@@ -252,6 +256,7 @@ impl Composition {
         end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
         self.composition = None;
         self.letters.clear();
+        self.suggestion.clear();
         Ok(())
     }
 
@@ -265,32 +270,47 @@ impl Composition {
         set_text(self.tid, context, unsafe { self.composition.as_ref().unwrap().GetRange()? }, text)
     }
 
-    // handle input and transit state
-    fn push(&mut self, context: &ITfContext, letter: u8) -> Result<()>{
-        trace!("push");
-        // todo look up dicitonary
-        // candidante [言]toki
-        // todo auto-commit
-        self.letters.push(letter.into());
-        self.set_text(context, &self.letters)
+    // FIXME this function is slow-ass
+    fn set_text_as_suggestions_and_letters(&self, context: &ITfContext) -> Result<()> {
+        if self.suggestion.is_empty() {
+            self.set_text(context, &self.letters)
+        } else {
+            let mut buf: Vec<u16> = Vec::with_capacity("[]".len() + self.suggestion.len() + self.letters.len());
+            buf.push(b'['.into());
+            buf.extend_from_slice(&self.suggestion);
+            buf.push(b']'.into());
+            buf.extend_from_slice(&self.letters);
+            self.set_text(context, &buf)
+        }
     }
 
-    fn pop(&mut self, context: &ITfContext) -> Result<()>{
-        // todo look up dicitonary
-        // candidante [言]toki
+    // handle input and transit state
+    fn push(&mut self, context: &ITfContext, letter: u8) -> Result<()>{
+        // todo auto-commit
+        self.letters.push(letter.into());
+        self.suggestion = dict::suggest(&self.letters);
+        self.set_text_as_suggestions_and_letters(context)
+    }
+
+    fn pop(&mut self, context: &ITfContext) -> Result<()>{s
         // todo auto-commit
         self.letters.pop();
         if self.letters.is_empty() {
-            self.abort(context)
-        } else {
-            self.set_text(context, &self.letters)
-        }
+            self.abort(context)?;
+            return Ok(());
+        } 
+        self.suggestion = dict::suggest(&self.letters);
+        self.set_text_as_suggestions_and_letters(context)
     }
 
     // accept the first suggestion
     fn accept(&mut self, context: &ITfContext) -> Result<()>{
-        let text:Vec<u16> = OsStr::new("㭗").encode_wide().chain(Some(0).into_iter()).collect();
-        self.set_text(context, &text)?;
+        if self.suggestion.is_empty() {
+            self.letters.push(b' '.into());
+            self.set_text(context, &self.letters)?;
+        } else {
+            self.set_text(context, &self.suggestion)?;
+        }
         self.end(context)
     }
 
@@ -302,7 +322,7 @@ impl Composition {
 
     // release the raw ascii chars
     fn release(&mut self, context: &ITfContext) -> Result<()> {
-        // todo append a space maybe
+        self.letters.push(b' '.into());
         self.set_text(context, &self.letters)?;
         self.end(context)
     }

@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::ffi::OsStr;
 
 use log::{trace, debug, error};
 use windows::Win32::Foundation::S_OK;
@@ -97,7 +96,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
     struct Session<'a> {
         range: ITfRange,
         text: &'a [u16],
-    };
+    }
 
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]

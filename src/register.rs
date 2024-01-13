@@ -2,7 +2,7 @@ use std::{mem, ffi::{OsStr, CString}, os::windows::ffi::OsStrExt};
 use log::debug;
 use windows::core::IntoParam;
 use windows::{Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, Registry::{KEY_WRITE, REG_OPTION_NON_VOLATILE, HKEY_CLASSES_ROOT, HKEY, REG_CREATE_KEY_DISPOSITION, RegSetValueExA, REG_SZ, RegCloseKey, RegDeleteKeyA, RegOpenKeyA}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr, GUID_TFCAT_CATEGORY_OF_TIP, GUID_TFCAT_TIP_KEYBOARD, GUID_TFCAT_TIPCAP_SECUREMODE, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, GUID_TFCAT_TIPCAP_COMLESS, GUID_TFCAT_TIPCAP_WOW16, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, GUID_TFCAT_PROP_AUDIODATA, GUID_TFCAT_PROP_INKDATA, GUID_TFCAT_PROPSTYLE_STATIC, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY}}, core::{Result, GUID, PCSTR}};
-use crate::global::*;
+use crate::{global::*, extend::OsStrExt2};
 use windows::Win32::System::Registry::RegCreateKeyExA;
 
 
@@ -134,8 +134,8 @@ pub unsafe fn register_ime() -> Result<()> {
     input_processor_profiles.Register(ime_id)?;
 
     // todo the icon cannot be registered
-    let ime_name: Vec<u16> = OsStr::new(IME_NAME).encode_wide().chain(Some(0).into_iter()).collect();
-    let icon_file: Vec<u16> = OsStr::new(ICON_FILE).encode_wide().chain(Some(0).into_iter()).collect();
+    let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
+    let icon_file: Vec<u16> = OsStr::new(ICON_FILE).null_terminated_wchars();
     input_processor_profiles.AddLanguageProfile(ime_id, LANG_ID, lang_profile_id, &ime_name, &icon_file, 0)?;
 
     for rcatid  in SUPPORTED_CATEGORIES {
