@@ -292,7 +292,7 @@ impl Composition {
         self.set_text_as_suggestions_and_letters(context)
     }
 
-    fn pop(&mut self, context: &ITfContext) -> Result<()>{s
+    fn pop(&mut self, context: &ITfContext) -> Result<()>{
         // todo auto-commit
         self.letters.pop();
         if self.letters.is_empty() {

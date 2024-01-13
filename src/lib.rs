@@ -159,12 +159,3 @@ impl IClassFactory_Impl for ClassFactory {
 //  See ime/mod.rs for the IME's implementation
 //
 //----------------------------------------------------------------------------
-
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        
-    }
-}
