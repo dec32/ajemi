@@ -10,7 +10,7 @@ use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfC
 //
 //  Edit of any kind must be operated in edit sessions.
 //  It's for safety reasons I guess.
-//  But it's a pain in the ass to use such sessions so let' hide them under functions.
+//  But it's a pain in the ass to use such sessions so let's hide them under functions.
 //
 //----------------------------------------------------------------------------
 

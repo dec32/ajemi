@@ -1,7 +1,7 @@
 use std::{sync::RwLock, ffi::OsStr, os::windows::ffi::OsStrExt};
 
 use log::trace;
-use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl, ITfKeyEventSink, ITfComposition, ITfCompositionSink_Impl, ITfCompositionSink}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, ComInterface, implement}};
+use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
 use crate::ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink};
@@ -9,207 +9,307 @@ use crate::ime::{edit_session::{start_composition, end_composition, set_text}, c
 //----------------------------------------------------------------------------
 //
 //  A "sink" for key events. from here on the processing of inputs begins.
+//  KeyEvenSink is only a proxy for an inner object because mutation is not 
+//  allowed by the interface. 
 //
 //----------------------------------------------------------------------------
 
 #[implement(ITfKeyEventSink)]
-pub struct KeyEventSink (RwLock<Inner>);
+pub struct KeyEventSink (RwLock<KeyEventSinkInner>);
 
 impl KeyEventSink {
     pub fn new(tid: u32) -> KeyEventSink {
-        let inner = Inner::new(tid);
-        KeyEventSink{0: RwLock::new(inner)}
+        KeyEventSink{0: RwLock::new(KeyEventSinkInner::new(tid))}
     }
 }
 
 impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
-        Ok(())
+        self.0.write().unwrap().on_set_focus(fforeground)
     }
-
-    #[allow(non_snake_case)]
-    fn OnPreservedKey(&self, _context: Option<&ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
-        trace!("OnPreservedKey");
-        Ok(FALSE)
-    }
-
-    // OnKeyDown is called only when OnTestKeyDown returns true
     #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown");
-        Ok(TRUE)
+        self.0.write().unwrap().on_test_key_down(context, wparam, lparam)
     }
-
-    // the return value suggests if the given char is "eaten" or not.
-    // if eaten the char won't be put onto the textarea
-    // key_code indicates the key that is pressed
-    // the 0-15 bits of the flag indicates the repeat count
-    // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
     #[allow(non_snake_case)]
-    fn OnKeyDown(&self, context: Option<&ITfContext>, key_code: WPARAM, flag:LPARAM) -> Result<BOOL> {
+    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown");
-        // TODO detect shift
-        let Some(context) = context else {
-            // context is needed for editing
-            return Ok(FALSE);
-        };        
-
-        let key_code = key_code.0;
-        let key_event = match key_code {
-            // A key ~ Z key, convert them to lowercase letters
-            0x41..=0x5A => {
-                let key_code:u8 = key_code.try_into().unwrap();
-                KeyEvent::Letter(0x61 + (key_code - 0x41))
-            }
-            // TODO punct
-            0x20 => KeyEvent::Space,
-            0x0D => KeyEvent::Enter,
-            0x08 => KeyEvent::Backspace,
-            _ => {
-                return Ok(FALSE);
-            }
-        };
-        // TODO repeat
-        self.0.write().unwrap().on_event(key_event, context)
+        self.0.write().unwrap().on_key_down(context, wparam, lparam)
     }
-
-    // OnKeyUp is called only when OnTestKeyUp returns true
     #[allow(non_snake_case)]
-    fn OnTestKeyUp(&self, _context: Option<&ITfContext>, _wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn OnTestKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp");
-        Ok(FALSE)
+        self.0.write().unwrap().on_test_key_up(context, wparam, lparam)
     }
-
     #[allow(non_snake_case)]
     fn OnKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp");
+        self.0.write().unwrap().on_key_up(context, wparam, lparam)
+    }
+    #[allow(non_snake_case)]
+    fn OnPreservedKey(&self, context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
+        trace!("OnPreservedKey");
+        self.0.write().unwrap().on_preserved_key(context, rguid)
+    }
+}
+
+
+//----------------------------------------------------------------------------
+//
+//  First thing first is to simplify the overly complicated key events to "inputs"
+//
+//----------------------------------------------------------------------------
+
+enum Input{
+    Letter(u8), Punct(u8), Space, Backspace, Enter
+}
+
+impl Input {
+    fn is_letter(&self) -> bool {
+        match self {
+            Self::Letter(_) => true,
+            _ => false,
+        }
+    }
+}
+
+pub struct KeyEventSinkInner {
+    composition: Composition,
+    holding_shift: bool,
+}
+
+impl KeyEventSinkInner {
+    fn new(tid: u32) -> KeyEventSinkInner {
+        KeyEventSinkInner {
+            composition: Composition::new(tid),
+            holding_shift: false,
+        }
+    }
+
+    // see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+    fn convert_event(&self, wparam:WPARAM) -> Option<Input> {
+        use Input::*;
+        let key_code = wparam.0;
+        match key_code {
+            // A key ~ Z key, convert them to lowercase letters
+            0x41..=0x5A => {
+                let offset: u8 = (key_code - 0x41).try_into().unwrap();
+                if self.holding_shift {
+                    Some(Letter(b'A' + offset))
+                } else {
+                    Some(Letter(b'a' + offset))
+                }
+            }
+            // TODO punct
+            0x20 => Some(Space),
+            0x0D => Some(Enter),
+            0x08 => Some(Backspace),
+            _ => None
+        }
+    } 
+
+    // wparam indicates the key that is pressed
+    // the 0-15 bits of the flag indicates the repeat count
+    // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
+
+    /// the return value suggests if the key event **will be** eaten or not **if** OnKeyDown is called
+    fn on_test_key_down(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+        trace!("on_test_key_down");
+        if is_shift(wparam) {
+            return Ok(TRUE)
+        }
+        let Some(input) = self.convert_event(wparam) else {
+            return Ok(FALSE);
+        };
+        self.test_input(input)
+    }
+
+    /// the return value suggests if the key event **is** eaten or not.
+    fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        trace!("on_key_down");
+        if is_shift(wparam) {
+            self.holding_shift = true;
+            return Ok(TRUE)
+        }
+        let Some(context) = context else {
+            return Ok(FALSE);
+        };
+        let Some(input) = self.convert_event(wparam) else {
+            return Ok(FALSE);
+        };
+        self.handle_input(input, context)
+    }
+
+    /// Ignore all key up events. I know this may cause trouble in the future because there're always
+    /// some asshole programs not calling these fuctions properly.
+    fn on_test_key_up(&self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        trace!("on_test_key_up");
+        if is_shift(wparam) {
+            return Ok(TRUE);
+        }
         Ok(FALSE)
     }
+
+    fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        trace!("on_key_up");
+        if is_shift(wparam) {
+            // todo ASCII mode toggle
+            self.holding_shift = false;
+            return Ok(TRUE);
+        }
+        Ok(FALSE)
+    }
+
+    fn on_preserved_key(&self, _context: Option<&ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
+        Ok(FALSE)
+    }
+
+    fn on_set_focus(&self, fforeground:BOOL) ->  Result<()> {
+        Ok(())
+    }
+}
+
+fn is_shift(wparam:WPARAM) -> bool{
+    wparam.0 == 0x10 || wparam.0 == 0xA0 || wparam.0 == 0xA1
 }
 
 //----------------------------------------------------------------------------
 //
 //  After simplifying the overly-complicated events, 
-//  we can actually implement the processing
+//  we can actually process them
 //
 //----------------------------------------------------------------------------
 
-enum KeyEvent{
-    Letter(u8),
-    Punct(u8),
-    Space,
-    Backspace,
-    Enter,
+impl KeyEventSinkInner {
+    fn test_input(&self, event: Input) -> Result<BOOL> {
+        trace!("test_input");
+        if self.composition.composing() {
+            return Ok(TRUE);
+        }
+        if event.is_letter() {
+            return Ok(TRUE);
+        }
+        // todo eat the punct too if necessary
+        Ok(FALSE)
+    }
+
+    fn handle_input(&mut self, event: Input, context: &ITfContext) -> Result<BOOL> {
+        trace!("handle_input");
+        use self::Input::*;
+        if !self.composition.composing() {
+            match event {
+                // only letters can start compositions
+                Letter(letter) => self.composition.start(context, letter)?,
+                // Punct(punct) => {
+                //     // convert
+                // },
+                _ => {return Ok(FALSE)}
+            }
+        } else {
+            match event {
+                Letter(letter) => self.composition.push(context, letter)?,
+                Space => self.composition.accept(context)?,
+                Enter => self.composition.release(context)?,
+                Punct(punct) => self.composition.release(context)?,
+                Backspace => self.composition.pop(context)?
+            }
+        }
+        return Ok(TRUE);
+    }
 }
 
-pub struct Inner {
+//----------------------------------------------------------------------------
+//
+//  Composition is the texts held by the input method waiting to be "composed"
+//  into proper output. These texts are underscored by default.
+//
+//----------------------------------------------------------------------------
+
+struct Composition {
     tid: u32,
     composition: Option<ITfComposition>,
-    letters: Vec<u16> // ANSI
+    letters: Vec<u16>
 }
 
-impl Inner {
-    pub fn new(tid: u32) -> Inner {
-        Inner{
+impl Composition {
+    fn new (tid: u32) -> Composition {
+        Composition {
             tid: tid,
             composition: None,
             letters: Vec::new()
         }
     }
 
-    fn on_event(&mut self, event: KeyEvent, context: &ITfContext) -> Result<BOOL> {
-        use self::KeyEvent::*;
-        match &self.composition {
-            None => {
-                match event {
-                    // only letters can start compositions
-                    Letter(letter) => {
-                        let composition_sink = CompositionSink{}.into();
-                        self.composition = Some(start_composition(self.tid, context, &composition_sink)?);
-                        self.letters.clear();
-                        self.letters.push(letter.into());
-                        self.update(context)?;
-                        Ok(TRUE)
-                    },
-                    // Punct(punct) => {
-                    //     // convert
-                    // },
-                    _ => {return Ok(FALSE)}
-                }
-            },
-
-            Some(_composition) => {
-                match event {
-                    // append
-                    Letter(letter) => {
-                        self.letters.push(letter.into());
-                        self.update(context)?;
-                    },
-                    // end composition
-                    Space => self.accept(context)?,
-                    Enter => self.release(context)?,
-                    Punct(punct) => {},
-                    Backspace => {
-                        self.letters.pop();
-                        if self.letters.is_empty() {
-                            self.abort(context)?;
-                        } else {
-                            self.update(context)?;
-                        }
-                    }
-                };
-                Ok(TRUE)
-            }
-        }
+    // there are only two states: composing or not
+    fn start(&mut self, context: &ITfContext, letter: u8) -> Result<()> {
+        self.composition = Some(start_composition(self.tid, context, &CompositionSink{}.into())?);
+        self.push(context, letter)
     }
 
-    fn update(&self, context: &ITfContext) -> Result<()>{
+    fn end(&mut self, context: &ITfContext) -> Result<()> {
+        end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
+        self.composition = None;
+        self.letters.clear();
+        Ok(())
+    }
+
+    // to check the current state
+    fn composing(&self) -> bool {
+        self.composition.is_some()
+    }
+
+    // make things easier
+    fn set_text(&self, context: &ITfContext, text:&[u16]) -> Result<()> {
+        set_text(self.tid, context, unsafe { self.composition.as_ref().unwrap().GetRange()? }, text)
+    }
+
+    // handle input and transit state
+    fn push(&mut self, context: &ITfContext, letter: u8) -> Result<()>{
+        trace!("push");
         // todo look up dicitonary
         // candidante [言]toki
         // todo auto-commit
-        set_text(
-            self.tid, 
-            context, 
-            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
-            &self.letters)
+        self.letters.push(letter.into());
+        self.set_text(context, &self.letters)
     }
 
-    // for v0.1 there's no candidates, only accept everything or release the raw ascii chars
+    fn pop(&mut self, context: &ITfContext) -> Result<()>{
+        // todo look up dicitonary
+        // candidante [言]toki
+        // todo auto-commit
+        self.letters.pop();
+        if self.letters.is_empty() {
+            self.abort(context)
+        } else {
+            self.set_text(context, &self.letters)
+        }
+    }
+
+    // accept the first suggestion
     fn accept(&mut self, context: &ITfContext) -> Result<()>{
-        let composition = self.composition.as_ref().unwrap();
-        let text:Vec<u16> = OsStr::new("天杀的微软文档").encode_wide().chain(Some(0).into_iter()).collect();
-        set_text(
-            self.tid, 
-            context, 
-            unsafe { composition.GetRange()? }, 
-            &text)?;
-        end_composition(self.tid, context, composition)?;
-        self.composition = None;
-        Ok(())
+        let text:Vec<u16> = OsStr::new("㭗").encode_wide().chain(Some(0).into_iter()).collect();
+        self.set_text(context, &text)?;
+        self.end(context)
     }
 
-    // todo append a space maybe
+    // select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
+    #[allow(dead_code)]
+    fn select(&mut self, _context: &ITfContext) -> Result<()> {
+        todo!("for v0.1 there's not multiple candidates to select from")
+    }
+
+    // release the raw ascii chars
     fn release(&mut self, context: &ITfContext) -> Result<()> {
-        let composition = self.composition.as_ref().unwrap();
-        set_text(
-            self.tid, 
-            context, 
-            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
-            &self.letters)?;
-        end_composition(self.tid, context, composition)?;
-        self.composition = None;
-        Ok(())
+        // todo append a space maybe
+        self.set_text(context, &self.letters)?;
+        self.end(context)
     }
 
+    // interupted. abort everything.
     fn abort(&mut self, context: &ITfContext) -> Result<()> {
-        set_text(
-            self.tid, 
-            context, 
-            unsafe { self.composition.as_ref().unwrap().GetRange()? }, 
-            &[])?;
-        end_composition(self.tid, context, &self.composition.as_ref().unwrap())?;
-        self.composition = None;
-        Ok(())
+        self.set_text(context, &[])?;
+        self.end(context)
     }
 }
