@@ -37,30 +37,3 @@ impl OsStrExt2 for OsString {
         self.encode_wide().collect()
     }
 }
-
-/// A mutable wide-ecoded OsString
-pub struct WChars(Vec<u16>);
-impl WChars {
-    pub fn with_capacity(capacity: usize) -> Self{
-        WChars{0: Vec::with_capacity(capacity)}
-    }
-    fn from(text: &str) -> Self{
-        WChars{0: OsStr::new(text).encode_wide().collect()}
-    }
-
-    fn null_terminated(mut self) -> Self{
-        self.0.push(0);
-        self
-    }
-}
-
-impl<Idx> std::ops::Index<Idx> for WChars
-where
-    Idx: std::slice::SliceIndex<[u16]>
-{
-    type Output = Idx::Output;
-
-    fn index(&self, index: Idx) -> &Self::Output {
-        &self.0[index]
-    }
-}

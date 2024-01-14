@@ -1,6 +1,6 @@
-use std::sync::RwLock;
+use std::{sync::RwLock, collections::HashSet};
 
-use log::trace;
+use log::{trace, warn, debug};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
@@ -26,22 +26,22 @@ impl KeyEventSink {
 impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("OnTestKeyDown");
+        trace!("OnTestKeyDown({:#04X})", wparam.0);
         self.0.read().unwrap().on_test_key_down(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("OnKeyDown");
+        trace!("OnKeyDown({:#04X})", wparam.0);
         self.0.write().unwrap().on_key_down(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnTestKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("OnTestKeyUp");
+        trace!("OnTestKeyUp({:#04X})", wparam.0);
         self.0.read().unwrap().on_test_key_up(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("OnKeyUp");
+        trace!("OnKeyUp({:#04X})", wparam.0);
         self.0.write().unwrap().on_key_up(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
@@ -51,6 +51,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     }
     #[allow(non_snake_case)]
     fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
+        trace!("OnSetFocus");
         self.0.read().unwrap().on_set_focus(fforeground)
     }
 }
@@ -63,7 +64,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
 //----------------------------------------------------------------------------
 
 enum Input{
-    Letter(u8), Punct(u8), Space, Backspace, Enter
+    Letter(u8), Punct(u8), Space, Backspace, Enter, Unknown
 }
 
 impl Input {
@@ -77,36 +78,38 @@ impl Input {
 
 pub struct KeyEventSinkInner {
     composition: Composition,
-    holding_shift: bool,
+    caw: HashSet<usize>, // ctrl, alt, win
+    shift: bool,
 }
 
 impl KeyEventSinkInner {
     fn new(tid: u32) -> KeyEventSinkInner {
         KeyEventSinkInner {
             composition: Composition::new(tid),
-            holding_shift: false,
+            caw: HashSet::new(),
+            shift: false,
         }
     }
 
     // see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-    fn convert_event(&self, wparam:WPARAM) -> Option<Input> {
+    fn convert_event(&self, wparam:WPARAM) -> Input {
         use Input::*;
         let key_code = wparam.0;
         match key_code {
             // A key ~ Z key, convert them to lowercase letters
             0x41..=0x5A => {
                 let offset: u8 = (key_code - 0x41).try_into().unwrap();
-                if self.holding_shift {
-                    Some(Letter(b'A' + offset))
+                if self.shift {
+                    Letter(b'A' + offset)
                 } else {
-                    Some(Letter(b'a' + offset))
+                    Letter(b'a' + offset)
                 }
             }
             // TODO punct
-            0x20 => Some(Space),
-            0x0D => Some(Enter),
-            0x08 => Some(Backspace),
-            _ => None
+            0x20 => Space,
+            0x0D => Enter,
+            0x08 => Backspace,
+            _ => Unknown
         }
     } 
 
@@ -116,36 +119,38 @@ impl KeyEventSinkInner {
 
     /// the return value suggests if the key event **will be** eaten or not **if** OnKeyDown is called
     fn on_test_key_down(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
-        trace!("on_test_key_down");
+        if is_caw(wparam) || !self.caw.is_empty(){
+            return Ok(FALSE);
+        }
         if is_shift(wparam) {
             return Ok(TRUE)
         }
-        let Some(input) = self.convert_event(wparam) else {
-            return Ok(FALSE);
-        };
-        self.test_input(input)
+        self.test_input(self.convert_event(wparam))
     }
 
     /// the return value suggests if the key event **is** eaten or not.
     fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("on_key_down");
-        if is_shift(wparam) {
-            self.holding_shift = true;
-            return Ok(TRUE)
+        // avoid clashing with shorcuts. 
+        if is_caw(wparam) {
+            self.caw.insert(wparam.0);
+            debug!("caws: {:?}", self.caw);
+            return Ok(FALSE);
         }
-        let Some(context) = context else {
+        if !self.caw.is_empty() {
             return Ok(FALSE);
-        };
-        let Some(input) = self.convert_event(wparam) else {
-            return Ok(FALSE);
-        };
-        self.handle_input(input, context)
+        }
+        // remember the "holding" state but not eat the event since
+        // shift is also often a part of a shortcut
+        if is_shift(wparam) {
+            self.shift = true;
+            return Ok(FALSE)
+        }
+        self.handle_input(self.convert_event(wparam), context)
     }
 
     /// Ignore all key up events. I know this may cause trouble in the future because there're always
     /// some asshole programs not calling these fuctions properly.
     fn on_test_key_up(&self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("on_test_key_up");
         if is_shift(wparam) {
             return Ok(TRUE);
         }
@@ -153,11 +158,15 @@ impl KeyEventSinkInner {
     }
 
     fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        trace!("on_key_up");
         if is_shift(wparam) {
-            // todo ASCII mode toggle
-            self.holding_shift = false;
-            return Ok(TRUE);
+            self.shift = false;
+            if self.caw.is_empty() {
+                // todo ASCII mode toggle
+            }
+        }
+        if is_caw(wparam) {
+            self.caw.remove(&wparam.0);
+            debug!("caws: {:?}", self.caw);
         }
         Ok(FALSE)
     }
@@ -167,12 +176,19 @@ impl KeyEventSinkInner {
     }
 
     fn on_set_focus(&self, fforeground:BOOL) ->  Result<()> {
+        // todo abort
         Ok(())
     }
 }
 
-fn is_shift(wparam:WPARAM) -> bool{
+fn is_shift(wparam:WPARAM) -> bool {
     wparam.0 == 0x10 || wparam.0 == 0xA0 || wparam.0 == 0xA1
+}
+
+fn is_caw(wparam:WPARAM) -> bool {
+    wparam.0 == 0x11 || wparam.0 == 0xA2 || wparam.0 == 0xA3 || // ctrl
+    wparam.0 == 0x12 || wparam.0 == 0xA4 || wparam.0 == 0xA4 || // alt
+    wparam.0 == 0x5B || wparam.0 == 0x5C                        // win
 }
 
 //----------------------------------------------------------------------------
@@ -195,9 +211,13 @@ impl KeyEventSinkInner {
         Ok(FALSE)
     }
 
-    fn handle_input(&mut self, event: Input, context: &ITfContext) -> Result<BOOL> {
+    fn handle_input(&mut self, event: Input, context: Option<&ITfContext>) -> Result<BOOL> {
         trace!("handle_input");
         use self::Input::*;
+        let Some(context) = context else {
+            warn!("Context is None");
+            return Ok(FALSE);
+        };
         if !self.composition.composing() {
             match event {
                 // only letters can start compositions
@@ -215,7 +235,11 @@ impl KeyEventSinkInner {
                 Space => self.composition.accept(context)?,
                 Enter => self.composition.release(context)?,
                 Punct(punct) => self.composition.release(context)?,
-                Backspace => self.composition.pop(context)?
+                Backspace => self.composition.pop(context)?,
+                Unknown => {
+                    self.composition.accept(context)?;
+                    return Ok(FALSE);
+                }
             }
         }
         return Ok(TRUE);

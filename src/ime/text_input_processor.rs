@@ -1,3 +1,7 @@
+use std::cell::Cell;
+use std::mem;
+use std::sync::RwLock;
+
 use log::{trace, warn, debug};
 use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfTextInputProcessorEx, ITfThreadMgrEventSink, ITfSource};
 use windows::core::{Result, ComInterface, implement};
@@ -17,12 +21,18 @@ TextInputProcessor(Ex) {
 }
 */
 pub struct TextInputProcessor {
-
+    ctx: Cell<Option<Context>>,
 }
+struct Context {
+    tid: u32,
+    thread_mgr: ITfThreadMgr,
+    cookie: u32,
+}
+
 impl TextInputProcessor {
     pub fn new() -> TextInputProcessor {
         TextInputProcessor{
-
+            ctx: Cell::new(None)
         }
     }
 }
@@ -46,23 +56,36 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
 
         let key_event_sink = KeyEventSink::new(tid);
         let thread_mgr_event_sink = ThreadMgrEventSink::new();
-        
+        let mut cookie = 0;
         unsafe{
-            thread_mgr.cast::<ITfSource>()?.AdviseSink(
+            cookie = thread_mgr.cast::<ITfSource>()?.AdviseSink(
                 &ITfThreadMgrEventSink::IID, &ITfThreadMgrEventSink::from(thread_mgr_event_sink))?;
             debug!("Added thread manager event sink.");    
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
                 tid, &ITfKeyEventSink::from(key_event_sink) , true)?;
             debug!("Added key event sink.");
         }
+        // wow i hate you microsoft why every self is immutable
+        self.ctx.set(Some(Context{
+            thread_mgr: thread_mgr.clone(),
+            tid: tid,
+            cookie: cookie
+        }));
         Ok(())
     }
 
     #[allow(non_snake_case)]
     fn Deactivate(&self) -> Result<()> {
         trace!("Deactivate");
-        // self.thread_mgr = ptr::null();
-        // self.client_id = None;
+        let Some(ctx) = self.ctx.take() else {
+            return Ok(());
+        };
+        unsafe{
+            ctx.thread_mgr.cast::<ITfSource>()?.UnadviseSink(ctx.cookie)?;
+            debug!("Removed thread manager event sink.");    
+            ctx.thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(ctx.tid)?;
+            debug!("Removed key event sink.");
+        }
         Ok(())
     }
 }
