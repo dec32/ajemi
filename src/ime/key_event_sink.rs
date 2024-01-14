@@ -1,10 +1,10 @@
-use std::{sync::RwLock, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
+use std::sync::RwLock;
 
 use log::trace;
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
-use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink, dict}, extend::OsStrExt2};
+use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink}, extend::OsStrExt2, dict};
 
 //----------------------------------------------------------------------------
 //
@@ -25,13 +25,9 @@ impl KeyEventSink {
 
 impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
-    fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
-        self.0.write().unwrap().on_set_focus(fforeground)
-    }
-    #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown");
-        self.0.write().unwrap().on_test_key_down(context, wparam, lparam)
+        self.0.read().unwrap().on_test_key_down(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam:LPARAM) -> Result<BOOL> {
@@ -41,7 +37,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnTestKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp");
-        self.0.write().unwrap().on_test_key_up(context, wparam, lparam)
+        self.0.read().unwrap().on_test_key_up(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
@@ -51,7 +47,11 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnPreservedKey(&self, context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         trace!("OnPreservedKey");
-        self.0.write().unwrap().on_preserved_key(context, rguid)
+        self.0.read().unwrap().on_preserved_key(context, rguid)
+    }
+    #[allow(non_snake_case)]
+    fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
+        self.0.read().unwrap().on_set_focus(fforeground)
     }
 }
 
@@ -115,7 +115,7 @@ impl KeyEventSinkInner {
     // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
 
     /// the return value suggests if the key event **will be** eaten or not **if** OnKeyDown is called
-    fn on_test_key_down(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn on_test_key_down(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("on_test_key_down");
         if is_shift(wparam) {
             return Ok(TRUE)
@@ -322,7 +322,6 @@ impl Composition {
 
     // release the raw ascii chars
     fn release(&mut self, context: &ITfContext) -> Result<()> {
-        self.letters.push(b' '.into());
         self.set_text(context, &self.letters)?;
         self.end(context)
     }

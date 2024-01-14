@@ -3,6 +3,7 @@ mod global;
 mod log;
 mod extend;
 mod ime;
+mod dict;
 
 use std::{ffi::c_void, ptr, mem};
 use ::log::{debug, error, trace};
@@ -23,6 +24,7 @@ use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 #[allow(non_snake_case, dead_code)]
 extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
     let _ = log::setup();
+    dict::setup();
     // store dll_module for later use
     match call_reason {
         DLL_PROCESS_ATTACH => {
