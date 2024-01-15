@@ -4,7 +4,7 @@ use log::{trace, warn, debug};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
-use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink}, extend::OsStrExt2, dict};
+use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink}, extend::{OsStrExt2, GUIDExt}, dict};
 
 //----------------------------------------------------------------------------
 //
@@ -27,7 +27,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
-        self.0.read().unwrap().on_test_key_down(context, wparam, lparam)
+        self.0.write().unwrap().on_test_key_down(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam:LPARAM) -> Result<BOOL> {
@@ -37,7 +37,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     #[allow(non_snake_case)]
     fn OnTestKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
-        self.0.read().unwrap().on_test_key_up(context, wparam, lparam)
+        self.0.write().unwrap().on_test_key_up(context, wparam, lparam)
     }
     #[allow(non_snake_case)]
     fn OnKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
@@ -46,7 +46,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     }
     #[allow(non_snake_case)]
     fn OnPreservedKey(&self, context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        trace!("OnPreservedKey");
+        trace!("OnPreservedKey({:?})", unsafe{ rguid.as_ref() }.map(GUID::to_rfc4122));
         self.0.read().unwrap().on_preserved_key(context, rguid)
     }
     #[allow(non_snake_case)]
@@ -78,7 +78,7 @@ impl Input {
 
 pub struct KeyEventSinkInner {
     composition: Composition,
-    caw: HashSet<usize>, // ctrl, alt, win
+    caws: HashSet<usize>, // ctrl, alt, win
     shift: bool,
 }
 
@@ -86,9 +86,90 @@ impl KeyEventSinkInner {
     fn new(tid: u32) -> KeyEventSinkInner {
         KeyEventSinkInner {
             composition: Composition::new(tid),
-            caw: HashSet::new(),
+            caws: HashSet::new(),
             shift: false,
         }
+    }
+    // `wparam` indicates the key that is pressed.
+    // The 0-15 bits of lparam indicates the repeat count
+    // (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
+
+    /// The return value suggests if the key event **will be** eaten or not **if** `OnKeyDown` is called.
+    /// 
+    /// If `true`, the client **may** ignore the actual return value of `OnTestKeyDown` afterwards.
+    /// Thus you cannot always return `true` to "capture" every event and expect to "release" them later
+    ///  in `OnKeyDown` by returning `false`.
+    /// 
+    /// If `false`, the clinet **may** not call `OnKeyDown` afterwards.
+    /// Thus try to gather any needed infomations and states in `OnTestKeyDown` if possible since it
+    /// may be your only chance.
+    fn on_test_key_down(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        if is_caw(wparam) {
+            // keep track of the shortcuts
+            self.caws.insert(wparam.0);
+            return Ok(FALSE);
+        }
+        if !self.caws.is_empty(){
+            // avoid clashing with shortcuts
+            return Ok(FALSE);
+        }
+        if is_shift(wparam) {
+            return Ok(TRUE)
+        }
+        self.test_input(self.convert_event(wparam))
+    }
+
+    /// The return value suggests if the key event **is** eaten or not.
+    /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
+    fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        if is_caw(wparam) {
+            self.caws.insert(wparam.0);
+            return Ok(FALSE);
+        }
+        if !self.caws.is_empty() {
+            return Ok(FALSE);
+        }
+        // remember the "holding" state but not eat the event since
+        // shift is also often a part of a shortcut
+        if is_shift(wparam) {
+            self.shift = true;
+            return Ok(FALSE)
+        }
+        self.handle_input(self.convert_event(wparam), context)
+    }
+
+    /// Ignore all key up events. I know this may cause trouble in the future because there're always
+    /// some asshole programs not calling these fuctions properly.
+    fn on_test_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        if is_caw(wparam) {
+            self.caws.remove(&wparam.0);
+        }
+        if is_shift(wparam) {
+            return Ok(TRUE);
+        }
+        Ok(FALSE)
+    }
+
+    fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+        if is_caw(wparam) {
+            self.caws.remove(&wparam.0);
+        }
+        if is_shift(wparam) {
+            self.shift = false;
+            if self.caws.is_empty() {
+                // todo ASCII mode toggle
+            }
+        }
+        Ok(FALSE)
+    }
+
+    fn on_preserved_key(&self, _context: Option<&ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
+        Ok(FALSE)
+    }
+
+    fn on_set_focus(&self, fforeground:BOOL) ->  Result<()> {
+        // todo abort
+        Ok(())
     }
 
     // see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
@@ -112,73 +193,6 @@ impl KeyEventSinkInner {
             _ => Unknown
         }
     } 
-
-    // wparam indicates the key that is pressed
-    // the 0-15 bits of the flag indicates the repeat count
-    // see https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for more info
-
-    /// the return value suggests if the key event **will be** eaten or not **if** OnKeyDown is called
-    fn on_test_key_down(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
-        if is_caw(wparam) || !self.caw.is_empty(){
-            return Ok(FALSE);
-        }
-        if is_shift(wparam) {
-            return Ok(TRUE)
-        }
-        self.test_input(self.convert_event(wparam))
-    }
-
-    /// the return value suggests if the key event **is** eaten or not.
-    fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        // avoid clashing with shorcuts. 
-        if is_caw(wparam) {
-            self.caw.insert(wparam.0);
-            debug!("caws: {:?}", self.caw);
-            return Ok(FALSE);
-        }
-        if !self.caw.is_empty() {
-            return Ok(FALSE);
-        }
-        // remember the "holding" state but not eat the event since
-        // shift is also often a part of a shortcut
-        if is_shift(wparam) {
-            self.shift = true;
-            return Ok(FALSE)
-        }
-        self.handle_input(self.convert_event(wparam), context)
-    }
-
-    /// Ignore all key up events. I know this may cause trouble in the future because there're always
-    /// some asshole programs not calling these fuctions properly.
-    fn on_test_key_up(&self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        if is_shift(wparam) {
-            return Ok(TRUE);
-        }
-        Ok(FALSE)
-    }
-
-    fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
-        if is_shift(wparam) {
-            self.shift = false;
-            if self.caw.is_empty() {
-                // todo ASCII mode toggle
-            }
-        }
-        if is_caw(wparam) {
-            self.caw.remove(&wparam.0);
-            debug!("caws: {:?}", self.caw);
-        }
-        Ok(FALSE)
-    }
-
-    fn on_preserved_key(&self, _context: Option<&ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
-        Ok(FALSE)
-    }
-
-    fn on_set_focus(&self, fforeground:BOOL) ->  Result<()> {
-        // todo abort
-        Ok(())
-    }
 }
 
 fn is_shift(wparam:WPARAM) -> bool {
