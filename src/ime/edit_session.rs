@@ -133,7 +133,7 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
                 let range = self.context.cast::<ITfInsertAtSelection>()?
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
                 // insert text via InsertTextAtSelection directly would crash the client
-                // what's wrong with 
+                // what's wrong with these magical APIs
                 range.SetText(ec, TF_ST_CORRECTION, self.text)
             }
         }

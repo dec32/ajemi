@@ -1,8 +1,8 @@
-use std::{sync::RwLock, collections::HashSet};
+use std::{sync::RwLock, collections::HashSet, ffi::OsString};
 use log::{trace, warn};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
-use crate::{ime::edit_session, extend::GUIDExt, engine::engine};
+use crate::{ime::edit_session, extend::{GUIDExt, OsStrExt2}, engine::engine};
 use super::composition::Composition;
 
 //----------------------------------------------------------------------------
@@ -109,7 +109,7 @@ impl KeyEventSinkInner {
 
     /// The return value suggests if the key event **is** eaten or not.
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
-    fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+    fn on_key_down(&mut self, context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         if is_caw(wparam) {
             self.caws.insert(wparam.0);
             return Ok(FALSE);
@@ -123,6 +123,7 @@ impl KeyEventSinkInner {
             self.shift = true;
             return Ok(FALSE)
         }
+        // let repeat = 0xFFFF & lparam.0;
         self.handle_input(Input::from(wparam.0, self.shift), context)
     }
 
@@ -288,12 +289,10 @@ impl KeyEventSinkInner {
                 Letter(letter) => self.composition.push(context, letter)?,
                 Number(number) => {
                     // todo numbers can be used to select from candidate list
-                    self.composition.push(context, number)?;
-                    self.composition.force_commit(context)?;
+                    self.composition.force_commit(context, number)?;
                 },
                 Punct(punct) => {
-                    self.composition.push(context, engine().remap_punct(punct))?;
-                    self.composition.force_commit(context)?;
+                    self.composition.force_commit(context, engine().remap_punct(punct))?;
 
                     // the more proper way is:
                     //  
@@ -317,8 +316,11 @@ impl KeyEventSinkInner {
     }
 
     fn insert_char(&self, context: &ITfContext, char: char) -> Result<()> {
-        trace!("insert_char('{char}')");
-        edit_session::insert_text(self.tid, context, &[char.try_into().unwrap()])
+        // todo avoid heap alloc
+        let mut text = String::with_capacity(1);
+        text.push(char);
+        let text = OsString::from(text).wchars();
+        edit_session::insert_text(self.tid, context, &text)
     }
 }
 

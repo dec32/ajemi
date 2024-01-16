@@ -59,7 +59,7 @@ impl Composition {
         if self.output.is_empty() {
             self.set_text(context, &self.spelling)
         } else {
-            let mut buf = String::new();
+            let mut buf = String::with_capacity(16);
             buf.push('[');
             buf += &self.output;
             buf.push(']');
@@ -83,7 +83,7 @@ impl Composition {
 // calling these function while not composing would cause the program to crash
 impl Composition {
     pub fn push(&mut self, context: &ITfContext, char: char) -> Result<()>{
-        trace!("push({char})");
+        trace!("push({char})"); 
         // todo auto-commit
         self.spelling.push(char);
         engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
@@ -122,15 +122,17 @@ impl Composition {
     }
 
     // commit the suggestion and release the unrecognizable trailing characters.
-    pub fn force_commit(&mut self, context: &ITfContext) -> Result<()>{
+    pub fn force_commit(&mut self, context: &ITfContext, ch: char) -> Result<()>{
         trace!("force_commit");
         if self.output.is_empty() {
+            self.spelling.push(ch);
             self.set_text(context, &self.spelling)?;
         } else {
             let last = *self.groupping.last().unwrap();
             if last < self.spelling.len() {
                 self.output.push_str(&self.spelling[last..])
             }
+            self.output.push(ch);
             self.set_text(context, &self.output)?;
         }
         self.end(context)

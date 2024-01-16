@@ -1,7 +1,6 @@
 use std::{collections::HashMap, cell::OnceCell};
 
-use log::debug;
-
+use log::trace;
 
 /// A struct to store and query words and punctuators
 #[derive(Default)]
@@ -67,6 +66,7 @@ impl Engine {
 
     // I hate this kind of out parameters but otherwise the allocations can be crazy.
     pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
+        trace!("suggest({spelling})");
         groupping.clear();
         output.clear();
         let mut from = 0;
@@ -86,14 +86,7 @@ impl Engine {
     }
 
     pub fn remap_punct(&self, punct: char) -> char {
-        // FIXME wow this String alloc is so unneccessary
-        let remapped = self.puncts.get(&punct);
-        debug!("The remapped punct for '{punct}' is '{:?}'", remapped);
-        if remapped.is_some() {
-            return remapped.unwrap().clone();
-        } else {
-            return punct;
-        }
+        self.puncts.get(&punct).cloned().unwrap_or(punct)
     }
 }
 
