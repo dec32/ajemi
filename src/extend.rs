@@ -1,8 +1,5 @@
-use std::{ffi::{OsString, OsStr, CString}, os::windows::ffi::OsStrExt};
-
-use windows::core::{GUID, PCSTR};
-
-
+use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt};
+use windows::core::GUID;
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }

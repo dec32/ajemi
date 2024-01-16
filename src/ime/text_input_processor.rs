@@ -1,6 +1,4 @@
 use std::cell::Cell;
-use std::mem;
-use std::sync::RwLock;
 
 use log::{trace, warn, debug};
 use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfTextInputProcessorEx, ITfThreadMgrEventSink, ITfSource};
@@ -56,7 +54,7 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
 
         let key_event_sink = KeyEventSink::new(tid);
         let thread_mgr_event_sink = ThreadMgrEventSink::new();
-        let mut cookie = 0;
+        let cookie ;
         unsafe{
             cookie = thread_mgr.cast::<ITfSource>()?.AdviseSink(
                 &ITfThreadMgrEventSink::IID, &ITfThreadMgrEventSink::from(thread_mgr_event_sink))?;
@@ -68,8 +66,8 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
         // wow i hate you microsoft why every self is immutable
         self.ctx.set(Some(Context{
             thread_mgr: thread_mgr.clone(),
-            tid: tid,
-            cookie: cookie
+            tid,
+            cookie
         }));
         Ok(())
     }

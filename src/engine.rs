@@ -1,13 +1,15 @@
 use std::{collections::HashMap, cell::OnceCell};
 
+use log::debug;
 
-/// A private struct to store and query words, punctuators
+
+/// A struct to store and query words and punctuators
 #[derive(Default)]
-struct Engine {
+pub struct Engine {
     // todo the values are actually pretty small (1 ~ 2 chars) thus cheap to copy
     // try implement a stringlet type that implments the Copy trait, not sure if thats possible
     dict: HashMap<String, String>,
-    puncts: HashMap<char, String>,
+    puncts: HashMap<char, char>,
 }
 
 impl Engine {
@@ -15,6 +17,12 @@ impl Engine {
         Default::default()
     }
 
+    /// Map all spellings and unique prefixes to their correspond words. 
+    /// 
+    /// A prefix being "unique" means in the whole lexicon there's only one word that start with it.
+    ///  
+    /// For example, "kije" is a unique prefix for "kijetesantakalu" because there's no other word
+    /// that starts with "kije".
     fn load_dict(&mut self, entries: Vec<(&str, &str)>) {
         use Candidate::*;
         enum Candidate {
@@ -53,29 +61,42 @@ impl Engine {
         self.dict = dict;
     }
 
-    fn insert_punt(&mut self, punct: char, remapped: &str) {
-        self.puncts.insert(punct, String::from(remapped));
+    fn insert_punt(&mut self, punct: char, remapped: char) {
+        self.puncts.insert(punct, remapped);
     }
 
-    fn suggest(&self, letters: &str) -> String {
+    // I hate this kind of out parameters but otherwise the allocations can be crazy.
+    pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
+        groupping.clear();
+        output.clear();
         let mut from = 0;
-        let mut to = letters.len();
-        let mut result = String::new();
+        let mut to = spelling.len();
         while from < to {
-            let slice = &letters[from..to];
-            let suggestion = self.dict.get(slice);
+            let slice = &spelling[from..to];
             // to match `Some(Exact(word)) | Some(Unique(word))` will cause the issue mentioned above
-            if let Some(word) = suggestion {
-                result += word;
+            if let Some(word) = self.dict.get(slice) {
+                groupping.push(to);
+                output.push_str(word);
                 from = to;
-                to = letters.len();
+                to = spelling.len();
             } else {
                 to -= 1;
             }
         }
-        result
+    }
+
+    pub fn remap_punct(&self, punct: char) -> char {
+        // FIXME wow this String alloc is so unneccessary
+        let remapped = self.puncts.get(&punct);
+        debug!("The remapped punct for '{punct}' is '{:?}'", remapped);
+        if remapped.is_some() {
+            return remapped.unwrap().clone();
+        } else {
+            return punct;
+        }
     }
 }
+
 
 //----------------------------------------------------------------------------
 //
@@ -85,23 +106,28 @@ impl Engine {
 
 static mut ENGINE: OnceCell<Engine> = OnceCell::new();
 
+pub fn engine() -> &'static Engine {
+    // todo the returned reference is mutable one
+    unsafe {ENGINE.get().unwrap()}
+}
+
 pub fn setup() {
     let engine = unsafe { 
         ENGINE.get_or_init(Engine::new);
         ENGINE.get_mut().unwrap()
     };
-    engine.insert_punt('[', "󱦐");
-    engine.insert_punt(']', "󱦑");
-    engine.insert_punt('+', "󱦕");
-    engine.insert_punt('-', "󱦖");
-    engine.insert_punt('(', "󱦗");
-    engine.insert_punt(')', "󱦘");
-    engine.insert_punt('{', "󱦚");
-    engine.insert_punt('}', "󱦛");
-    engine.insert_punt('.', "󱦜");
-    engine.insert_punt(':', "󱦝");
-    engine.insert_punt('<', "「");
-    engine.insert_punt('>', "」");
+    engine.insert_punt('[', '󱦐');
+    engine.insert_punt(']', '󱦑');
+    engine.insert_punt('+', '󱦕');
+    engine.insert_punt('-', '󱦖');
+    engine.insert_punt('(', '󱦗');
+    engine.insert_punt(')', '󱦘');
+    engine.insert_punt('{', '󱦚');
+    engine.insert_punt('}', '󱦛');
+    engine.insert_punt('.', '󱦜');
+    engine.insert_punt(':', '󱦝');
+    engine.insert_punt('<', '「');
+    engine.insert_punt('>', '」');
     engine.load_dict(vec![
         ("a", "󱤀"),      
         ("akesi", "󱤁"),  
@@ -247,26 +273,6 @@ pub fn setup() {
     ]);
 }
 
-fn engine() -> &'static Engine {
-    unsafe {ENGINE.get().unwrap()}
-}
-
-pub fn suggest(letters: &str) -> String {
-    engine().suggest(letters)
-}
-
-pub fn remap_punct(punct: char) -> String {
-    // FIXME wow this String alloc is so unneccessary
-    engine().puncts.get(&punct)
-        .map(String::clone)
-        .unwrap_or_else(||{
-            let mut buf = String::with_capacity(1);
-            buf.push(punct);
-            buf
-        })
-}
-
-
 #[test]
 fn i_dont_know_now_to_write_macros() {
     use std::fs::File;
@@ -279,39 +285,5 @@ fn i_dont_know_now_to_write_macros() {
         let split: Vec<&str> = line.split('\t').collect();
         println!("(\"{}\", \"{}\"),", split[1], split[0]);
     }
-}
-
-#[test]
-fn repl() {
-    use std::io::stdin;
-    setup();
-    let mut buf = String::new();
-    loop {
-        buf.clear();
-        stdin().read_line(&mut buf).unwrap();
-        let suggestion = &suggest(&buf);
-        println!("{}", suggestion);
-    }
-
-}
-
-#[test]
-pub fn test_dict() {
-    let mut engine = Engine::new();
-    engine.load_dict(vec![
-        ("mi", "我"),
-        ("lukin", "看"),
-        ("e", "兮"),
-        ("kijetesantakalu", "狸"),
-        ("nasa", "怪"),
-        ("lape", "眠"),
-    ]);
-
-    for (letters, suggestion) in &engine.dict {
-        println!("{letters}={:?}", suggestion);
-    }
-
-    let suggestion = engine.suggest("milukinekijenasalol");
-    println!("{suggestion}")  
 }
 

@@ -3,7 +3,7 @@ use std::cell::Cell;
 use log::{trace, debug, error};
 use windows::Win32::Foundation::S_OK;
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION, TF_IAS_NOQUERY};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------
 //

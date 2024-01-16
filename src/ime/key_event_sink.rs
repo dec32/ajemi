@@ -1,10 +1,9 @@
-use std::{sync::RwLock, collections::HashSet, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
-
-use log::{trace, warn, debug};
-use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
+use std::{sync::RwLock, collections::HashSet};
+use log::{trace, warn};
+use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
-
-use crate::{ime::{edit_session, composition_sink::CompositionSink}, extend::{GUIDExt, OsStrExt2}, engine};
+use crate::{ime::edit_session, extend::GUIDExt, engine::engine};
+use super::composition::Composition;
 
 //----------------------------------------------------------------------------
 //
@@ -73,7 +72,7 @@ pub struct KeyEventSinkInner {
 impl KeyEventSinkInner {
     fn new(tid: u32) -> KeyEventSinkInner {
         KeyEventSinkInner {
-            tid: tid,
+            tid,
             composition: Composition::new(tid),
             caws: HashSet::new(),
             shift: false,
@@ -92,7 +91,7 @@ impl KeyEventSinkInner {
     /// If `false`, the clinet **may** not call `OnKeyDown` afterwards.
     /// Thus try to gather any needed infomations and states in `OnTestKeyDown` if possible since it
     /// may be your only chance.
-    fn on_test_key_down(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+    fn on_test_key_down(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         if is_caw(wparam) {
             // keep track of the shortcuts
             self.caws.insert(wparam.0);
@@ -129,7 +128,7 @@ impl KeyEventSinkInner {
 
     /// Ignore all key up events. I know this may cause trouble in the future because there're always
     /// some asshole programs not calling these fuctions properly.
-    fn on_test_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+    fn on_test_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         if is_caw(wparam) {
             self.caws.remove(&wparam.0);
         }
@@ -139,7 +138,7 @@ impl KeyEventSinkInner {
         Ok(FALSE)
     }
 
-    fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
+    fn on_key_up(&mut self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         if is_caw(wparam) {
             self.caws.remove(&wparam.0);
         }
@@ -156,7 +155,7 @@ impl KeyEventSinkInner {
         Ok(FALSE)
     }
 
-    fn on_set_focus(&self, fforeground:BOOL) ->  Result<()> {
+    fn on_set_focus(&self, _foreground:BOOL) ->  Result<()> {
         // todo abort
         Ok(())
     }
@@ -181,13 +180,6 @@ enum Input{
 }
 
 impl Input {
-    fn is_letter(&self) -> bool {
-        match self {
-            Self::Letter(_) => true,
-            _ => false,
-        }
-    }
-
     fn from (key_code: usize, shift: bool) -> Input {
         use Input::*;
         fn offset(key_code: usize, from: usize ) -> u8 {
@@ -215,7 +207,7 @@ impl Input {
             (0x38, true ) => Punct('*'),
             (0x39, true ) => Punct('('),
             (0x30, true ) => Punct(')'),
-            // Punctuators
+            // More punctuators
             (0xBA, false) => Punct(';'),
             (0xBA, true ) => Punct(':'),
             (0xBB, false) => Punct('='),
@@ -250,6 +242,7 @@ impl Input {
         }
     }
 }
+
 //----------------------------------------------------------------------------
 //
 //  After simplifying the overly-complicated events, 
@@ -281,8 +274,13 @@ impl KeyEventSinkInner {
         if !self.composition.composing() {
             match event {
                 // letters start compositions. punctuators need to be re-mapped.
-                Letter(letter) => self.composition.start(context, letter)?,
-                Punct(punct) => self.insert_text(context, &engine::remap_punct(punct))?,
+                Letter(letter) => {
+                    self.composition.start(context)?;
+                    self.composition.push(context, letter)?
+                },
+                Punct(punct) => {
+                    self.insert_char(context, engine().remap_punct(punct))?
+                },
                 _ => {return Ok(FALSE)}
             }
         } else {
@@ -290,15 +288,19 @@ impl KeyEventSinkInner {
                 Letter(letter) => self.composition.push(context, letter)?,
                 Number(number) => {
                     // todo numbers can be used to select from candidate list
-                    self.composition.commit_release(context)?;
-                    self.insert_char(context, number)?;
+                    self.composition.push(context, number)?;
+                    self.composition.force_commit(context)?;
                 },
                 Punct(punct) => {
-                    // todo punctuator can be regarded as one-character auto commit
-                    // but to support auto commit the searching algorithm needs to re-designed
-                    self.composition.push(context, punct)?;
-                    self.composition.commit_release(context)?;
-                    // self.insert_text(context, &engine::remap_punct(punct))?;
+                    self.composition.push(context, engine().remap_punct(punct))?;
+                    self.composition.force_commit(context)?;
+
+                    // the more proper way is:
+                    //  
+                    // self.composition.force_commit(context)?;
+                    // self.insert_char(context, &engine::remap_punct(punct))?;
+                    //
+                    // however by doing so the suggestion will be eaten and print 2 puncts. no sure why.
                 },
                 Space => self.composition.commit(context)?,
                 Enter => self.composition.release(context)?,
@@ -314,133 +316,9 @@ impl KeyEventSinkInner {
         return Ok(TRUE);
     }
 
-    fn insert_text(&self, context: &ITfContext, text: &str) -> Result<()> {
-        edit_session::insert_text(self.tid, context, &OsStr::new(text).wchars())
-    }
-
     fn insert_char(&self, context: &ITfContext, char: char) -> Result<()> {
+        trace!("insert_char('{char}')");
         edit_session::insert_text(self.tid, context, &[char.try_into().unwrap()])
     }
 }
 
-//----------------------------------------------------------------------------
-//
-//  Composition is the texts held by the input method waiting to be "composed"
-//  into proper output. These texts are underscored by default.
-//
-//----------------------------------------------------------------------------
-
-struct Composition {
-    tid: u32,
-    composition: Option<ITfComposition>,
-    letters: String,
-    suggestion: String,
-}
-
-impl Composition {
-    fn new (tid: u32) -> Composition {
-        Composition {
-            tid: tid,
-            composition: None,
-            letters: String::new(),
-            suggestion: String::new(),
-        }
-    }
-
-    // there are only two states: composing or not
-    fn start(&mut self, context: &ITfContext, letter: char) -> Result<()> {
-        self.composition = Some(edit_session::start_composition(self.tid, context, &CompositionSink{}.into())?);
-        self.push(context, letter)
-    }
-
-    fn end(&mut self, context: &ITfContext) -> Result<()> {
-        edit_session::end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
-        self.composition = None;
-        self.letters.clear();
-        self.suggestion.clear();
-        Ok(())
-    }
-
-    // to check the current state
-    fn composing(&self) -> bool {
-        self.composition.is_some()
-    }
-
-    // make things easier
-    fn set_text(&self, context: &ITfContext, text: &str) -> Result<()> {
-        let text = OsString::from(text).wchars();
-        let range = unsafe { self.composition.as_ref().unwrap().GetRange()? };
-        edit_session::set_text(self.tid, context, range, &text)
-    }
-
-    // FIXME this function is slow-ass
-    fn set_text_as_suggestions_and_letters(&self, context: &ITfContext) -> Result<()> {
-        if self.suggestion.is_empty() {
-            self.set_text(context, &self.letters)
-        } else {
-            let mut buf = String::with_capacity("[]".len() + self.suggestion.len() + self.letters.len());
-            buf.push('[');
-            buf += &self.suggestion;
-            buf.push(']');
-            buf += &self.letters;
-            self.set_text(context, &buf)
-        }
-    }
-}
-
-// handle input and transit state
-// calling these function while not composing would cause the program to crash
-impl Composition {
-    fn push(&mut self, context: &ITfContext, letter: char) -> Result<()>{
-        // todo auto-commit
-        self.letters.push(letter);
-        self.suggestion = engine::suggest(&self.letters);
-        self.set_text_as_suggestions_and_letters(context)
-    }
-
-    fn pop(&mut self, context: &ITfContext) -> Result<()>{
-        // todo auto-commit
-        self.letters.pop();
-        if self.letters.is_empty() {
-            self.abort(context)?;
-            return Ok(());
-        } 
-        self.suggestion = engine::suggest(&self.letters);
-        self.set_text_as_suggestions_and_letters(context)
-    }
-
-    // commit the suggestion
-    fn commit(&mut self, context: &ITfContext) -> Result<()>{
-        if self.suggestion.is_empty() {
-            self.letters.push(b' '.into());
-            self.set_text(context, &self.letters)?;
-        } else {
-            self.set_text(context, &self.suggestion)?;
-        }
-        self.end(context)
-    }
-
-    // commit the suggestion and release possble trailing ascii characters.
-    fn commit_release(&mut self, context: &ITfContext) -> Result<()>{
-        // todo
-        self.commit(context)
-    }
-
-    // select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
-    #[allow(dead_code)]
-    fn select(&mut self, _context: &ITfContext) -> Result<()> {
-        todo!("for v0.1 there's not multiple candidates to select from")
-    }
-
-    // release the raw ascii chars
-    fn release(&mut self, context: &ITfContext) -> Result<()> {
-        self.set_text(context, &self.letters)?;
-        self.end(context)
-    }
-
-    // interupted. abort everything.
-    fn abort(&mut self, context: &ITfContext) -> Result<()> {
-        self.set_text(context, &"")?;
-        self.end(context)
-    }
-}
