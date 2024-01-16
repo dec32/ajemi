@@ -4,7 +4,7 @@ use log::{trace, warn, debug};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
-use crate::{ime::{edit_session::{start_composition, end_composition, set_text}, composition_sink::CompositionSink}, extend::{OsStrExt2, GUIDExt}, dict};
+use crate::{ime::{edit_session::{start_composition, end_composition, set_text, self}, composition_sink::CompositionSink}, extend::{OsStrExt2, GUIDExt}, engine};
 
 //----------------------------------------------------------------------------
 //
@@ -63,20 +63,8 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
 //
 //----------------------------------------------------------------------------
 
-enum Input{
-    Letter(u8), Punct(u8), Space, Backspace, Enter, Unknown
-}
-
-impl Input {
-    fn is_letter(&self) -> bool {
-        match self {
-            Self::Letter(_) => true,
-            _ => false,
-        }
-    }
-}
-
 pub struct KeyEventSinkInner {
+    tid: u32,
     composition: Composition,
     caws: HashSet<usize>, // ctrl, alt, win
     shift: bool,
@@ -85,6 +73,7 @@ pub struct KeyEventSinkInner {
 impl KeyEventSinkInner {
     fn new(tid: u32) -> KeyEventSinkInner {
         KeyEventSinkInner {
+            tid: tid,
             composition: Composition::new(tid),
             caws: HashSet::new(),
             shift: false,
@@ -116,7 +105,7 @@ impl KeyEventSinkInner {
         if is_shift(wparam) {
             return Ok(TRUE)
         }
-        self.test_input(self.convert_event(wparam))
+        self.test_input(Input::from(wparam.0, self.shift))
     }
 
     /// The return value suggests if the key event **is** eaten or not.
@@ -135,7 +124,7 @@ impl KeyEventSinkInner {
             self.shift = true;
             return Ok(FALSE)
         }
-        self.handle_input(self.convert_event(wparam), context)
+        self.handle_input(Input::from(wparam.0, self.shift), context)
     }
 
     /// Ignore all key up events. I know this may cause trouble in the future because there're always
@@ -171,28 +160,6 @@ impl KeyEventSinkInner {
         // todo abort
         Ok(())
     }
-
-    // see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-    fn convert_event(&self, wparam:WPARAM) -> Input {
-        use Input::*;
-        let key_code = wparam.0;
-        match key_code {
-            // A key ~ Z key, convert them to lowercase letters
-            0x41..=0x5A => {
-                let offset: u8 = (key_code - 0x41).try_into().unwrap();
-                if self.shift {
-                    Letter(b'A' + offset)
-                } else {
-                    Letter(b'a' + offset)
-                }
-            }
-            // TODO punct
-            0x20 => Space,
-            0x0D => Enter,
-            0x08 => Backspace,
-            _ => Unknown
-        }
-    } 
 }
 
 fn is_shift(wparam:WPARAM) -> bool {
@@ -205,6 +172,79 @@ fn is_caw(wparam:WPARAM) -> bool {
     wparam.0 == 0x5B || wparam.0 == 0x5C                        // win
 }
 
+/// see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+enum Input{
+    Letter(u8), Number(u8), Punct(u8),
+    Space, Backspace, Enter,
+    Left, Up, Right, Down,
+    Unknown
+}
+
+impl Input {
+    fn is_letter(&self) -> bool {
+        match self {
+            Self::Letter(_) => true,
+            _ => false,
+        }
+    }
+
+    fn from (key_code: usize, shift: bool) -> Input {
+        use Input::*;
+        fn offset(key_code: usize, from: usize ) -> u8 {
+            (key_code - from).try_into().unwrap()
+        }
+        match (key_code, shift) {
+            // A key ~ Z key, convert them to lowercase letters
+            (0x41..=0x5A, false) => Letter(b'a' + offset(key_code, 0x41)),
+            (0x41..=0x5A, true ) => Letter(b'A' + offset(key_code, 0x41)),
+            // Numbers
+            (0x30..=0x39, false) => Number(b'0' + offset(key_code, 0x30)),
+            // Punctuators, the keycodes has nothing to do with ASCII values
+            (0x31, true ) => Punct(b'!'),
+            (0x32, true ) => Punct(b'@'),
+            (0x33, true ) => Punct(b'#'),
+            (0x34, true ) => Punct(b'$'),
+            (0x35, true ) => Punct(b'%'),
+            (0x36, true ) => Punct(b'^'),
+            (0x37, true ) => Punct(b'&'),
+            (0x38, true ) => Punct(b'*'),
+            (0x39, true ) => Punct(b'('),
+            (0x30, true ) => Punct(b')'),
+            // Punctuators
+            (0xBA, false) => Punct(b';'),
+            (0xBA, true ) => Punct(b':'),
+            (0xBB, false) => Punct(b'='),
+            (0xBB, true ) => Punct(b'+'),
+            (0xBC, false) => Punct(b','),
+            (0xBC, true ) => Punct(b'<'),
+            (0xBD, false) => Punct(b'-'),
+            (0xBD, true ) => Punct(b'_'),
+            (0xBE, false) => Punct(b'.'),
+            (0xBE, true ) => Punct(b'>'),
+            (0xBF, false) => Punct(b'/'),
+            (0xBF, true ) => Punct(b'?'),
+            (0xC0, false) => Punct(b'`'),
+            (0xC0, true ) => Punct(b'~'),
+            (0xDB, false) => Punct(b'['),
+            (0xDB, true ) => Punct(b'{'),
+            (0xDC, false) => Punct(b'\\'),
+            (0xDC, true ) => Punct(b'|'),
+            (0xDD, false) => Punct(b']'),
+            (0xDD, true ) => Punct(b'}'),
+            (0xDE, false) => Punct(b'\''),
+            (0xDE, true ) => Punct(b'"'),
+            // The special ones. They are for editing and operations.
+            (0x20, _) => Space,
+            (0x0D, _) => Enter,
+            (0x08, _) => Backspace,
+            (0x25, _) => Left,
+            (0x26, _) => Up,
+            (0x27, _) => Right,
+            (0x28, _) => Down,
+            _ => Unknown
+        }
+    }
+}
 //----------------------------------------------------------------------------
 //
 //  After simplifying the overly-complicated events, 
@@ -214,15 +254,16 @@ fn is_caw(wparam:WPARAM) -> bool {
 
 impl KeyEventSinkInner {
     fn test_input(&self, event: Input) -> Result<BOOL> {
+        use Input::*;
         trace!("test_input");
-        if self.composition.composing() {
-            return Ok(TRUE);
+        if !self.composition.composing() {
+            match event {
+                Letter(_) | Punct(_) => Ok(TRUE),
+                _ => Ok(FALSE),
+            }
+        } else {
+            Ok(TRUE)
         }
-        if event.is_letter() {
-            return Ok(TRUE);
-        }
-        // todo eat the punct too if necessary
-        Ok(FALSE)
     }
 
     fn handle_input(&mut self, event: Input, context: Option<&ITfContext>) -> Result<BOOL> {
@@ -236,27 +277,43 @@ impl KeyEventSinkInner {
             match event {
                 // only letters can start compositions
                 Letter(letter) => self.composition.start(context, letter)?,
-                // Punct(punct) => {
-                //     // convert
-                // },
+                Punct(punct) => self.insert_text(context, &engine::convert_punct(punct))?,
                 _ => {return Ok(FALSE)}
             }
         } else {
             match event {
-                // calling these function while not composing would cause the program to crash
-                //
                 Letter(letter) => self.composition.push(context, letter)?,
-                Space => self.composition.accept(context)?,
+                Number(number) => {
+                    // todo numbers can be used to select from candidate list
+                    self.composition.commit_release(context)?;
+                    self.insert_char(context, number)?;
+                },
+                Punct(punct) => {
+                    // todo punctuator can be regarded as one-character auto commit
+                    // but to support auto commit the searching algorithm needs to re-designed
+                    self.composition.commit_release(context)?;
+                    self.insert_text(context, &engine::convert_punct(punct))?;
+                },
+                Space => self.composition.commit(context)?,
                 Enter => self.composition.release(context)?,
-                Punct(punct) => self.composition.release(context)?,
                 Backspace => self.composition.pop(context)?,
+                // disable cursor movement because I am lazy
+                Left|Up|Right|Down => (),
                 Unknown => {
-                    self.composition.accept(context)?;
+                    self.composition.abort(context)?;
                     return Ok(FALSE);
                 }
             }
         }
         return Ok(TRUE);
+    }
+
+    fn insert_text(&self, context: &ITfContext, text: &[u16]) -> Result<()> {
+        edit_session::insert_text(self.tid, context, text)
+    }
+
+    fn insert_char(&self, context: &ITfContext, char: u8) -> Result<()> {
+        edit_session::insert_text(self.tid, context, &[char.try_into().unwrap()])
     }
 }
 
@@ -321,12 +378,15 @@ impl Composition {
             self.set_text(context, &buf)
         }
     }
+}
 
-    // handle input and transit state
+// handle input and transit state
+// calling these function while not composing would cause the program to crash
+impl Composition {
     fn push(&mut self, context: &ITfContext, letter: u8) -> Result<()>{
         // todo auto-commit
         self.letters.push(letter.into());
-        self.suggestion = dict::suggest(&self.letters);
+        self.suggestion = engine::suggest(&self.letters);
         self.set_text_as_suggestions_and_letters(context)
     }
 
@@ -337,12 +397,12 @@ impl Composition {
             self.abort(context)?;
             return Ok(());
         } 
-        self.suggestion = dict::suggest(&self.letters);
+        self.suggestion = engine::suggest(&self.letters);
         self.set_text_as_suggestions_and_letters(context)
     }
 
-    // accept the first suggestion
-    fn accept(&mut self, context: &ITfContext) -> Result<()>{
+    // commit the suggestion
+    fn commit(&mut self, context: &ITfContext) -> Result<()>{
         if self.suggestion.is_empty() {
             self.letters.push(b' '.into());
             self.set_text(context, &self.letters)?;
@@ -350,6 +410,12 @@ impl Composition {
             self.set_text(context, &self.suggestion)?;
         }
         self.end(context)
+    }
+
+    // commit the suggestion and release possble trailing ascii characters.
+    fn commit_release(&mut self, context: &ITfContext) -> Result<()>{
+        // todo
+        self.commit(context)
     }
 
     // select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)

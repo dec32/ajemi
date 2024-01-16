@@ -3,7 +3,7 @@ use std::cell::Cell;
 use log::{trace, debug, error};
 use windows::Win32::Foundation::S_OK;
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION, TF_IAS_NOQUERY};
 
 //----------------------------------------------------------------------------
 //
@@ -12,6 +12,7 @@ use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfC
 //  But it's a pain in the ass to use such sessions so let's hide them under functions.
 //
 //----------------------------------------------------------------------------
+
 
 pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCompositionSink) -> Result<ITfComposition> {
     trace!("start_composition");
@@ -116,4 +117,36 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
             Ok(())
         }
     }
+}
+
+pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
+    #[implement(ITfEditSession)]
+    struct Session<'a> {
+        context: &'a ITfContext,
+        text: &'a [u16],
+    }
+
+    impl ITfEditSession_Impl for Session<'_> {
+        #[allow(non_snake_case)]
+        fn DoEditSession(&self, ec:u32) -> Result<()> {
+            unsafe {
+                let range = self.context.cast::<ITfInsertAtSelection>()?
+                    .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
+                // insert text via InsertTextAtSelection directly would crash the client
+                // what's wrong with 
+                range.SetText(ec, TF_ST_CORRECTION, self.text)
+            }
+        }
+    }
+
+    let session = ITfEditSession::from(Session{context: context, text: text});
+    unsafe {
+        let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
+        if result != S_OK {
+            Err(Error::from(result))
+        } else {
+            Ok(())
+        }
+    }
+
 }

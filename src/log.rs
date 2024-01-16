@@ -13,7 +13,7 @@ pub fn setup() -> Result<(), fern::InitError>{
         })
         .level(log::LevelFilter::Trace)
         .chain(std::io::stdout())
-        .chain(fern::log_file("C:\\ajemi.log")?)
+        .chain(fern::log_file("C:\\Users\\Administrator\\Documents\\ajemi.log")?)
         .apply()?;
     Ok(())   
 }

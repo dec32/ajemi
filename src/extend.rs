@@ -35,17 +35,3 @@ impl OsStrExt2 for OsString {
         self.encode_wide().chain(Some(0).into_iter()).collect()
     }
 }
-
-pub trait StrExt {
-    fn to_bytes_with_nul(&self) -> Vec<u8>;
-    fn to_pctr(&self) -> PCSTR;
-}
-
-impl StrExt for str {
-    fn to_bytes_with_nul(&self) -> Vec<u8> {
-        self.as_bytes().into_iter().cloned().chain(Some(0).into_iter()).collect()
-    }
-    fn to_pctr(&self) -> PCSTR {
-        PCSTR::from_raw(CString::new(self).unwrap().as_bytes_with_nul().as_ptr())
-    }
-}
