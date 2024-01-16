@@ -313,7 +313,10 @@ impl KeyEventSinkInner {
                 Space => self.composition.commit(context)?,
                 Enter => self.composition.release(context)?,
                 Backspace => self.composition.pop(context)?,
-                Tab => self.composition.force_commit(context, ' ')?,
+                Tab => {
+                    self.composition.push(context, ' ')?;
+                    self.composition.release(context)?
+                } 
                 // disable cursor movement because I am lazy.
                 Left|Up|Right|Down => (),
                 Unknown => {
