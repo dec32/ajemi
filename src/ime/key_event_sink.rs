@@ -186,8 +186,8 @@ impl Input {
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
         }
-        fn add(char: char, offset: u8) -> char {
-            let char: u8 = char.try_into().unwrap();
+        fn add(ch: char, offset: u8) -> char {
+            let char: u8 = ch.try_into().unwrap();
             let sum: u8 = char + offset;
             sum.try_into().unwrap()
         }
@@ -315,10 +315,10 @@ impl KeyEventSinkInner {
         return Ok(TRUE);
     }
 
-    fn insert_char(&self, context: &ITfContext, char: char) -> Result<()> {
+    fn insert_char(&self, context: &ITfContext, ch: char) -> Result<()> {
         // todo avoid heap alloc
         let mut text = String::with_capacity(1);
-        text.push(char);
+        text.push(ch);
         let text = OsString::from(text).wchars();
         edit_session::insert_text(self.tid, context, &text)
     }
