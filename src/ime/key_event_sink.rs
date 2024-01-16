@@ -1,10 +1,10 @@
-use std::{sync::RwLock, collections::HashSet};
+use std::{sync::RwLock, collections::HashSet, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
 
 use log::{trace, warn, debug};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl, ITfComposition}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
 use windows::core::Result;
 
-use crate::{ime::{edit_session::{start_composition, end_composition, set_text, self}, composition_sink::CompositionSink}, extend::{OsStrExt2, GUIDExt}, engine};
+use crate::{ime::{edit_session, composition_sink::CompositionSink}, extend::{GUIDExt, OsStrExt2}, engine};
 
 //----------------------------------------------------------------------------
 //
@@ -174,7 +174,7 @@ fn is_caw(wparam:WPARAM) -> bool {
 
 /// see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 enum Input{
-    Letter(u8), Number(u8), Punct(u8),
+    Letter(char), Number(char), Punct(char),
     Space, Backspace, Enter,
     Left, Up, Right, Down,
     Unknown
@@ -193,46 +193,51 @@ impl Input {
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
         }
+        fn add(char: char, offset: u8) -> char {
+            let char: u8 = char.try_into().unwrap();
+            let sum: u8 = char + offset;
+            sum.try_into().unwrap()
+        }
         match (key_code, shift) {
             // A key ~ Z key, convert them to lowercase letters
-            (0x41..=0x5A, false) => Letter(b'a' + offset(key_code, 0x41)),
-            (0x41..=0x5A, true ) => Letter(b'A' + offset(key_code, 0x41)),
+            (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
+            (0x41..=0x5A, true ) => Letter(add('A', offset(key_code, 0x41))),
             // Numbers
-            (0x30..=0x39, false) => Number(b'0' + offset(key_code, 0x30)),
+            (0x30..=0x39, false) => Number(add('0', offset(key_code, 0x30))),
             // Punctuators, the keycodes has nothing to do with ASCII values
-            (0x31, true ) => Punct(b'!'),
-            (0x32, true ) => Punct(b'@'),
-            (0x33, true ) => Punct(b'#'),
-            (0x34, true ) => Punct(b'$'),
-            (0x35, true ) => Punct(b'%'),
-            (0x36, true ) => Punct(b'^'),
-            (0x37, true ) => Punct(b'&'),
-            (0x38, true ) => Punct(b'*'),
-            (0x39, true ) => Punct(b'('),
-            (0x30, true ) => Punct(b')'),
+            (0x31, true ) => Punct('!'),
+            (0x32, true ) => Punct('@'),
+            (0x33, true ) => Punct('#'),
+            (0x34, true ) => Punct('$'),
+            (0x35, true ) => Punct('%'),
+            (0x36, true ) => Punct('^'),
+            (0x37, true ) => Punct('&'),
+            (0x38, true ) => Punct('*'),
+            (0x39, true ) => Punct('('),
+            (0x30, true ) => Punct(')'),
             // Punctuators
-            (0xBA, false) => Punct(b';'),
-            (0xBA, true ) => Punct(b':'),
-            (0xBB, false) => Punct(b'='),
-            (0xBB, true ) => Punct(b'+'),
-            (0xBC, false) => Punct(b','),
-            (0xBC, true ) => Punct(b'<'),
-            (0xBD, false) => Punct(b'-'),
-            (0xBD, true ) => Punct(b'_'),
-            (0xBE, false) => Punct(b'.'),
-            (0xBE, true ) => Punct(b'>'),
-            (0xBF, false) => Punct(b'/'),
-            (0xBF, true ) => Punct(b'?'),
-            (0xC0, false) => Punct(b'`'),
-            (0xC0, true ) => Punct(b'~'),
-            (0xDB, false) => Punct(b'['),
-            (0xDB, true ) => Punct(b'{'),
-            (0xDC, false) => Punct(b'\\'),
-            (0xDC, true ) => Punct(b'|'),
-            (0xDD, false) => Punct(b']'),
-            (0xDD, true ) => Punct(b'}'),
-            (0xDE, false) => Punct(b'\''),
-            (0xDE, true ) => Punct(b'"'),
+            (0xBA, false) => Punct(';'),
+            (0xBA, true ) => Punct(':'),
+            (0xBB, false) => Punct('='),
+            (0xBB, true ) => Punct('+'),
+            (0xBC, false) => Punct(','),
+            (0xBC, true ) => Punct('<'),
+            (0xBD, false) => Punct('-'),
+            (0xBD, true ) => Punct('_'),
+            (0xBE, false) => Punct('.'),
+            (0xBE, true ) => Punct('>'),
+            (0xBF, false) => Punct('/'),
+            (0xBF, true ) => Punct('?'),
+            (0xC0, false) => Punct('`'),
+            (0xC0, true ) => Punct('~'),
+            (0xDB, false) => Punct('['),
+            (0xDB, true ) => Punct('{'),
+            (0xDC, false) => Punct('\\'),
+            (0xDC, true ) => Punct('|'),
+            (0xDD, false) => Punct(']'),
+            (0xDD, true ) => Punct('}'),
+            (0xDE, false) => Punct('\''),
+            (0xDE, true ) => Punct('"'),
             // The special ones. They are for editing and operations.
             (0x20, _) => Space,
             (0x0D, _) => Enter,
@@ -275,9 +280,9 @@ impl KeyEventSinkInner {
         };
         if !self.composition.composing() {
             match event {
-                // only letters can start compositions
+                // letters start compositions. punctuators need to be re-mapped.
                 Letter(letter) => self.composition.start(context, letter)?,
-                Punct(punct) => self.insert_text(context, &engine::convert_punct(punct))?,
+                Punct(punct) => self.insert_text(context, &engine::remap_punct(punct))?,
                 _ => {return Ok(FALSE)}
             }
         } else {
@@ -291,8 +296,9 @@ impl KeyEventSinkInner {
                 Punct(punct) => {
                     // todo punctuator can be regarded as one-character auto commit
                     // but to support auto commit the searching algorithm needs to re-designed
+                    self.composition.push(context, punct)?;
                     self.composition.commit_release(context)?;
-                    self.insert_text(context, &engine::convert_punct(punct))?;
+                    // self.insert_text(context, &engine::remap_punct(punct))?;
                 },
                 Space => self.composition.commit(context)?,
                 Enter => self.composition.release(context)?,
@@ -308,11 +314,11 @@ impl KeyEventSinkInner {
         return Ok(TRUE);
     }
 
-    fn insert_text(&self, context: &ITfContext, text: &[u16]) -> Result<()> {
-        edit_session::insert_text(self.tid, context, text)
+    fn insert_text(&self, context: &ITfContext, text: &str) -> Result<()> {
+        edit_session::insert_text(self.tid, context, &OsStr::new(text).wchars())
     }
 
-    fn insert_char(&self, context: &ITfContext, char: u8) -> Result<()> {
+    fn insert_char(&self, context: &ITfContext, char: char) -> Result<()> {
         edit_session::insert_text(self.tid, context, &[char.try_into().unwrap()])
     }
 }
@@ -327,8 +333,8 @@ impl KeyEventSinkInner {
 struct Composition {
     tid: u32,
     composition: Option<ITfComposition>,
-    letters: Vec<u16>,
-    suggestion: Vec<u16>,
+    letters: String,
+    suggestion: String,
 }
 
 impl Composition {
@@ -336,19 +342,19 @@ impl Composition {
         Composition {
             tid: tid,
             composition: None,
-            letters: Vec::new(),
-            suggestion: Vec::new(),
+            letters: String::new(),
+            suggestion: String::new(),
         }
     }
 
     // there are only two states: composing or not
-    fn start(&mut self, context: &ITfContext, letter: u8) -> Result<()> {
-        self.composition = Some(start_composition(self.tid, context, &CompositionSink{}.into())?);
+    fn start(&mut self, context: &ITfContext, letter: char) -> Result<()> {
+        self.composition = Some(edit_session::start_composition(self.tid, context, &CompositionSink{}.into())?);
         self.push(context, letter)
     }
 
     fn end(&mut self, context: &ITfContext) -> Result<()> {
-        end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
+        edit_session::end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
         self.composition = None;
         self.letters.clear();
         self.suggestion.clear();
@@ -361,8 +367,10 @@ impl Composition {
     }
 
     // make things easier
-    fn set_text(&self, context: &ITfContext, text:&[u16]) -> Result<()> {
-        set_text(self.tid, context, unsafe { self.composition.as_ref().unwrap().GetRange()? }, text)
+    fn set_text(&self, context: &ITfContext, text: &str) -> Result<()> {
+        let text = OsString::from(text).wchars();
+        let range = unsafe { self.composition.as_ref().unwrap().GetRange()? };
+        edit_session::set_text(self.tid, context, range, &text)
     }
 
     // FIXME this function is slow-ass
@@ -370,11 +378,11 @@ impl Composition {
         if self.suggestion.is_empty() {
             self.set_text(context, &self.letters)
         } else {
-            let mut buf: Vec<u16> = Vec::with_capacity("[]".len() + self.suggestion.len() + self.letters.len());
-            buf.push(b'['.into());
-            buf.extend_from_slice(&self.suggestion);
-            buf.push(b']'.into());
-            buf.extend_from_slice(&self.letters);
+            let mut buf = String::with_capacity("[]".len() + self.suggestion.len() + self.letters.len());
+            buf.push('[');
+            buf += &self.suggestion;
+            buf.push(']');
+            buf += &self.letters;
             self.set_text(context, &buf)
         }
     }
@@ -383,9 +391,9 @@ impl Composition {
 // handle input and transit state
 // calling these function while not composing would cause the program to crash
 impl Composition {
-    fn push(&mut self, context: &ITfContext, letter: u8) -> Result<()>{
+    fn push(&mut self, context: &ITfContext, letter: char) -> Result<()>{
         // todo auto-commit
-        self.letters.push(letter.into());
+        self.letters.push(letter);
         self.suggestion = engine::suggest(&self.letters);
         self.set_text_as_suggestions_and_letters(context)
     }
@@ -432,7 +440,7 @@ impl Composition {
 
     // interupted. abort everything.
     fn abort(&mut self, context: &ITfContext) -> Result<()> {
-        self.set_text(context, &[])?;
+        self.set_text(context, &"")?;
         self.end(context)
     }
 }

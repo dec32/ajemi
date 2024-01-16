@@ -1,12 +1,13 @@
-use std::{collections::HashMap, ffi::OsStr, cell::OnceCell};
+use std::{collections::HashMap, cell::OnceCell};
 
-use crate::extend::OsStrExt2;
 
 /// A private struct to store and query words, punctuators
 #[derive(Default)]
 struct Engine {
-    dict: HashMap<Vec<u16>, Vec<u16>>,
-    puncts: HashMap<u16, Vec<u16>>,
+    // todo the values are actually pretty small (1 ~ 2 chars) thus cheap to copy
+    // try implement a stringlet type that implments the Copy trait, not sure if thats possible
+    dict: HashMap<String, String>,
+    puncts: HashMap<char, String>,
 }
 
 impl Engine {
@@ -17,22 +18,20 @@ impl Engine {
     fn load_dict(&mut self, entries: Vec<(&str, &str)>) {
         use Candidate::*;
         enum Candidate {
-            Exact(Vec<u16>),
-            Unique(Vec<u16>),
+            Exact(String),
+            Unique(String),
             Duplicate,
         }
         let mut candidates = HashMap::new();
-        for entry in entries {
-            let spelling = OsStr::new(entry.0).wchars();
-            let word = OsStr::new(entry.1).wchars();
-            candidates.insert(spelling.clone(), Exact(word.clone()));
+        for (spelling, word) in entries {
+            candidates.insert(spelling.to_string(), Exact(word.to_string()));
             for len in 1..spelling.len() {
                 let prefix = &spelling[0..len];
                 match candidates.get(prefix) {
                     None => 
-                        candidates.insert(prefix.to_vec(), Unique(word.clone())),
+                        candidates.insert(prefix.to_string(), Unique(word.to_string())),
                     Some(Unique(_)) | Some(Duplicate) => 
-                        candidates.insert(prefix.to_vec(), Duplicate),
+                        candidates.insert(prefix.to_string(), Duplicate),
                     Some(Exact(_)) 
                         => None,
                 };
@@ -54,20 +53,20 @@ impl Engine {
         self.dict = dict;
     }
 
-    fn insert_punt(&mut self, punct: char, output: &str) {
-        self.puncts.insert(punct.try_into().unwrap(), OsStr::new(output).wchars());
+    fn insert_punt(&mut self, punct: char, remapped: &str) {
+        self.puncts.insert(punct, String::from(remapped));
     }
 
-    fn suggest(&self, letters: &[u16]) -> Vec<u16> {
+    fn suggest(&self, letters: &str) -> String {
         let mut from = 0;
         let mut to = letters.len();
-        let mut result = Vec::new();
+        let mut result = String::new();
         while from < to {
             let slice = &letters[from..to];
             let suggestion = self.dict.get(slice);
             // to match `Some(Exact(word)) | Some(Unique(word))` will cause the issue mentioned above
             if let Some(word) = suggestion {
-                result.extend_from_slice(word);
+                result += word;
                 from = to;
                 to = letters.len();
             } else {
@@ -252,14 +251,19 @@ fn engine() -> &'static Engine {
     unsafe {ENGINE.get().unwrap()}
 }
 
-pub fn suggest(letters: &[u16]) -> Vec<u16> {
+pub fn suggest(letters: &str) -> String {
     engine().suggest(letters)
 }
 
-pub fn convert_punct(punct: u8) -> Vec<u16> {
-    engine().puncts.get(&punct.try_into().unwrap())
-        .map(Vec::clone)
-        .unwrap_or_else(||vec![punct.try_into().unwrap()])
+pub fn remap_punct(punct: char) -> String {
+    // FIXME wow this String alloc is so unneccessary
+    engine().puncts.get(&punct)
+        .map(String::clone)
+        .unwrap_or_else(||{
+            let mut buf = String::with_capacity(1);
+            buf.push(punct);
+            buf
+        })
 }
 
 
@@ -280,14 +284,12 @@ fn i_dont_know_now_to_write_macros() {
 #[test]
 fn repl() {
     use std::io::stdin;
-    use std::ffi::OsString;
     setup();
     let mut buf = String::new();
     loop {
         buf.clear();
         stdin().read_line(&mut buf).unwrap();
-        let wchars = OsString::from(&buf).wchars();
-        let suggestion = String::from_utf16_lossy(&suggest(&wchars));
+        let suggestion = &suggest(&buf);
         println!("{}", suggestion);
     }
 
@@ -306,12 +308,10 @@ pub fn test_dict() {
     ]);
 
     for (letters, suggestion) in &engine.dict {
-        let letters = String::from_utf16_lossy(&letters);
         println!("{letters}={:?}", suggestion);
     }
 
-    let suggestion = engine.suggest(&OsStr::new("milukinekijenasalol").wchars());
-    let suggestion = String::from_utf16_lossy(&suggestion);
+    let suggestion = engine.suggest("milukinekijenasalol");
     println!("{suggestion}")  
 }
 
