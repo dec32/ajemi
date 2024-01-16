@@ -177,6 +177,7 @@ enum Input{
     Letter(char), Number(char), Punct(char),
     Space, Backspace, Enter,
     Left, Up, Right, Down,
+    Tab,
     Unknown
 }
 
@@ -192,12 +193,13 @@ impl Input {
             sum.try_into().unwrap()
         }
         match (key_code, shift) {
-            // A key ~ Z key, convert them to lowercase letters
+            // Letter keys
             (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
             (0x41..=0x5A, true ) => Letter(add('A', offset(key_code, 0x41))),
             // Numbers
             (0x30..=0x39, false) => Number(add('0', offset(key_code, 0x30))),
-            // Punctuators, the keycodes has nothing to do with ASCII values
+            (0x60..=0x69, _    ) => Number(add('0', offset(key_code, 0x60))),
+            // Punctuators
             (0x31, true ) => Punct('!'),
             (0x32, true ) => Punct('@'),
             (0x33, true ) => Punct('#'),
@@ -208,7 +210,7 @@ impl Input {
             (0x38, true ) => Punct('*'),
             (0x39, true ) => Punct('('),
             (0x30, true ) => Punct(')'),
-            // More punctuators
+            // Punctuators, the miscellaneous ones as Microsoft calls them
             (0xBA, false) => Punct(';'),
             (0xBA, true ) => Punct(':'),
             (0xBB, false) => Punct('='),
@@ -231,14 +233,21 @@ impl Input {
             (0xDD, true ) => Punct('}'),
             (0xDE, false) => Punct('\''),
             (0xDE, true ) => Punct('"'),
-            // The special ones. They are for editing and operations.
-            (0x20, _) => Space,
-            (0x0D, _) => Enter,
-            (0x08, _) => Backspace,
-            (0x25, _) => Left,
-            (0x26, _) => Up,
-            (0x27, _) => Right,
-            (0x28, _) => Down,
+            // Punctuators, the numpad ones
+            (0x6A, _    ) => Punct('*'),
+            (0x6B, _    ) => Punct('+'),
+            (0x6C, _    ) => Punct('/'),
+            (0x6D, _    ) => Punct('-'),
+            // The special keys. They are for editing and operations.
+            (0x08, _    ) => Backspace,
+            (0x09, _    ) => Tab,
+            (0x0D, _    ) => Enter,
+            (0x20, _    ) => Space,
+            (0x25, _    ) => Left,
+            (0x26, _    ) => Up,
+            (0x27, _    ) => Right,
+            (0x28, _    ) => Down,
+            
             _ => Unknown
         }
     }
@@ -304,7 +313,8 @@ impl KeyEventSinkInner {
                 Space => self.composition.commit(context)?,
                 Enter => self.composition.release(context)?,
                 Backspace => self.composition.pop(context)?,
-                // disable cursor movement because I am lazy
+                Tab => self.composition.force_commit(context, ' ')?,
+                // disable cursor movement because I am lazy.
                 Left|Up|Right|Down => (),
                 Unknown => {
                     self.composition.abort(context)?;
