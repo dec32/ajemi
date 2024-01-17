@@ -7,7 +7,7 @@ mod engine;
 
 use std::{ffi::c_void, ptr, mem};
 use ::log::{debug, error, trace};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH}, Com::{IClassFactory, IClassFactory_Impl}}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::Com::{IClassFactory, IClassFactory_Impl}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
 
@@ -22,7 +22,7 @@ use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
+extern "stdcall" fn DllMain(dll_module: HINSTANCE, _call_reason: u32, _reserved: *mut()) -> bool {
     let _ = log::setup();
     engine::setup();
     unsafe {DLL_MOUDLE = Some(dll_module)};
@@ -69,6 +69,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
         for error in errors {
             error!("\t{}", error)
         }
+        // FIXME should've been E_FAIL but I don't want to bother the user.
         S_OK
     }
 }
