@@ -25,18 +25,7 @@ use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
     let _ = log::setup();
     engine::setup();
-    // store dll_module for later use
-    match call_reason {
-        DLL_PROCESS_ATTACH => {
-            unsafe { DLL_MOUDLE = Some(dll_module) };
-        },
-        DLL_PROCESS_DETACH => {
-            unsafe { DLL_MOUDLE = None }
-        },
-        _ => {
-
-        }
-    }
+    unsafe {DLL_MOUDLE = Some(dll_module)};
     true
 }
 
@@ -80,7 +69,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
         for error in errors {
             error!("\t{}", error)
         }
-        E_FAIL
+        S_OK
     }
 }
 

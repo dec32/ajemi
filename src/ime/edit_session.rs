@@ -1,9 +1,9 @@
 use std::cell::Cell;
 
-use log::{trace, debug};
+use log::trace;
 use windows::Win32::Foundation::S_OK;
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION, GUID_PROP_ATTRIBUTE};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------
 //
@@ -37,10 +37,7 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
                 context_composition.StartComposition(
                     ec, &range, self.composition_sink)?
             };
-            // unsafe {
-            //     self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?
-            //         .SetValueStore(ec, &range, ppropstore)?
-            // }
+            // now to apply underscore to text
             self.composition.set(Some(composition));
             Ok(())
         }

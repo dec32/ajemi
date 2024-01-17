@@ -79,11 +79,11 @@ const SUPPORTED_CATEGORIES: [GUID;16] = [
 pub unsafe fn register_ime() -> Result<()> {
     // some COM nonsense to create the registry objects.
     let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
-        &CLSID_TF_InputProcessorProfiles as *const GUID, 
+        &CLSID_TF_InputProcessorProfiles, 
         None, 
         CLSCTX_INPROC_SERVER)?;
     let category_mgr: ITfCategoryMgr = CoCreateInstance(
-        &CLSID_TF_CategoryMgr as *const GUID, 
+        &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
 
@@ -93,7 +93,7 @@ pub unsafe fn register_ime() -> Result<()> {
     // 3. categories(the features the IME has)
 
     let ime_id = &GUID::from(IME_ID);
-    let lang_profile_id = &GUID::from(LANG_PROFILE_ID) as *const GUID;
+    let lang_profile_id = &GUID::from(LANG_PROFILE_ID);
 
     input_processor_profiles.Register(ime_id)?;
 
@@ -103,8 +103,7 @@ pub unsafe fn register_ime() -> Result<()> {
     input_processor_profiles.AddLanguageProfile(ime_id, LANG_ID, lang_profile_id, &ime_name, &icon_file, 0)?;
 
     for rcatid  in SUPPORTED_CATEGORIES {
-        let rcatid = &rcatid as *const GUID;
-        category_mgr.RegisterCategory(ime_id, rcatid, ime_id)?;
+        category_mgr.RegisterCategory(ime_id, &rcatid, ime_id)?;
     }
     Ok(())
 }
@@ -113,24 +112,26 @@ pub unsafe fn register_ime() -> Result<()> {
 pub unsafe fn unregister_ime() -> Result<()> {
     // todo: it seems able to unregister the dll but alaways exits with 0x80004005
     let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
-        &CLSID_TF_InputProcessorProfiles as *const GUID, // using ::IID would cause unregister to fail
+        &CLSID_TF_InputProcessorProfiles, // using ::IID would cause unregister to fail
         None, 
         CLSCTX_INPROC_SERVER)?;
     let category_mgr: ITfCategoryMgr = CoCreateInstance(
-        &CLSID_TF_CategoryMgr as *const GUID, 
+        &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
 
 
-    let ime_id = &GUID::from(IME_ID) as *const GUID;
-    let lang_profile_id = &GUID::from(LANG_PROFILE_ID) as *const GUID;
+    let ime_id = &GUID::from(IME_ID);
+    let lang_profile_id = &GUID::from(LANG_PROFILE_ID);
 
     input_processor_profiles.Unregister(ime_id)?;
+    debug!("Unregistered the input method.");
     input_processor_profiles.RemoveLanguageProfile(ime_id, LANG_ID, lang_profile_id)?;
+    debug!("Unregistered the language profile.");
     for rcatid in SUPPORTED_CATEGORIES {
-        let rcatid = &rcatid as *const GUID;
-        category_mgr.UnregisterCategory(ime_id, rcatid, ime_id)?;
+        category_mgr.UnregisterCategory(ime_id, &rcatid, ime_id)?;
     }
+    debug!("Unregistered the categories.");
     Ok(())
 }
 

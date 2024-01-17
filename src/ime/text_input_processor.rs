@@ -9,15 +9,6 @@ use crate::ime::thread_mgr_event_sink::ThreadMgrEventSink;
 
 
 #[implement(ITfTextInputProcessor, ITfTextInputProcessorEx)]
-
-/*
-TextInputProcessor(Ex) {
-    KeyEventSink
-    CompositionSink
-    ThreadMgrEventSink
-    TextEditSink
-}
-*/
 pub struct TextInputProcessor {
     ctx: Cell<Option<Context>>,
 }
@@ -48,10 +39,6 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
 
         // Creating event sinks to subsucribe to events
 
-        // TODO: Manage the dependencies of event sinks.
-        // For now its only
-        // KeyEventSink ---> CompositionEventSink
-
         let key_event_sink = KeyEventSink::new(tid);
         let thread_mgr_event_sink = ThreadMgrEventSink::new();
         let cookie ;
@@ -63,7 +50,7 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
                 tid, &ITfKeyEventSink::from(key_event_sink) , true)?;
             debug!("Added key event sink.");
         }
-        // wow i hate you microsoft why every self is immutable
+        // wow i hate you microsoft why every &self is immutable
         self.ctx.set(Some(Context{
             thread_mgr: thread_mgr.clone(),
             tid,

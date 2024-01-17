@@ -201,6 +201,12 @@ impl ITfCompositionSink_Impl for CompositionSink {
     #[allow(non_snake_case)]
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
+        // FIXME this only prevents a terminated composition from swallowing letters into void.
+        // However it does not make the composition abort the text it may hold.
+        // To call Composition::abort from here can be very hard.
+        // To re-rewrite Composition::abort here is impossible because this stupid method don't
+        // have context: ITfContext passed in.
+        // Thus this issue is ignored for now. It's not a fatal one anyway.
         self.terminated.store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
