@@ -2,7 +2,8 @@ use std::ffi::{OsStr, OsString};
 use log::debug;
 use windows::core::{Result, GUID};
 use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr, GUID_TFCAT_CATEGORY_OF_TIP, GUID_TFCAT_TIP_KEYBOARD, GUID_TFCAT_TIPCAP_SECUREMODE, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, GUID_TFCAT_TIPCAP_COMLESS, GUID_TFCAT_TIPCAP_WOW16, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, GUID_TFCAT_PROP_AUDIODATA, GUID_TFCAT_PROP_INKDATA, GUID_TFCAT_PROPSTYLE_STATIC, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY}};
-use winreg::{RegKey, enums::HKEY_CURRENT_USER};
+use winreg::enums::HKEY_LOCAL_MACHINE;
+use winreg::RegKey;
 use crate::{global::*, extend::OsStrExt2};
 
 
@@ -14,39 +15,37 @@ use crate::{global::*, extend::OsStrExt2};
 //----------------------------------------------------------------------------
 
 
-// FIXME 无法注册到注册表中
 // FIXME these unwrappings...
 pub unsafe fn register_server() -> Result<()> {
-    return Ok(());
-
-    // Register the IME's ASCII name under HKEY_CLASSES_ROOT\CLSID\{IME_ID}
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID);
-    let (clsid, _) = hkcu.create_subkey(path).unwrap();
+    let (clsid, _) = hklm.create_subkey(path).unwrap();
     clsid.set_value("", &IME_NAME_ASCII).unwrap();
 
-    // Register the dll path under HKEY_CLASSES_ROOT\CLSID\{IME_ID}\InprocServer32 
+    // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
     let (inproc_server_32, _) = clsid.create_subkey("InprocServer32").unwrap();
     let dll_path = {
         let mut buf: Vec<u8> = Vec::with_capacity(260);
+        // FIXME the buf is always empty
+        let handle = DLL_MOUDLE.map(|it|format!("Some({:#0X})", it.0)).unwrap_or("None".to_string());
+        debug!("Handle to the dll module is {handle}");
         GetModuleFileNameA(DLL_MOUDLE.unwrap(), &mut buf);
-        debug!("Buffer for GetModulFileNameA: {:?}", buf);
+        debug!("Buffer for GetModuleFileNameA: {:?}", buf);
         OsString::from_encoded_bytes_unchecked(buf)
     };
     debug!("Dll path to be registered: {:?}", dll_path);
     inproc_server_32.set_value("", &dll_path).unwrap();
 
-    // Register the threading model under HKEY_CLASSES_ROOT\{IME_ID}\InprocServer32
+    // Register the threading model under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32
     inproc_server_32.set_value("ThreadingModel", &"Apartment").unwrap();
     Ok(())
 }
 
 pub unsafe fn unregister_server() -> Result<()> {
-    return Ok(());
-    
-    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID);
-    hkcu.delete_subkey_all(path).unwrap();
+    hklm.delete_subkey_all(path).unwrap();
     Ok(())
 }
 
