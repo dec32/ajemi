@@ -51,7 +51,9 @@ unsafe fn find_dll_path() -> Result<OsString> {
         ".\\target\\debug\\ajemi.dll",
         ".\\ajemi.dll", 
         "C:\\Program Files\\Ajemi\\ajemi.dll", 
-        "C:\\Program Files (x86)\\Ajemi\\ajemi.dll"] {
+        "C:\\Program Files (x86)\\Ajemi\\ajemi.dll",
+        "D:\\Program Files\\Ajemi\\ajemi.dll", 
+        "D:\\Program Files (x86)\\Ajemi\\ajemi.dll"] {
         if let Ok(path) = fs::canonicalize(path) {
             debug!("Found dll in {:?}", path);
             return Ok(path.into_os_string())
