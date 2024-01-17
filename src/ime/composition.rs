@@ -1,4 +1,6 @@
 use std::ffi::OsString;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use log::trace;
 use windows::Win32::UI::TextServices::{ITfContext, ITfComposition, ITfCompositionSink, ITfCompositionSink_Impl};
 use windows::core::{Result, implement};
@@ -12,29 +14,40 @@ use crate::{ime::edit_session, extend::OsStrExt2, engine::engine};
 //
 //----------------------------------------------------------------------------
 
-#[derive(Default)]
 pub struct Composition {
     tid: u32,
-    composition: Option<ITfComposition>,
     spelling: String,
     // suggestion from engine
     output: String,
-    groupping: Vec<usize>
+    groupping: Vec<usize>,
+    // TSF related
+    composition: Option<ITfComposition>,
+    composition_sink: ITfCompositionSink,
 }
 
 impl Composition {
     pub fn new (tid: u32) -> Composition {
-        Composition {tid, ..Default::default()}
+        Composition {
+            tid, 
+            spelling: String::new(),
+            output: String::new(),
+            groupping: Vec::new(),
+            composition: None,
+            composition_sink: ITfCompositionSink::from(CompositionSink::default())
+        }
     }
 
     // there are only two states: composing or not
     pub fn start(&mut self, context: &ITfContext) -> Result<()> {
-        self.composition = Some(edit_session::start_composition(self.tid, context, &CompositionSink{}.into())?);
+        let composition = edit_session::start_composition(
+            self.tid, context, &self.composition_sink)?;
+        self.composition = Some(composition);
         Ok(())
     }
 
     pub fn end(&mut self, context: &ITfContext) -> Result<()> {
-        edit_session::end_composition(self.tid, context, self.composition.as_ref().unwrap())?;
+        edit_session::end_composition(
+            self.tid, context, self.composition.as_ref().as_ref().unwrap())?;
         self.composition = None;
         self.spelling.clear();
         self.output.clear();
@@ -157,12 +170,26 @@ impl Composition {
     }
 }
 
+#[derive(Default)]
 #[implement(ITfCompositionSink)]
-struct CompositionSink;
+struct CompositionSink{
+    terminated: AtomicBool
+}
+impl CompositionSink {
+    fn reuse(&self) {
+        self.terminated.store(false, std::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn terminated(&self) -> bool {
+        self.terminated.fetch_or(false, std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 impl ITfCompositionSink_Impl for CompositionSink {
     #[allow(non_snake_case)]
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
+        self.terminated.store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 }

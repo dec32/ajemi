@@ -41,7 +41,6 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
             //     self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?
             //         .SetValueStore(ec, &range, ppropstore)?
             // }
-            debug!("Started composition.");
             self.composition.set(Some(composition));
             Ok(())
         }
@@ -54,10 +53,7 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     });
 
     unsafe {
-        // todo dwflags
-        // https://learn.microsoft.com/en-us/windows/win32/api/msctf/nf-msctf-itfcontext-requesteditsession
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
-        debug!("Requested a edit session to start composition");
         if result != S_OK {
             Err(Error::from(result))
         } else {
