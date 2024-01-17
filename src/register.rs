@@ -1,8 +1,9 @@
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::Path;
-use log::{debug, warn};
-use windows::core::{Result, GUID};
+use log::{debug, warn, error};
+use windows::Win32::Foundation::E_FAIL;
+use windows::core::{Result, GUID, Error};
 use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr, GUID_TFCAT_CATEGORY_OF_TIP, GUID_TFCAT_TIP_KEYBOARD, GUID_TFCAT_TIPCAP_SECUREMODE, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, GUID_TFCAT_TIPCAP_COMLESS, GUID_TFCAT_TIPCAP_WOW16, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, GUID_TFCAT_PROP_AUDIODATA, GUID_TFCAT_PROP_INKDATA, GUID_TFCAT_PROPSTYLE_STATIC, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY}};
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
@@ -24,19 +25,17 @@ pub unsafe fn register_server() -> Result<()> {
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID);
     let (clsid, _) = hklm.create_subkey(path).unwrap();
     clsid.set_value("", &IME_NAME_ASCII).unwrap();
-
     // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
     let (inproc_server_32, _) = clsid.create_subkey("InprocServer32").unwrap();
-    let dll_path = find_dll_path().unwrap_or_else(||OsString::new());
+    let dll_path = find_dll_path()?;
     debug!("Dll path to be registered: {:?}", dll_path);
     inproc_server_32.set_value("", &dll_path).unwrap();
-
     // Register the threading model under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32
     inproc_server_32.set_value("ThreadingModel", &"Apartment").unwrap();
     Ok(())
 }
 
-unsafe fn find_dll_path() -> Option<OsString> {
+unsafe fn find_dll_path() -> Result<OsString> {
     let mut buf: Vec<u8> = Vec::with_capacity(260);
     // FIXME the buf is always empty
     let handle = DLL_MOUDLE.map(|it|format!("Some({:#0X})", it.0)).unwrap_or("None".to_string());
@@ -44,7 +43,7 @@ unsafe fn find_dll_path() -> Option<OsString> {
     GetModuleFileNameA(DLL_MOUDLE.unwrap(), &mut buf);
     debug!("Result of GetModuleFileNameA: {:?}", buf);
     if !buf.is_empty() {
-        return Some(OsString::from_encoded_bytes_unchecked(buf));
+        return Ok(OsString::from_encoded_bytes_unchecked(buf));
     }
     // GetModuleFileNameA tends to fail so try a few more options
     warn!("GetModuleFileNameA did not provide the path of the DLL file. Stupid M$.");
@@ -55,10 +54,11 @@ unsafe fn find_dll_path() -> Option<OsString> {
         "C:\\Program Files (x86)\\Ajemi\\ajemi.dll"] {
         if let Ok(path) = fs::canonicalize(path) {
             debug!("Found dll in {:?}", path);
-            return Some(path.into_os_string())
+            return Ok(path.into_os_string())
         }     
     }
-    return None;
+    error!("Failed to find the dll path.");
+    return Err(Error::from(E_FAIL));
 }
 
 pub unsafe fn unregister_server() -> Result<()> {
