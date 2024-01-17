@@ -1,9 +1,8 @@
 use std::ffi::OsString;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
-use log::trace;
+use log::{trace, debug};
 use windows::Win32::UI::TextServices::{ITfContext, ITfComposition, ITfCompositionSink, ITfCompositionSink_Impl};
-use windows::core::{Result, implement};
+use windows::core::{Result, implement, AsImpl};
 use crate::{ime::edit_session, extend::OsStrExt2, engine::engine};
 
 //----------------------------------------------------------------------------
@@ -42,6 +41,10 @@ impl Composition {
         let composition = edit_session::start_composition(
             self.tid, context, &self.composition_sink)?;
         self.composition = Some(composition);
+        self.spelling.clear();
+        self.output.clear();
+        self.groupping.clear();
+        self.composition_sink().reuse();
         Ok(())
     }
 
@@ -49,26 +52,35 @@ impl Composition {
         edit_session::end_composition(
             self.tid, context, self.composition.as_ref().as_ref().unwrap())?;
         self.composition = None;
-        self.spelling.clear();
-        self.output.clear();
-        self.groupping.clear();
         Ok(())
     }
 
-    // to check the current state
+    /// To check the current state. 
+    /// Mutations are allowed only when this method returns `true`.
     pub fn composing(&self) -> bool {
-        self.composition.is_some()
+        if self.composition.is_none() {
+            return false;
+        }
+        if self.composition_sink().terminated() {
+            debug!("Composition was terminated by force a while ago.");
+            return false;
+        }
+        return true;
+    }
+
+    fn composition_sink(&self) -> &CompositionSink {
+        unsafe { self.composition_sink.as_impl() }
     }
 
     // make things easier
-    pub fn set_text(&self, context: &ITfContext, text: &str) -> Result<()> {
+    fn set_text(&self, context: &ITfContext, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
         let range = unsafe { self.composition.as_ref().unwrap().GetRange()? };
         edit_session::set_text(self.tid, context, range, &text)
     }
 
     // FIXME this function is slow-ass
-    pub fn set_text_as_suggestions(&self, context: &ITfContext) -> Result<()> {
+    fn set_text_as_suggestions(&self, context: &ITfContext) -> Result<()> {
         if self.output.is_empty() {
             self.set_text(context, &self.spelling)
         } else {
