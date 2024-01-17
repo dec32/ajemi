@@ -5,7 +5,7 @@ pub fn setup() -> Result<(), fern::InitError>{
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
-                "{} [{}] {}",
+                "{} [{:<5}] {}",
                 now(),
                 record.level(),
                 message
