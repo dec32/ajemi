@@ -1,9 +1,9 @@
 use std::cell::Cell;
 
-use log::{trace, debug, error};
+use log::{trace, debug};
 use windows::Win32::Foundation::S_OK;
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION, GUID_PROP_ATTRIBUTE};
 
 //----------------------------------------------------------------------------
 //
@@ -32,18 +32,15 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
                 self.context.cast::<ITfInsertAtSelection>()?
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?
             };
-            debug!("Fetched the range successfully.");
             let context_composition = self.context.cast::<ITfContextComposition>()?;
             let composition = unsafe {
-                let res = context_composition.StartComposition(
-                    ec, &range, self.composition_sink);
-                if let Err(e) = res {
-                    error!("Can not start composition.");
-                    error!("{}", e);
-                    return Err(e);
-                }
-                res.unwrap()
+                context_composition.StartComposition(
+                    ec, &range, self.composition_sink)?
             };
+            // unsafe {
+            //     self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?
+            //         .SetValueStore(ec, &range, ppropstore)?
+            // }
             debug!("Started composition.");
             self.composition.set(Some(composition));
             Ok(())

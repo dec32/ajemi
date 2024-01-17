@@ -50,7 +50,7 @@ impl ITfKeyEventSink_Impl for KeyEventSink {
     }
     #[allow(non_snake_case)]
     fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
-        trace!("OnSetFocus");
+        trace!("OnSetFocus({})", fforeground.as_bool());
         self.0.read().unwrap().on_set_focus(fforeground)
     }
 }

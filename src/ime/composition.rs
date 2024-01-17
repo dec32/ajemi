@@ -82,10 +82,10 @@ impl Composition {
 // handle input and transit state
 // calling these function while not composing would cause the program to crash
 impl Composition {
-    pub fn push(&mut self, context: &ITfContext, char: char) -> Result<()>{
-        trace!("push({char})"); 
+    pub fn push(&mut self, context: &ITfContext, ch: char) -> Result<()>{
+        trace!("push({ch})"); 
         // todo auto-commit
-        self.spelling.push(char);
+        self.spelling.push(ch);
         engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
         self.set_text_as_suggestions(context)
     }
@@ -162,6 +162,7 @@ struct CompositionSink;
 impl ITfCompositionSink_Impl for CompositionSink {
     #[allow(non_snake_case)]
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
+        trace!("OnCompositionTerminated");
         Ok(())
     }
 }

@@ -66,12 +66,14 @@ impl Engine {
 
     // I hate this kind of out parameters but otherwise the allocations can be crazy.
     pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
+        // FIXME：when spelling contains non-aschii punctuators it will crash
         trace!("suggest({spelling})");
         groupping.clear();
         output.clear();
         let mut from = 0;
         let mut to = spelling.len();
         while from < to {
+            // And I suspect there's something to do with slicing...
             let slice = &spelling[from..to];
             // to match `Some(Exact(word)) | Some(Unique(word))` will cause the issue mentioned above
             if let Some(word) = self.dict.get(slice) {
