@@ -96,15 +96,16 @@ pub unsafe fn register_ime() -> Result<()> {
     let lang_profile_id = &GUID::from(LANG_PROFILE_ID);
 
     input_processor_profiles.Register(ime_id)?;
-
+    debug!("Registered the input method.");
     // todo the icon cannot be registered
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = OsStr::new(ICON_FILE).null_terminated_wchars();
     input_processor_profiles.AddLanguageProfile(ime_id, LANG_ID, lang_profile_id, &ime_name, &icon_file, 0)?;
-
+    debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
         category_mgr.RegisterCategory(ime_id, &rcatid, ime_id)?;
     }
+    debug!("Registered the categories.");
     Ok(())
 }
 
