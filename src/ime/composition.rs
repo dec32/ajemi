@@ -201,8 +201,8 @@ impl CompositionSink {
     }
 }
 
+#[allow(non_snake_case)]
 impl ITfCompositionSink_Impl for CompositionSink {
-    #[allow(non_snake_case)]
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
         // FIXME this only prevents a terminated composition from swallowing letters into void.

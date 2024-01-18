@@ -22,33 +22,28 @@ impl KeyEventSink {
     }
 }
 
+#[allow(non_snake_case)]
 impl ITfKeyEventSink_Impl for KeyEventSink {
-    #[allow(non_snake_case)]
     fn OnTestKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         self.0.write().unwrap().on_test_key_down(context, wparam, lparam)
     }
-    #[allow(non_snake_case)]
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         self.0.write().unwrap().on_key_down(context, wparam, lparam)
     }
-    #[allow(non_snake_case)]
     fn OnTestKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
         self.0.write().unwrap().on_test_key_up(context, wparam, lparam)
     }
-    #[allow(non_snake_case)]
     fn OnKeyUp(&self, context: Option<&ITfContext>, wparam:WPARAM, lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
         self.0.write().unwrap().on_key_up(context, wparam, lparam)
     }
-    #[allow(non_snake_case)]
     fn OnPreservedKey(&self, context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         trace!("OnPreservedKey({:?})", unsafe{ rguid.as_ref() }.map(GUID::to_rfc4122));
         self.0.read().unwrap().on_preserved_key(context, rguid)
     }
-    #[allow(non_snake_case)]
     fn OnSetFocus(&self, fforeground:BOOL) ->  Result<()> {
         trace!("OnSetFocus({})", fforeground.as_bool());
         self.0.read().unwrap().on_set_focus(fforeground)

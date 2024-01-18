@@ -59,7 +59,6 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
         Ok(())
     }
 
-    #[allow(non_snake_case)]
     fn Deactivate(&self) -> Result<()> {
         trace!("Deactivate");
         let Some(ctx) = self.ctx.take() else {
@@ -75,8 +74,8 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
     }
 }
 
-impl ITfTextInputProcessorEx_Impl for TextInputProcessor {
-    #[allow(non_snake_case)]
+#[allow(non_snake_case)]
+impl ITfTextInputProcessorEx_Impl for TextInputProcessor {  
     fn ActivateEx(&self, ptim: Option<&ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
         self.Activate(ptim, tid)
     }

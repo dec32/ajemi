@@ -46,7 +46,7 @@ unsafe fn find_dll_path() -> Result<OsString> {
         return Ok(path);
     }
     // GetModuleFileNameA tends to fail so try a few more options
-    warn!("GetModuleFileNameA did not provide the path of the DLL file. Stupid M$.");
+    warn!("GetModuleFileNameA did not provide the path of the DLL file.");
     for path in [".\\target\\debug\\ajemi.dll", ".\\ajemi.dll"] {
         if let Ok(canonical_path) = fs::canonicalize(path) {
             debug!("Found dll in {path}");
