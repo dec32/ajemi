@@ -1,6 +1,5 @@
 use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::path::Path;
 use log::{debug, warn, error};
 use windows::Win32::Foundation::E_FAIL;
 use windows::core::{Result, GUID, Error};
@@ -28,7 +27,6 @@ pub unsafe fn register_server() -> Result<()> {
     // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
     let (inproc_server_32, _) = clsid.create_subkey("InprocServer32").unwrap();
     let dll_path = find_dll_path()?;
-    debug!("Dll path to be registered: {:?}", dll_path);
     inproc_server_32.set_value("", &dll_path).unwrap();
     // Register the threading model under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32
     inproc_server_32.set_value("ThreadingModel", &"Apartment").unwrap();
@@ -43,20 +41,16 @@ unsafe fn find_dll_path() -> Result<OsString> {
     GetModuleFileNameA(DLL_MOUDLE.unwrap(), &mut buf);
     debug!("Result of GetModuleFileNameA: {:?}", buf);
     if !buf.is_empty() {
-        return Ok(OsString::from_encoded_bytes_unchecked(buf));
+        let path = OsString::from_encoded_bytes_unchecked(buf);
+        debug!("Found dll in {:?}", path);
+        return Ok(path);
     }
     // GetModuleFileNameA tends to fail so try a few more options
     warn!("GetModuleFileNameA did not provide the path of the DLL file. Stupid M$.");
-    for path in [
-        ".\\target\\debug\\ajemi.dll",
-        ".\\ajemi.dll", 
-        "C:\\Program Files\\Ajemi\\ajemi.dll", 
-        "C:\\Program Files (x86)\\Ajemi\\ajemi.dll",
-        "D:\\Program Files\\Ajemi\\ajemi.dll", 
-        "D:\\Program Files (x86)\\Ajemi\\ajemi.dll"] {
-        if let Ok(path) = fs::canonicalize(path) {
-            debug!("Found dll in {:?}", path);
-            return Ok(path.into_os_string())
+    for path in [".\\target\\debug\\ajemi.dll", ".\\ajemi.dll"] {
+        if let Ok(canonical_path) = fs::canonicalize(path) {
+            debug!("Found dll in {path}");
+            return Ok(canonical_path.into_os_string())
         }     
     }
     error!("Failed to find the dll path.");

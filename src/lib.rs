@@ -119,9 +119,8 @@ struct ClassFactory;
 impl ClassFactory {
     fn new() -> ClassFactory {ClassFactory{}.into()}
 }
-
+#[allow(non_snake_case)]
 impl IClassFactory_Impl for ClassFactory {
-    #[allow(non_snake_case)]
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
         trace!("CreateInstance");
         let mut result = Ok(());
@@ -138,7 +137,6 @@ impl IClassFactory_Impl for ClassFactory {
         result
     }
 
-    #[allow(non_snake_case)]
     fn LockServer(&self, _flock: BOOL) -> Result<()> {
         trace!("LockServer");
         Ok(())

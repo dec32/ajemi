@@ -132,16 +132,19 @@ impl Composition {
             self.set_text(context, &self.spelling)?;
             self.end(context)
         } else {
-            self.set_text(context, &self.output)?;
             let last = *self.groupping.last().unwrap();
             if last == self.spelling.len() {
+                self.set_text(context, &self.output)?;
                 self.end(context)
             } else {
-                let trailing = &self.spelling[last..].to_string();
-                self.end(context)?;
-                self.start(context)?;
-                self.spelling.push_str(&trailing);
-                self.set_text(context, &self.spelling)
+                // // FIXME it will eat the already composed part
+                // let trailing = &self.spelling[last..].to_string();
+                // self.set_text(context, &self.output)?;
+                // self.end(context)?;
+                // self.start(context)?;
+                // self.spelling.push_str(&trailing);
+                // self.set_text(context, &self.spelling)
+                self.force_commit(context, ' ')
             }            
         }
     }
@@ -155,6 +158,7 @@ impl Composition {
         } else {
             let last = *self.groupping.last().unwrap();
             if last < self.spelling.len() {
+                self.output.push(' ');
                 self.output.push_str(&self.spelling[last..])
             }
             self.output.push(ch);

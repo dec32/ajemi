@@ -26,8 +26,8 @@ impl TextInputProcessor {
     }
 }
 
+#[allow(non_snake_case)]
 impl ITfTextInputProcessor_Impl for TextInputProcessor {
-    #[allow(non_snake_case)]
     fn Activate(&self, thread_mgr: Option<&ITfThreadMgr>, tid: u32) -> Result<()> {
         trace!("Activate");
         // tid is the identifier for the client (the program where the user is typing into)
