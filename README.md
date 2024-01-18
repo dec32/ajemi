@@ -4,7 +4,16 @@ Ajemi is an IME (input method) for Toki Pona. With proper font support, it allow
 
 ![](./doc/preview.gif)
 
-## Install
+## Install Standalone Version
+
+![](./doc/preview-text-mode.gif)
+
+The standalone version is available now. Click link below to download the installer.
+
+[![[DOWNLOAD]](https://img.shields.io/badge/DOWNLOAD-win--x64-blue)](https://github.com/dec32/Ajemi/releases/download/v0.1/Ajemi-0.1-Setup.exe)
+
+
+## Install with RIME
 
 1. Install [RIME](https://rime.im/)
 2. Install the font [Nishiki-teki](https://umihotaru.work/nishiki-teki.zip)
