@@ -37,7 +37,6 @@ impl OsStrExt2 for OsString {
 // todo use crate: log_derive
 pub trait ResultExt {
     fn log_error(self) -> Self;
-    fn ignore(self);
 }
 
 impl <T, E:Debug> ResultExt for Result<T, E> {
