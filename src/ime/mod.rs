@@ -4,6 +4,6 @@ mod composition;
 mod edit_session;
 mod candidate_list;
 mod thread_mgr_event_sink;
-mod langbar_button;
+mod langbar_item;
 
 

@@ -178,11 +178,6 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
 
 
 
-
-
-
-
-
 // pub fn get_pos(tid:u32, context: &ITfContext) -> Result<(i32, i32)> {
 //     #[implement(ITfEditSession)]
 //     struct Session<'a> {

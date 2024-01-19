@@ -1,4 +1,5 @@
-use std::{ffi::{OsString, OsStr, CString}, os::windows::ffi::OsStrExt};
+use std::{ffi::{OsString, OsStr, CString}, os::windows::ffi::OsStrExt, fmt::Debug};
+use log::{debug, error};
 use windows::core::{GUID, PCSTR};
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
@@ -30,6 +31,21 @@ impl OsStrExt2 for OsString {
     }
     fn null_terminated_wchars(&self) -> Vec<u16>{
         self.encode_wide().chain(Some(0).into_iter()).collect()
+    }
+}
+
+// todo use crate: log_derive
+pub trait ResultExt {
+    fn log_error(self) -> Self;
+    fn ignore(self);
+}
+
+impl <T, E:Debug> ResultExt for Result<T, E> {
+    fn log_error(self) -> Self {
+        if let Err(e) = self.as_ref() {
+            error!("\t{:?}", e);
+        }
+        self
     }
 }
 
