@@ -5,6 +5,8 @@ use windows::Win32::UI::TextServices::{ITfContext, ITfComposition, ITfCompositio
 use windows::core::{Result, implement, AsImpl};
 use crate::{ime::edit_session, extend::OsStrExt2, engine::engine};
 
+use super::candidate_list::CandidateList;
+
 //----------------------------------------------------------------------------
 //
 //  Composition is the texts held by the input method waiting to be "composed"
@@ -22,6 +24,8 @@ pub struct Composition {
     // TSF related
     composition: Option<ITfComposition>,
     composition_sink: ITfCompositionSink,
+    // UI
+    candidate_list: CandidateList,
 }
 
 impl Composition {
@@ -32,7 +36,8 @@ impl Composition {
             output: String::new(),
             groupping: Vec::new(),
             composition: None,
-            composition_sink: ITfCompositionSink::from(CompositionSink::default())
+            composition_sink: ITfCompositionSink::from(CompositionSink::default()),
+            candidate_list: CandidateList::new(),
         }
     }
 
@@ -40,6 +45,10 @@ impl Composition {
     pub fn start(&mut self, context: &ITfContext) -> Result<()> {
         let composition = edit_session::start_composition(
             self.tid, context, &self.composition_sink)?;
+        // todo use (0, 0) if failed. 
+        let pos = edit_session::get_pos(
+            self.tid, context, unsafe{ &composition.GetRange()? })?; 
+        self.candidate_list.locate(pos);
         self.composition = Some(composition);
         self.spelling.clear();
         self.output.clear();
@@ -52,6 +61,7 @@ impl Composition {
         edit_session::end_composition(
             self.tid, context, self.composition.as_ref().as_ref().unwrap())?;
         self.composition = None;
+        self.candidate_list.hide();
         Ok(())
     }
 
@@ -102,6 +112,14 @@ impl Composition {
             self.set_text(context, &buf)
         }
     }
+
+    fn update_candidate_list(&self) {
+        if self.output.is_empty() {
+            self.candidate_list.hide()
+        } else {
+            self.candidate_list.show(&self.output)
+        }
+    }
 }
 
 // handle input and transit state
@@ -112,7 +130,9 @@ impl Composition {
         // todo auto-commit
         self.spelling.push(ch);
         engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
-        self.set_text_as_suggestions(context)
+        self.set_text_as_suggestions(context)?;
+        self.update_candidate_list();
+        Ok(())
     }
 
     pub fn pop(&mut self, context: &ITfContext) -> Result<()>{
@@ -122,7 +142,9 @@ impl Composition {
             return Ok(());
         }
         engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
-        self.set_text_as_suggestions(context)
+        self.set_text_as_suggestions(context)?;
+        self.update_candidate_list();
+        Ok(())
     }
 
     // commit the suggestion, keeping the unrecognizable trailing characters
