@@ -1,9 +1,11 @@
 use std::cell::Cell;
 
-use log::{trace, warn};
-use windows::Win32::Foundation::{S_OK, RECT, BOOL};
+use log::trace;
+use windows::Win32::Foundation::{S_OK, RECT, BOOL, HWND};
 use windows::core::{implement, Result, ComInterface, AsImpl, Error};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION, TF_DEFAULT_SELECTION, TF_SELECTION};
+use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
+
+use crate::extend::ResultExt;
 
 //----------------------------------------------------------------------------
 //
@@ -140,12 +142,12 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
     }
 }
 
-pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, i32)> {
+pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(HWND, i32, i32)> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
         range: &'a ITfRange,
-        pos: Cell<(i32, i32)>,
+        pos: Cell<(HWND, i32, i32)>,
     }
 
     impl ITfEditSession_Impl for Session<'_> {
@@ -154,16 +156,17 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
             unsafe {
                 let mut rect = RECT::default();
                 let mut clipped = BOOL::default();
-                self.context.GetActiveView()?.GetTextExt(
-                    ec, self.range, &mut rect, &mut clipped)?;
-                self.pos.set((rect.left, rect.bottom));
+                let view = self.context.GetActiveView()?;
+                let hwnd = view.GetWnd().log_error()?;
+                view.GetTextExt(ec, self.range, &mut rect, &mut clipped)?;
+                self.pos.set((hwnd, rect.left, rect.bottom));
                 Ok(())
             }
         }
     }
 
     let session = ITfEditSession::from(Session{
-        context, range, pos: Cell::new((0, 0))});
+        context, range, pos: Cell::new((HWND::default(), 0, 0))});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
@@ -174,51 +177,3 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
         }
     }
 }
-
-
-
-
-// pub fn get_pos(tid:u32, context: &ITfContext) -> Result<(i32, i32)> {
-//     #[implement(ITfEditSession)]
-//     struct Session<'a> {
-//         context: &'a ITfContext,
-//         pos: Cell<(i32, i32)>,
-//     }
-
-//     impl ITfEditSession_Impl for Session<'_> {
-//         #[allow(non_snake_case)]
-//         fn DoEditSession(&self, ec:u32) -> Result<()> {
-//             unsafe {
-//                 let mut selection = Vec::with_capacity(1);
-//                 let mut fetched = 0;
-//                 self.context.GetSelection(
-//                     ec, 
-//                     TF_DEFAULT_SELECTION, 
-//                     &mut selection, 
-//                     &mut fetched)?;
-//                 if fetched == 0 || selection.len() < 1 {
-//                     warn!("GetSelection failed when getting the position. fetched={}, selection={:?}", fetched, selection);
-//                     return Ok(());
-//                 }
-//                 let range = selection[0].range.as_ref().unwrap();
-//                 let mut rect = RECT::default();
-//                 let mut clipped = BOOL::default();
-//                 self.context.GetActiveView()?.GetTextExt(
-//                     ec, range, &mut rect, &mut clipped)?;
-//                 self.pos.set((rect.left, rect.bottom));
-//                 Ok(())
-//             }
-//         }
-//     }
-
-//     let session = ITfEditSession::from(Session{context, pos: Cell::new((0, 0))});
-//     unsafe {
-//         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
-//         if result != S_OK {
-//             Err(Error::from(result))
-//         } else {
-//             let session: &Session = session.as_impl();
-//             Ok(session.pos.take())
-//         }
-//     }
-// }

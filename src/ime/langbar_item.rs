@@ -1,4 +1,4 @@
-use log::{debug, trace};
+use log::trace;
 use windows::Win32::Foundation::{POINT, RECT, BOOL};
 use windows::Win32::UI::WindowsAndMessaging::{HICON, LoadIconA};
 use windows::core::{implement,Result, BSTR, s, GUID};

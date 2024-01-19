@@ -3,6 +3,7 @@ use std::sync::atomic::AtomicBool;
 use log::{trace, debug};
 use windows::Win32::UI::TextServices::{ITfContext, ITfComposition, ITfCompositionSink, ITfCompositionSink_Impl};
 use windows::core::{Result, implement, AsImpl};
+use crate::extend::ResultExt;
 use crate::{ime::edit_session, extend::OsStrExt2, engine::engine};
 
 use super::candidate_list::CandidateList;
@@ -48,7 +49,7 @@ impl Composition {
         // todo use (0, 0) if failed. 
         let pos = edit_session::get_pos(
             self.tid, context, unsafe{ &composition.GetRange()? })?; 
-        self.candidate_list.locate(pos);
+        self.candidate_list.locate(pos.0, (pos.1, pos.2)).log_error()?;
         self.composition = Some(composition);
         self.spelling.clear();
         self.output.clear();
@@ -113,7 +114,7 @@ impl Composition {
         }
     }
 
-    fn update_candidate_list(&self) {
+    fn update_candidate_list(&mut self) {
         if self.output.is_empty() {
             self.candidate_list.hide()
         } else {

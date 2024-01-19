@@ -1,5 +1,5 @@
 use std::{ffi::{OsString, OsStr, CString}, os::windows::ffi::OsStrExt, fmt::Debug};
-use log::{debug, error};
+use log::error;
 use windows::core::{GUID, PCSTR};
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;

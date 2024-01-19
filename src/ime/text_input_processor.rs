@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use log::{trace, warn, debug, error};
+use log::{trace, warn, debug};
 use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfTextInputProcessorEx, ITfThreadMgrEventSink, ITfSource, ITfLangBarItemMgr, ITfLangBarItem};
 use windows::core::{Result, ComInterface, implement};
 
