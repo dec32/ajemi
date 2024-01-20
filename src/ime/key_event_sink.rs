@@ -1,9 +1,9 @@
 use std::{sync::RwLock, collections::HashSet, ffi::OsString};
 use log::{trace, warn};
-use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::{GUID, implement}};
+use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE, HWND}}, core::{GUID, implement}};
 use windows::core::Result;
 use crate::{ime::edit_session, extend::{GUIDExt, OsStrExt2}, engine::engine};
-use super::composition::Composition;
+use super::{composition::Composition, candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //
@@ -17,8 +17,8 @@ use super::composition::Composition;
 pub struct KeyEventSink (RwLock<KeyEventSinkInner>);
 
 impl KeyEventSink {
-    pub fn new(tid: u32) -> KeyEventSink {
-        KeyEventSink{0: RwLock::new(KeyEventSinkInner::new(tid))}
+    pub fn new(tid: u32, candidate_list: CandidateList) -> KeyEventSink {
+        KeyEventSink{0: RwLock::new(KeyEventSinkInner::new(tid, candidate_list))}
     }
 }
 
@@ -65,10 +65,10 @@ pub struct KeyEventSinkInner {
 }
 
 impl KeyEventSinkInner {
-    fn new(tid: u32) -> KeyEventSinkInner {
+    fn new(tid: u32, candidate_list: CandidateList) -> KeyEventSinkInner {
         KeyEventSinkInner {
             tid,
-            composition: Composition::new(tid),
+            composition: Composition::new(tid, candidate_list),
             caws: HashSet::new(),
             shift: false,
         }

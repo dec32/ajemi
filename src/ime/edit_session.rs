@@ -142,12 +142,46 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
     }
 }
 
-pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(HWND, i32, i32)> {
+pub fn get_window(tid:u32, context: &ITfContext) -> Result<HWND> {
+    #[implement(ITfEditSession)]
+    struct Session<'a> {
+        context: &'a ITfContext,
+        window: Cell<HWND>,
+    }
+
+    impl ITfEditSession_Impl for Session<'_> {
+        #[allow(non_snake_case)]
+        fn DoEditSession(&self, ec:u32) -> Result<()> {
+            unsafe {
+                let view = self.context.GetActiveView()?;
+                let hwnd = view.GetWnd().log_error()?;
+                self.window.set(hwnd);
+                Ok(())
+            }
+        }
+    }
+
+    let session = ITfEditSession::from(Session{
+        context,  window: Cell::new(HWND::default())});
+    unsafe {
+        let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
+        if result != S_OK {
+            Err(Error::from(result))
+        } else {
+            let session: &Session = session.as_impl();
+            Ok(session.window.take())
+        }
+    }
+
+    
+}
+
+pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, i32)> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
         range: &'a ITfRange,
-        pos: Cell<(HWND, i32, i32)>,
+        pos: Cell<(i32, i32)>,
     }
 
     impl ITfEditSession_Impl for Session<'_> {
@@ -159,14 +193,14 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(HWND,
                 let view = self.context.GetActiveView()?;
                 let hwnd = view.GetWnd().log_error()?;
                 view.GetTextExt(ec, self.range, &mut rect, &mut clipped)?;
-                self.pos.set((hwnd, rect.left, rect.bottom));
+                self.pos.set((rect.left, rect.bottom));
                 Ok(())
             }
         }
     }
 
     let session = ITfEditSession::from(Session{
-        context, range, pos: Cell::new((HWND::default(), 0, 0))});
+        context, range, pos: Cell::new((0, 0))});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {

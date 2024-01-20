@@ -5,6 +5,7 @@ use windows::Win32::UI::TextServices::{ITfTextInputProcessor, ITfThreadMgr, ITfT
 use windows::core::{Result, ComInterface, implement};
 
 use crate::extend::ResultExt;
+use crate::ime::candidate_list::{self, CandidateList};
 use crate::ime::key_event_sink::KeyEventSink;
 use crate::ime::thread_mgr_event_sink::ThreadMgrEventSink;
 
@@ -41,9 +42,12 @@ impl ITfTextInputProcessor_Impl for TextInputProcessor {
             warn!("Thread manager is null.");
             return Ok(());
         };
-
+        let window = unsafe {
+            thread_mgr.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()?
+        };
+        let candidate_list = CandidateList::create(window)?;
         // Creating event sinks to subsucribe to events
-        let key_event_sink = KeyEventSink::new(tid);
+        let key_event_sink = KeyEventSink::new(tid, candidate_list);
         let thread_mgr_event_sink = ThreadMgrEventSink::new();
         let cookie ;
         unsafe {
