@@ -1,7 +1,18 @@
+use std::mem;
+
 use windows::Win32::Foundation::HINSTANCE;
 
 // global variables
-pub static mut DLL_MOUDLE: Option<HINSTANCE> = None;
+static mut DLL_MODULE: HINSTANCE = unsafe{ mem::zeroed() };
+pub fn setup(dll_module: HINSTANCE) {
+    unsafe {
+        DLL_MODULE = dll_module;
+    }
+}
+
+pub fn dll_module() -> HINSTANCE {
+    unsafe{ DLL_MODULE }
+}
 
 // todo migrate the constants into a config file
 pub const IME_NAME: &str = "Ajemi";

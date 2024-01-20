@@ -1,6 +1,6 @@
-use std::{ffi::{OsString, OsStr, CString}, os::windows::ffi::OsStrExt, fmt::Debug};
+use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt, fmt::Debug};
 use log::error;
-use windows::core::{GUID, PCSTR};
+use windows::core::GUID;
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }
@@ -37,8 +37,8 @@ impl OsStrExt2 for OsString {
 // todo use crate: log_derive
 pub trait ResultExt {
     fn log_error(self) -> Self;
+    fn ignore(self);
 }
-
 impl <T, E:Debug> ResultExt for Result<T, E> {
     fn log_error(self) -> Self {
         if let Err(e) = self.as_ref() {
@@ -46,19 +46,8 @@ impl <T, E:Debug> ResultExt for Result<T, E> {
         }
         self
     }
-}
 
-
-pub trait StrExt {
-    fn to_bytes_with_nul(&self) -> Vec<u8>;
-    fn to_pctr(&self) -> PCSTR;
-}
-
-impl StrExt for str {
-    fn to_bytes_with_nul(&self) -> Vec<u8> {
-        self.as_bytes().into_iter().cloned().chain(Some(0).into_iter()).collect()
-    }
-    fn to_pctr(&self) -> PCSTR {
-        PCSTR::from_raw(CString::new(self).unwrap().as_bytes_with_nul().as_ptr())
+    fn ignore(self) {
+        
     }
 }

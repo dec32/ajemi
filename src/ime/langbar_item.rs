@@ -2,9 +2,9 @@ use log::trace;
 use windows::Win32::Foundation::{POINT, RECT, BOOL};
 use windows::Win32::UI::WindowsAndMessaging::{HICON, LoadIconA};
 use windows::core::{implement,Result, BSTR, s, GUID};
-use windows::Win32::UI::TextServices::{ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl, ITfMenu, TfLBIClick, ITfLangBarItem_Impl, TF_LANGBARITEMINFO, TF_LBI_STATUS_BTN_TOGGLED, ITfContext, TF_LBI_STYLE_BTN_BUTTON, TF_LBI_STYLE_BTN_MENU};
+use windows::Win32::UI::TextServices::{ITfLangBarItem, ITfLangBarItemButton, ITfLangBarItemButton_Impl, ITfMenu, TfLBIClick, ITfLangBarItem_Impl, TF_LANGBARITEMINFO, TF_LBI_STYLE_BTN_BUTTON};
 
-use crate::{DLL_MOUDLE, IME_ID, LANGBAR_ITEM_ID};
+use crate::{IME_ID, LANGBAR_ITEM_ID, dll_module};
 #[implement(ITfLangBarItem, ITfLangBarItemButton)]
 pub struct LangbarItem {
     icon: HICON
@@ -13,8 +13,9 @@ pub struct LangbarItem {
 impl LangbarItem {
     // fixme there's no need to new at all
     pub fn new() -> LangbarItem {
-        let hinstance = unsafe{ DLL_MOUDLE.unwrap() };
-        let icon = unsafe {LoadIconA(hinstance, s!("ICON"))}.unwrap();
+        let icon = unsafe {
+            LoadIconA(dll_module(), s!("ICON")).unwrap()
+        };
         LangbarItem {icon}
     }
 }

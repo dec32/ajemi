@@ -34,11 +34,10 @@ pub unsafe fn register_server() -> Result<()> {
 }
 
 unsafe fn find_dll_path() -> Result<OsString> {
-    let mut buf: Vec<u8> = Vec::with_capacity(260);
     // FIXME the buf is always empty
-    let handle = DLL_MOUDLE.map(|it|format!("Some({:#0X})", it.0)).unwrap_or("None".to_string());
-    debug!("Handle to the dll module is {handle}");
-    GetModuleFileNameA(DLL_MOUDLE.unwrap(), &mut buf);
+    let mut buf: Vec<u8> = Vec::with_capacity(260);
+    debug!("Handle to the dll module is {:#0X}", dll_module().0);
+    GetModuleFileNameA(dll_module(), &mut buf);
     debug!("Result of GetModuleFileNameA: {:?}", buf);
     if !buf.is_empty() {
         let path = OsString::from_encoded_bytes_unchecked(buf);

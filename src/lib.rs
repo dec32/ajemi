@@ -6,8 +6,10 @@ mod ime;
 mod engine;
 
 use std::{ffi::c_void, ptr, mem};
+use extend::ResultExt;
+use ime::candidate_list;
 use ::log::{debug, error, trace};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::Com::{IClassFactory, IClassFactory_Impl}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
 
@@ -22,10 +24,14 @@ use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-extern "stdcall" fn DllMain(dll_module: HINSTANCE, _call_reason: u32, _reserved: *mut()) -> bool {
-    let _ = log::setup();
+extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
+    if call_reason != DLL_PROCESS_ATTACH {
+        return true;
+    }
+    log::setup().ignore();
+    global::setup(dll_module);
     engine::setup();
-    unsafe {DLL_MOUDLE = Some(dll_module)};
+    candidate_list::setup().unwrap();
     true
 }
 
