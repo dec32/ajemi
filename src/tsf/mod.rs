@@ -82,7 +82,7 @@ impl TextService {
 
     #[allow(dead_code)]
     fn read(&self) -> Result<RwLockReadGuard<TextServiceInner>> {
-        match self.inner.read() {
+        match self.inner.try_read() {
             Ok(guard) => Ok(guard),
             Err(e) => {
                 error!("Failed to obtain read lock.");
@@ -93,7 +93,8 @@ impl TextService {
     }
 
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        match self.inner.write() {
+        // FIXME using write() will cause freezing when popping the last letter
+        match self.inner.try_write() {
             Ok(guard) => Ok(guard),
             Err(e) => {
                 error!("Failed to obtain write lock.");

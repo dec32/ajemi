@@ -31,7 +31,7 @@ impl TextServiceInner {
 
     pub fn end_composition(&mut self) -> Result<()> {
         edit_session::end_composition(
-            self.tid, self.context()?, self.composition.as_ref().as_ref().unwrap())?;
+            self.tid, self.context()?, self.composition.as_ref().unwrap())?;
         self.composition = None;
         self.candidate_list()?.hide();
         Ok(())
