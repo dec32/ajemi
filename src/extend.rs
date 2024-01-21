@@ -60,7 +60,7 @@ pub trait TryLockExt<T> {
 
 impl <T> TryLockExt<T> for TryLock<T> {
     fn spin(&self, tries: u8) -> Option<Locked<T>> {
-        for i in 0..tries {
+        for _ in 0..tries {
             let locked = self.try_lock();
             if locked.is_some() {
                 return locked;

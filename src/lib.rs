@@ -15,7 +15,7 @@ use global::*;
 use register::*;
 
 
-use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor, tsf::TextService};
+use crate::{extend::GUIDExt, tsf::TextService};
 
 //----------------------------------------------------------------------------
 //
