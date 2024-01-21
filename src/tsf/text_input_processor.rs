@@ -16,14 +16,14 @@ impl ITfTextInputProcessor_Impl for TextService {
             let parent_window = unsafe {thread_mgr.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
             Some(CandidateList::create(parent_window)?)
         };
-        // Creating event sinks to subsucribe to events
         unsafe {
+            // Using self as a key event sink to subscribe to events
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
                 tid, &inner.interface::<ITfKeyEventSink>()? , true)?;
             debug!("Added key event sink.");
-            // thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
-            //     &inner.interface::<ITfLangBarItem>()?)?;
-            // debug!("Added langbar item.");
+            thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
+                &inner.interface::<ITfLangBarItem>()?)?;
+            debug!("Added langbar item.");
         }
         Ok(())
     }
@@ -35,7 +35,7 @@ impl ITfTextInputProcessor_Impl for TextService {
         unsafe {
             thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(inner.tid)?;
             debug!("Removed key event sink.");
-            // thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
+            thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
         }
         inner.thread_mgr = None;
         Ok(())
@@ -48,3 +48,9 @@ impl ITfTextInputProcessorEx_Impl for TextService {
         self.Activate(thread_mgr, tid)
     }
 }
+
+//----------------------------------------------------------------------------
+//
+//  Now see tsf/composition.rs
+//
+//----------------------------------------------------------------------------

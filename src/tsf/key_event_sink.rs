@@ -8,16 +8,13 @@ use self::Input::*;
 
 //----------------------------------------------------------------------------
 //
-//  A "sink" for key events. from here on the processing of inputs begins.
+//  A "sink" for key events. From here on the processing begins.
 //  First thing first is to simplify the overly complicated key events to "inputs"
 //
 //----------------------------------------------------------------------------
+
 #[allow(non_snake_case)]
 impl ITfKeyEventSink_Impl for TextService {
-    // `wparam` indicates the key that is pressed.
-    // The 0-15 bits of lparam indicates the repeat count
-    // (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
-
     /// The return value suggests if the key event **will be** eaten or not **if** `OnKeyDown` is called.
     /// 
     /// If `true`, the client **may** ignore the actual return value of `OnTestKeyDown` afterwards.
@@ -27,6 +24,10 @@ impl ITfKeyEventSink_Impl for TextService {
     /// If `false`, the clinet **may** not call `OnKeyDown` afterwards.
     /// Thus try to gather any needed infomations and states in `OnTestKeyDown` if possible since it
     /// may be your only chance.
+    /// 
+    /// `wparam` indicates the key that is pressed.
+    /// The 0-15 bits of `_lparam` indicates the repeat count (ignored here because it's actually always 1). 
+    /// (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
     fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.inner()?;

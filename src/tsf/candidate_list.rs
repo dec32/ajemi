@@ -39,7 +39,7 @@ pub fn setup() -> Result<()> {
 
 #[allow(unused)]
 unsafe extern "system" fn wind_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    trace!("wind_proc({:?}, {}, {:?}, {:?})", hwnd, wm(msg), wparam, lparam);
+    // trace!("wind_proc({:?}, {}, {:?}, {:?})", hwnd, wm(msg), wparam, lparam);
     DefWindowProcA(hwnd, msg, wparam, lparam)
 }
 
@@ -111,6 +111,7 @@ impl CandidateList {
     }
 }
 
+#[allow(unused)]
 const fn wm(code: u32) -> &'static str {
     match code {
         0x0000 =>"WM_NULL",

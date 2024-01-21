@@ -2,7 +2,6 @@ mod register;
 mod global;
 mod log;
 mod extend;
-mod ime;
 mod tsf;
 mod engine;
 
@@ -13,7 +12,6 @@ use ::log::{debug, error, trace};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
-
 
 use crate::{extend::GUIDExt, tsf::TextService};
 
@@ -108,7 +106,8 @@ extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, p
 #[allow(non_snake_case, dead_code)]
 extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
-    // it seems not that of a important thing to do according to https://github.com/microsoft/windows-rs/issues/2472 tho
+    // it seems not that of a important thing to do according to 
+    // https://github.com/microsoft/windows-rs/issues/2472 tho
     trace!("DllCanUnloadNow");
     S_FALSE
 }
@@ -155,6 +154,6 @@ impl IClassFactory_Impl for ClassFactory {
 
 //----------------------------------------------------------------------------
 //
-//  See ime/mod.rs for the IME's implementation
+//  See tsf/mod.rs for the IME's implementation
 //
 //----------------------------------------------------------------------------

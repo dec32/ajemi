@@ -103,7 +103,7 @@ impl TextServiceInner {
         Ok(())
     }
 
-    // commit the suggestion, keeping the unrecognizable trailing characters
+    /// Commit the suggestion, keeping the unrecognizable trailing characters
     pub fn commit(&mut self) -> Result<()>{
         if self.output.is_empty() {
             self.spelling.push(' ');
@@ -127,7 +127,7 @@ impl TextServiceInner {
         }
     }
 
-    // commit the suggestion and release the unrecognizable trailing characters.
+    /// Commit the suggestion and release the unrecognizable trailing characters.
     pub fn force_commit(&mut self, ch: char) -> Result<()>{
         trace!("force_commit");
         if self.output.is_empty() {
@@ -145,19 +145,19 @@ impl TextServiceInner {
         self.end_composition()
     }
 
-    // select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
+    /// Select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
     #[allow(dead_code)]
     pub fn select(&mut self) -> Result<()> {
         todo!("for v0.1 there's not multiple candidates to select from")
     }
 
-    // release the raw ascii chars
+    // Release the raw ascii chars
     pub fn release(&mut self) -> Result<()> {
         self.set_text(&self.spelling)?;
         self.end_composition()
     }
 
-    // interupted. abort everything.
+    // Interupted. Abort everything.
     pub fn abort(&mut self) -> Result<()> {
         self.set_text(&"")?;
         self.end_composition()
@@ -170,12 +170,7 @@ impl TextServiceInner {
 impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
-        // FIXME this only prevents a terminated composition from swallowing letters into void.
-        // However it does not make the composition abort the text it may hold.
-        // To call Composition::abort from here can be very hard.
-        // To re-rewrite Composition::abort here is impossible because this stupid method don't
-        // have context: ITfContext passed in.
-        // Thus this issue is ignored for now. It's not a fatal one anyway.
+        // FIXME won't abort properly
         self.inner()?.abort()
     }
 }

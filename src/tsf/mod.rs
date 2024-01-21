@@ -12,6 +12,15 @@ use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI
 
 use self::candidate_list::CandidateList;
 
+//----------------------------------------------------------------------------
+//
+//  A text service is required to implement ITfTextInputProcessor and provide
+//  a few other interfaces in ITfTextInputProcessor::Activate. The common
+//  approach is to let the text service implement every interfaces needed and
+//  return self whenever required.
+//
+//----------------------------------------------------------------------------
+
 #[implement(
     ITfTextInputProcessor,
     ITfTextInputProcessorEx,
@@ -19,10 +28,15 @@ use self::candidate_list::CandidateList;
     ITfCompositionSink,
     ITfLangBarItem
 )]
+
+/// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable 
+/// states are hidden behind a lock. The lock is supposed to be light-weight since
+/// inputs from user can be frequent. 
 pub struct TextService {
     inner: TryLock<TextServiceInner>
 }
 struct TextServiceInner {
+    // Some basic info about the clinet (the program where user is typing)
     tid: u32,
     thread_mgr: Option<ITfThreadMgr>,
     context: Option<ITfContext>,
@@ -62,15 +76,17 @@ impl TextService {
             interface: None,
         };
         let text_service = TextService{inner: TryLock::new(inner)};
-        // from takes ownership of the instance and return a smart pointer
+        // from takes ownership of the object and returns a smart pointer
         let interface = ITfTextInputProcessor::from(text_service);
-        // inject the smart pointer back to the instance
+        // inject the smart pointer back to the object
         let text_service: &TextService = unsafe {interface.as_impl()};
         text_service.inner.try_lock().ok_or(Error::from(E_FAIL))?.interface = Some(interface.clone());
         // cast the interface to desired type
         interface.cast()
     }
 
+    /// Altho inputs can be frequent, data races caused by typing too fast
+    /// is very unlikely to happen. So only `try_lock` is used here.
     fn inner(&self) -> Result<Locked<TextServiceInner>> {
         // TODO spin maybe
         self.inner.try_lock().ok_or(Error::from(E_FAIL))
@@ -84,7 +100,10 @@ impl TextServiceInner {
     }
 
     fn candidate_list(&self) -> Result<&CandidateList> {
-        self.candidate_list.as_ref().ok_or(Error::from(E_FAIL))
+        self.candidate_list.as_ref().ok_or_else(||{
+            error!("Candidate list is None.");
+            Error::from(E_FAIL)
+        })
     }
 
     fn context(&self) -> Result<&ITfContext> {
