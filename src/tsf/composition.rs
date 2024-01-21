@@ -1,7 +1,8 @@
 use std::ffi::OsString;
-use log::trace;
+use log::{trace, warn, error};
+use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
-use windows::core::Result;
+use windows::core::{Result, Error};
 use crate::{extend::OsStrExt2, engine::engine};
 use super::{edit_session, TextServiceInner, TextService};
 
@@ -30,8 +31,8 @@ impl TextServiceInner {
     }
 
     pub fn end_composition(&mut self) -> Result<()> {
-        edit_session::end_composition(
-            self.tid, self.context()?, self.composition.as_ref().unwrap())?;
+        // OnCompositionTerminated will set composition to None at any moment.
+        edit_session::end_composition(self.tid, self.context()?, self.composition()?)?;
         self.composition = None;
         self.candidate_list()?.hide();
         Ok(())
@@ -40,8 +41,15 @@ impl TextServiceInner {
     // make things easier
     fn set_text(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
-        let range = unsafe { self.composition.as_ref().unwrap().GetRange()? };
+        let range = unsafe { self.composition()?.GetRange()? };
         edit_session::set_text(self.tid, self.context()?, range, &text)
+    }
+
+    fn composition(&self) -> Result<&ITfComposition> {
+        self.composition.as_ref().ok_or_else(||{
+            error!("Composition is None.");
+            Error::from(E_FAIL)
+        })
     }
 
     // FIXME this function is slow-ass
@@ -89,10 +97,10 @@ impl TextServiceInner {
     }
 
     pub fn pop(&mut self) -> Result<()>{
+        trace!("pop");
         self.spelling.pop();
         if self.spelling.is_empty() {
-            self.abort()?;
-            return Ok(());
+            return self.abort();
         }
         engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
         self.set_text_as_suggestions()?;
@@ -167,7 +175,6 @@ impl TextServiceInner {
 impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
-        // FIXME won't abort properly
         let mut inner = self.write()?;
         inner.set_text(&"")?;
         inner.composition = None;
