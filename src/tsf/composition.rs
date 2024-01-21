@@ -168,6 +168,10 @@ impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
         // FIXME won't abort properly
-        self.write()?.abort()
+        let mut inner = self.write()?;
+        inner.set_text(&"")?;
+        inner.composition = None;
+        inner.candidate_list()?.hide();
+        Ok(())
     }
 }

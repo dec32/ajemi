@@ -8,7 +8,6 @@ mod langbar_item;
 use std::{collections::HashSet, sync::{RwLock, RwLockWriteGuard, RwLockReadGuard}};
 use log::error;
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
-
 use self::candidate_list::CandidateList;
 
 //----------------------------------------------------------------------------
