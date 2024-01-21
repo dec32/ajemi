@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use log::{trace, warn, error};
+use log::{trace, error};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::{Result, Error};
@@ -175,6 +175,7 @@ impl TextServiceInner {
 impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
+        // FIXME the lock can never be obtained
         let mut inner = self.write()?;
         inner.set_text(&"")?;
         inner.composition = None;

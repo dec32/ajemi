@@ -6,9 +6,9 @@ mod edit_session;
 mod langbar_item;
 
 use std::collections::HashSet;
-// use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::sync::{RwLock, RwLockWriteGuard, RwLockReadGuard};
-use log::{error, warn};
+// use parking_lot::{RwLock, RwLockWriteGuard};
+use std::sync::{RwLock, RwLockWriteGuard};
+use log::error;
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use self::candidate_list::CandidateList;
@@ -83,7 +83,7 @@ impl TextService {
     }
 
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        // TODO if fail spin
+        // FIXME occasionly fail
         match self.inner.try_write() {
             Ok(guard) => Ok(guard),
             Err(e) => {
