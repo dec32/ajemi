@@ -71,7 +71,7 @@ pub unsafe fn unregister_server() -> Result<()> {
 
 
 // features supported by the IME
-const SUPPORTED_CATEGORIES: [GUID;16] = [
+const SUPPORTED_CATEGORIES: [GUID; 13] = [
     GUID_TFCAT_CATEGORY_OF_TIP,
     GUID_TFCAT_TIP_KEYBOARD,
     GUID_TFCAT_TIPCAP_SECUREMODE,
@@ -81,10 +81,7 @@ const SUPPORTED_CATEGORIES: [GUID;16] = [
     GUID_TFCAT_TIPCAP_WOW16,
     GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
     GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
-    GUID_TFCAT_PROP_AUDIODATA,
     GUID_TFCAT_PROP_INKDATA,
-    GUID_TFCAT_PROPSTYLE_STATIC,
-    GUID_TFCAT_PROPSTYLE_STATIC,
     GUID_TFCAT_PROPSTYLE_STATIC,
     GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
     GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY
@@ -113,8 +110,10 @@ pub unsafe fn register_ime() -> Result<()> {
     debug!("Registered the input method.");
     // todo the icon cannot be registered
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
-    let icon_file: Vec<u16> = OsStr::new(ICON_FILE).null_terminated_wchars();
-    input_processor_profiles.AddLanguageProfile(ime_id, LANG_ID, lang_profile_id, &ime_name, &icon_file, 0)?;
+    let icon_file: Vec<u16> = find_dll_path()?.null_terminated_wchars();
+    input_processor_profiles.AddLanguageProfile(
+        ime_id, LANG_ID, lang_profile_id, &ime_name, 
+        &icon_file, 0)?;
     debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
         category_mgr.RegisterCategory(ime_id, &rcatid, ime_id)?;

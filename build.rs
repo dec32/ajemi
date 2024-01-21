@@ -7,6 +7,6 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
     WindowsResource::new()
-        .set_icon_with_id("res/icon.ico", "ICON")
+        .set_icon("res/icon.ico")
         .compile()
 }

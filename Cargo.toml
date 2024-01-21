@@ -8,6 +8,7 @@ log = "0.4"
 fern = "0.6"
 chrono = "0.4.*"
 winreg = "0.52"
+parking_lot = "0.12"
 
 [dependencies.windows]
 version = "0.*"

@@ -1,7 +1,7 @@
-use std::{mem::{size_of, self}, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
+use std::{mem::{size_of, self}, ffi::OsString, os::windows::ffi::OsStrExt};
 
 use log::{trace, debug, error, warn};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32A, GetTextExtentPoint32W}}, core::{s, PCSTR, Error, HSTRING}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32W}}, core::{s, PCSTR, Error, HSTRING}};
 use windows::core::Result;
 
 use crate::dll_module;
@@ -13,8 +13,8 @@ const PADDING_RIGHT: i32 = 2;
 const PADDING_LEFT: i32 = 0;
 const PADDING_BOTTOM: i32 = 2;
 
-const POS_OFFSETX: i32 = 4;
-const POS_OFFSETY: i32 = 4;
+const POS_OFFSETX: i32 = 2;
+const POS_OFFSETY: i32 = 2;
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 static mut FONT: HFONT = unsafe { mem::zeroed() };
@@ -41,7 +41,7 @@ pub fn setup() -> Result<()> {
     unsafe {
         if RegisterClassExA(&wcex) == 0 {
             error!("Failed to register window class for candidate list");
-            return unsafe{ GetLastError() };
+            return GetLastError();
         }
         debug!("Registered window class for candidate list.");
         FONT = CreateFontA (
@@ -52,7 +52,7 @@ pub fn setup() -> Result<()> {
             0, s!("linja waso lili"));
         if FONT == mem::zeroed() {
             error!("Failed to create font.");
-            return unsafe{ GetLastError() };
+            return GetLastError();
         }
         DC = GetDC(None);
         SelectObject(DC, FONT);
