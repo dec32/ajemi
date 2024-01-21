@@ -8,6 +8,8 @@ log = "0.4"
 fern = "0.6"
 chrono = "0.4.*"
 winreg = "0.52"
+try-lock ="0.2.5"
+
 [dependencies.windows]
 version = "0.*"
 features = [

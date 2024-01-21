@@ -3,18 +3,19 @@ mod global;
 mod log;
 mod extend;
 mod ime;
+mod tsf;
 mod engine;
 
 use std::{ffi::c_void, ptr, mem};
 use extend::ResultExt;
-use ime::candidate_list;
+use tsf::candidate_list;
 use ::log::{debug, error, trace};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
 
 
-use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor};
+use crate::{extend::GUIDExt, ime::text_input_processor::TextInputProcessor, tsf::TextService};
 
 //----------------------------------------------------------------------------
 //
@@ -132,8 +133,10 @@ impl IClassFactory_Impl for ClassFactory {
         let mut result = Ok(());
         unsafe {
             *ppvobject = match *riid {
-                ITfTextInputProcessor::IID => mem::transmute(ITfTextInputProcessor::from(TextInputProcessor::new())),
-                ITfTextInputProcessorEx::IID => mem::transmute(ITfTextInputProcessorEx::from(TextInputProcessor::new())),
+                ITfTextInputProcessor::IID => mem::transmute(
+                    TextService::create::<ITfTextInputProcessor>()?),
+                ITfTextInputProcessorEx::IID => mem::transmute(
+                    TextService::create::<ITfTextInputProcessorEx>()?),
                 _ => {
                     result = Err(Error::from(E_NOINTERFACE));
                     ptr::null_mut()

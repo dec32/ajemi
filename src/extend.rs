@@ -1,5 +1,6 @@
 use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt, fmt::Debug};
 use log::error;
+use try_lock::{TryLock, Locked};
 use windows::core::GUID;
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
@@ -49,5 +50,22 @@ impl <T, E:Debug> ResultExt for Result<T, E> {
 
     fn ignore(self) {
         
+    }
+}
+
+
+pub trait TryLockExt<T> {
+    fn spin(&self, tries: u8) -> Option <Locked<T>>;
+}
+
+impl <T> TryLockExt<T> for TryLock<T> {
+    fn spin(&self, tries: u8) -> Option<Locked<T>> {
+        for i in 0..tries {
+            let locked = self.try_lock();
+            if locked.is_some() {
+                return locked;
+            }
+        }
+        return None;
     }
 }
