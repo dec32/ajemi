@@ -5,10 +5,10 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std::{collections::HashSet, time::{Instant,Duration}};
+use std::collections::HashSet;
 // use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::{RwLock, RwLockWriteGuard, RwLockReadGuard};
-use log::error;
+use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use self::candidate_list::CandidateList;
@@ -82,19 +82,8 @@ impl TextService {
         interface.cast()
     }
 
-    #[allow(dead_code)]
-    fn read(&self) -> Result<RwLockReadGuard<TextServiceInner>> {
-        match self.inner.try_read() {
-            Ok(guard) => Ok(guard),
-            Err(e) => {
-                error!("Failed to obtain read lock.");
-                error!("\t{:?}", e);
-                Err(Error::from(E_FAIL))
-            }
-        }
-    }
-
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+        // TODO if fail spin
         match self.inner.try_write() {
             Ok(guard) => Ok(guard),
             Err(e) => {
@@ -104,6 +93,17 @@ impl TextService {
             }
         }
     }
+
+    // fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+    //     self.inner.try_write().or_else(||{
+    //         warn!("RwLock::try_write returned None.");
+    //         let timeout = Instant::now() + Duration::from_millis(500);
+    //         self.inner.try_write_until(timeout)
+    //     }).ok_or_else(||{
+    //         error!("Failed to obtain write lock.");
+    //         Error::from(E_FAIL)
+    //     })
+    // }
 }
 
 impl TextServiceInner {
