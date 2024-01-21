@@ -46,7 +46,7 @@ impl ITfLangBarItemButton_Impl for TextService {
         Ok(())
     }
     fn GetIcon(&self) -> Result<HICON> {
-        Ok(self.inner()?.icon)
+        Ok(self.write()?.icon)
     }
     fn GetText(&self) -> Result<BSTR> {
         Ok(BSTR::default())

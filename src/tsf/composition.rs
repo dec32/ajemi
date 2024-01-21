@@ -49,10 +49,7 @@ impl TextServiceInner {
         if self.output.is_empty() {
             self.set_text(&self.spelling)
         } else {
-            let mut buf = String::with_capacity(16);
-            buf.push('[');
-            buf += &self.output;
-            buf.push(']');
+            let mut buf = String::with_capacity(32);
             let mut from = 0;
             for to in &self.groupping {
                 buf.push_str(&self.spelling[from..*to]);
@@ -171,6 +168,6 @@ impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
         // FIXME won't abort properly
-        self.inner()?.abort()
+        self.write()?.abort()
     }
 }

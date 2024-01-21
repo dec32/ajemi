@@ -115,7 +115,7 @@ pub fn setup() {
     engine.insert_punt('[', '󱦐');
     engine.insert_punt(']', '󱦑');
     engine.insert_punt('+', '󱦕');
-    engine.insert_punt('-', '󱦖');
+    engine.insert_punt('=', '󱦖');
     engine.insert_punt('(', '󱦗');
     engine.insert_punt(')', '󱦘');
     engine.insert_punt('{', '󱦚');
@@ -124,6 +124,8 @@ pub fn setup() {
     engine.insert_punt(':', '󱦝');
     engine.insert_punt('<', '「');
     engine.insert_punt('>', '」');
+    engine.insert_punt('-', '\u{200D}'); // zero-width joiner
+
     engine.load_dict(vec![
         ("a", "󱤀"),      
         ("akesi", "󱤁"),  

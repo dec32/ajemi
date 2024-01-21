@@ -5,9 +5,8 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::{RwLock, RwLockWriteGuard, RwLockReadGuard}};
 use log::error;
-use try_lock::{TryLock, Locked};
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 
 use self::candidate_list::CandidateList;
@@ -33,28 +32,24 @@ use self::candidate_list::CandidateList;
 /// states are hidden behind a lock. The lock is supposed to be light-weight since
 /// inputs from user can be frequent. 
 pub struct TextService {
-    inner: TryLock<TextServiceInner>
+    inner: RwLock<TextServiceInner>
 }
 struct TextServiceInner {
     // Some basic info about the clinet (the program where user is typing)
     tid: u32,
     thread_mgr: Option<ITfThreadMgr>,
     context: Option<ITfContext>,
-    
     // KeyEventSink
     caws: HashSet<usize>, // ctrl, alt, win
     shift: bool,
-
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
     output: String,
     groupping: Vec<usize>,
-    
     // UI
     candidate_list: Option<CandidateList>,
     icon: HICON,
-
     // An Arc-like smart pointer pointing to TextService
     interface: Option<ITfTextInputProcessor>,
 }
@@ -75,21 +70,37 @@ impl TextService {
             candidate_list: None,
             interface: None,
         };
-        let text_service = TextService{inner: TryLock::new(inner)};
+        let text_service = TextService{inner: RwLock::new(inner)};
         // from takes ownership of the object and returns a smart pointer
         let interface = ITfTextInputProcessor::from(text_service);
         // inject the smart pointer back to the object
         let text_service: &TextService = unsafe {interface.as_impl()};
-        text_service.inner.try_lock().ok_or(Error::from(E_FAIL))?.interface = Some(interface.clone());
+        text_service.write()?.interface = Some(interface.clone());
         // cast the interface to desired type
         interface.cast()
     }
 
-    /// Altho inputs can be frequent, data races caused by typing too fast
-    /// is very unlikely to happen. So only `try_lock` is used here.
-    fn inner(&self) -> Result<Locked<TextServiceInner>> {
-        // TODO spin maybe
-        self.inner.try_lock().ok_or(Error::from(E_FAIL))
+    #[allow(dead_code)]
+    fn read(&self) -> Result<RwLockReadGuard<TextServiceInner>> {
+        match self.inner.read() {
+            Ok(guard) => Ok(guard),
+            Err(e) => {
+                error!("Failed to obtain read lock.");
+                error!("\t{:?}", e);
+                Err(Error::from(E_FAIL))
+            }
+        }
+    }
+
+    fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+        match self.inner.write() {
+            Ok(guard) => Ok(guard),
+            Err(e) => {
+                error!("Failed to obtain write lock.");
+                error!("\t{:?}", e);
+                Err(Error::from(E_FAIL))
+            }
+        }
     }
 }
 
@@ -99,9 +110,9 @@ impl TextServiceInner {
         self.interface.as_ref().unwrap().cast()
     }
 
-    fn candidate_list(&self) -> Result<&CandidateList> {
-        self.candidate_list.as_ref().ok_or_else(||{
-            error!("Candidate list is None.");
+    fn thread_mgr(&self) -> Result<&ITfThreadMgr> {
+        self.thread_mgr.as_ref().ok_or_else(||{
+            error!("Thread manager is None.");
             Error::from(E_FAIL)
         })
     }
@@ -112,4 +123,17 @@ impl TextServiceInner {
             Error::from(E_FAIL)
         })
     }
+
+    fn candidate_list(&self) -> Result<&CandidateList> {
+        self.candidate_list.as_ref().ok_or_else(||{
+            error!("Candidate list is None.");
+            Error::from(E_FAIL)
+        })
+    }
 }
+
+//----------------------------------------------------------------------------
+//
+//  Now see tsf/text_input_processor.rs for the implementation.
+//
+//----------------------------------------------------------------------------

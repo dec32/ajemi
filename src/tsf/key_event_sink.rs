@@ -30,7 +30,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
     fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
-        let mut inner = self.inner()?;
+        let mut inner = self.write()?;
         if is_caw(wparam) {
             // keep track of the shortcuts
             inner.caws.insert(wparam.0);
@@ -51,7 +51,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
-        let mut inner = self.inner()?;
+        let mut inner = self.write()?;
         if is_caw(wparam) {
             inner.caws.insert(wparam.0);
             return Ok(FALSE);
@@ -74,7 +74,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// some asshole programs not calling these fuctions properly.
     fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
-        let mut inner = self.inner()?;
+        let mut inner = self.write()?;
         if is_caw(wparam) {
             inner.caws.remove(&wparam.0);
         }
@@ -86,7 +86,7 @@ impl ITfKeyEventSink_Impl for TextService {
 
     fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
-        let mut inner = self.inner()?;
+        let mut inner = self.write()?;
         if is_caw(wparam) {
             inner.caws.remove(&wparam.0);
         }
@@ -204,7 +204,7 @@ impl Input {
 //----------------------------------------------------------------------------
 //
 //  After simplifying the overly-complicated events, we can start handling them.
-//  Everthing after this point happens in "inner". No locking is needed anymore.
+//  Everthing after this point happens in "inner". Locking is nomore needed.
 //
 //----------------------------------------------------------------------------
 

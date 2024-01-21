@@ -22,4 +22,5 @@ pub const LANG_ID: u16 = 0x409; // en-US
 pub const LANG_PROFILE_ID: &str = "A411A7FC-A082-4B8A-8741-AA4A72613933";
 pub const LANGBAR_ITEM_ID: &str = "95288B2B-4D3B-4D4A-BF5B-9342E4F75E4D";
 pub const ICON_FILE: &str = "./res/icon.ico";
+pub const CANDIDATE_FONT: &str = "linja waso lili";
 

@@ -1,6 +1,6 @@
 use log::{trace, debug};
 use windows::Win32::Foundation::E_FAIL;
-use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfLangBarItemMgr, ITfLangBarItem};
+use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl};
 use windows::core::{Result, ComInterface};
 use super::{TextService, candidate_list::CandidateList};
 
@@ -8,7 +8,7 @@ use super::{TextService, candidate_list::CandidateList};
 impl ITfTextInputProcessor_Impl for TextService {
     fn Activate(&self, thread_mgr: Option<&ITfThreadMgr>, tid: u32) -> Result<()> {
         trace!("Activate({tid})");
-        let mut inner = self.inner()?;
+        let mut inner = self.write()?;
         let thread_mgr = thread_mgr.ok_or(E_FAIL)?;
         inner.tid = tid;
         inner.thread_mgr = Some(thread_mgr.clone());
@@ -21,21 +21,22 @@ impl ITfTextInputProcessor_Impl for TextService {
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
                 tid, &inner.interface::<ITfKeyEventSink>()? , true)?;
             debug!("Added key event sink.");
-            thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
-                &inner.interface::<ITfLangBarItem>()?)?;
-            debug!("Added langbar item.");
+            // thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
+            //     &inner.interface::<ITfLangBarItem>()?)?;
+            // debug!("Added langbar item.");
         }
         Ok(())
     }
 
     fn Deactivate(&self) -> Result<()> {
         trace!("Deactivate");
-        let mut inner = self.inner()?;
-        let thread_mgr = inner.thread_mgr.as_ref().ok_or(E_FAIL)?;
+        let mut inner = self.write()?;
+        let thread_mgr = inner.thread_mgr()?;
         unsafe {
             thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(inner.tid)?;
             debug!("Removed key event sink.");
-            thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
+            // thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
+            // debug!("Removed langbar item.")
         }
         inner.thread_mgr = None;
         Ok(())
