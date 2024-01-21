@@ -1,16 +1,24 @@
-use std::mem::{size_of, self};
+use std::{mem::{size_of, self}, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
 
-use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT}}, core::{s, PCSTR, Error, HSTRING}};
+use log::{trace, debug, error, warn};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32A, GetTextExtentPoint32W}}, core::{s, PCSTR, Error, HSTRING}};
 use windows::core::Result;
 
 use crate::dll_module;
 
 const FONT_SIZE: i32 = 24;
-const WND_PADDING: i32 = 0;
+
+const PADDING_TOP: i32 = 0;
+const PADDING_RIGHT: i32 = 2;
+const PADDING_LEFT: i32 = 0;
+const PADDING_BOTTOM: i32 = 2;
+
+const POS_OFFSETX: i32 = 4;
+const POS_OFFSETY: i32 = 4;
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 static mut FONT: HFONT = unsafe { mem::zeroed() };
+static mut DC: HDC = unsafe { mem::zeroed() };
 
 /// To create a window you need to register the window class beforehand.
 pub fn setup() -> Result<()> {
@@ -29,22 +37,27 @@ pub fn setup() -> Result<()> {
         lpszClassName: WINDOW_CLASS,
         hIconSm: HICON::default()
     };
-    if unsafe{ RegisterClassExA(&wcex) } == 0 {
-        error!("Failed to register window class for candidate list");
-        return unsafe{ GetLastError() };
+
+    unsafe {
+        if RegisterClassExA(&wcex) == 0 {
+            error!("Failed to register window class for candidate list");
+            return unsafe{ GetLastError() };
+        }
+        debug!("Registered window class for candidate list.");
+        FONT = CreateFontA (
+            FONT_SIZE, 0, 0, 0, 
+            0, 0, 0, 0, 
+            0, 
+            OUT_TT_PRECIS.0 as u32, 0, 0, 
+            0, s!("linja waso lili"));
+        if FONT == mem::zeroed() {
+            error!("Failed to create font.");
+            return unsafe{ GetLastError() };
+        }
+        DC = GetDC(None);
+        SelectObject(DC, FONT);
+        debug!("Created font.");
     }
-    debug!("Registered window class for candidate list.");
-    unsafe {FONT = CreateFontA (
-        FONT_SIZE, 0, 0, 0, 
-        0, 0, 0, 0, 
-        0, 
-        OUT_TT_PRECIS.0 as u32, 0, 0, 
-        0, s!("linja waso lili"))};
-    if unsafe {FONT == mem::zeroed()} {
-        error!("Failed to create font.");
-        return unsafe{ GetLastError() };
-    }
-    debug!("Created font.");
     Ok(())
 }
 
@@ -106,7 +119,7 @@ impl CandidateList {
         trace!("locate({x}, {y})");
         unsafe {SetWindowPos(
             self.window, HWND_TOPMOST, 
-            x, y, 0, 0,
+            x + POS_OFFSETX, y + POS_OFFSETY, 0, 0,
             SWP_NOACTIVATE | SWP_NOSIZE)? };
         Ok(())
     }
@@ -114,9 +127,21 @@ impl CandidateList {
     pub fn show(&self, text: &str) -> Result<()>{
         trace!("show");
         unsafe {
-            let len: i32 = text.len().try_into().unwrap();
-            let height = (WND_PADDING * 2) + FONT_SIZE;
-            let width = (WND_PADDING * 2) + (FONT_SIZE * len);
+            let height;
+            let width;
+
+            let mut size = SIZE::default();
+            let encoded: Vec<u16> = OsString::from(text).encode_wide().collect();
+            if GetTextExtentPoint32W(DC,&encoded , &mut size).as_bool() {
+                height = PADDING_TOP + PADDING_BOTTOM + size.cy;
+                width = PADDING_LEFT + PADDING_RIGHT + size.cx;
+            } else {
+                warn!("GetTextExtentPoint32W failed.");
+                let len: i32 = text.chars().count().try_into().unwrap();
+                height = PADDING_TOP + PADDING_BOTTOM + FONT_SIZE;
+                width = PADDING_LEFT + PADDING_RIGHT + FONT_SIZE * len;
+            }
+            
             SetWindowTextW(self.label,&HSTRING::from(text))?;
             SetWindowPos(
                 self.window, HWND_TOPMOST, 
