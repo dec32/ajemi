@@ -1,5 +1,6 @@
-use std::ffi::OsString;
-use log::{trace, warn};
+use core::fmt;
+use std::{ffi::OsString, time::{Duration, Instant}};
+use log::{debug, trace, warn};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::GUID};
 use windows::core::Result;
 use crate::{extend::{GUIDExt, OsStrExt2}, engine::engine};
@@ -31,17 +32,21 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_caw(wparam) {
-            // keep track of the shortcuts
-            inner.caws.insert(wparam.0);
-            return Ok(FALSE);
-        }
-        if !inner.caws.is_empty(){
-            // avoid clashing with shortcuts
-            return Ok(FALSE);
-        }
+        // remember the hold but not eat the event since we don't know if 
+        // this shift is held for "uppercase" chars or shortcuts
         if is_shift(wparam) {
-            return Ok(TRUE)
+            inner.shift = true;
+            return Ok(FALSE);
+        }
+        // remember the hold
+        if inner.caws.try_press(wparam) {
+            return Ok(FALSE);
+        }
+        // forget the hold after the shortcut is finished
+        // notice: immediate reset will make `Caws::are_pressed` return `false` in `OnKeyDown`.
+        if inner.caws.are_pressed() {
+            inner.caws.reset_in_no_time();
+            return Ok(FALSE);
         }
         let input = Input::from(wparam.0, inner.shift);
         inner.test_input(input)
@@ -49,37 +54,34 @@ impl ITfKeyEventSink_Impl for TextService {
 
     /// The return value suggests if the key event **is** eaten or not.
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
+    /// The client might call `OnKeyDown` even if `OnTestKeyDown` returned `false`.
+    /// The client can be an asshole. Remember that.
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_caw(wparam) {
-            inner.caws.insert(wparam.0);
-            return Ok(FALSE);
-        }
-        if !inner.caws.is_empty() {
-            return Ok(FALSE);
-        }
-        // remember the "holding" state but not eat the event since
-        // shift is also often a part of a shortcut
         if is_shift(wparam) {
             inner.shift = true;
-            return Ok(FALSE)
+            return Ok(FALSE);
         }
-        // let repeat = 0xFFFF & lparam.0;
+        if inner.caws.try_press(wparam) {
+            return Ok(FALSE);
+        }
+        if inner.caws.are_pressed() {
+            inner.caws.reset();
+            return Ok(FALSE);
+        }
         let input = Input::from(wparam.0, inner.shift);
         inner.handle_input(input, context)
     }
 
-    /// Ignore all key up events. I know this may cause trouble in the future because there're always
-    /// some asshole programs not calling these fuctions properly.
+    /// Key-ups are for 
     fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_caw(wparam) {
-            inner.caws.remove(&wparam.0);
-        }
         if is_shift(wparam) {
-            return Ok(TRUE);
+            inner.shift = false;
+        } else {
+            inner.caws.try_release(wparam);
         }
         Ok(FALSE)
     }
@@ -87,14 +89,10 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_caw(wparam) {
-            inner.caws.remove(&wparam.0);
-        }
         if is_shift(wparam) {
             inner.shift = false;
-            if inner.caws.is_empty() {
-                // todo ASCII mode toggle
-            }
+        } else {
+            inner.caws.try_release(wparam);
         }
         Ok(FALSE)
     }
@@ -118,11 +116,103 @@ fn is_shift(wparam:WPARAM) -> bool {
     wparam.0 == 0x10 || wparam.0 == 0xA0 || wparam.0 == 0xA1
 }
 
-fn is_caw(wparam:WPARAM) -> bool {
-    wparam.0 == 0x11 || wparam.0 == 0xA2 || wparam.0 == 0xA3 || // ctrl
-    wparam.0 == 0x12 || wparam.0 == 0xA4 || wparam.0 == 0xA4 || // alt
-    wparam.0 == 0x5B || wparam.0 == 0x5C                        // win
+/// Keep track of if the CAWs(CTRL, ALT and WIN) are being pressed or not.
+/// The struct maintains a relatively short TTL. If expired, the CAWs are
+/// considered not being pressed. That is because some clients do not send 
+/// proper key-up events and make it seem like some CAWs are never released.
+/// In that case, the input method is completely disabled because it believes
+/// that the user is pounding shortcuts non-stop.
+pub struct Caws {
+    pressed: [bool;8],
+    count: u8,
+    expire_at: Instant,
 }
+
+impl Caws {
+    const TTL: Duration = Duration::from_millis(1500);
+    const VERY_SHORT_TTL: Duration = Duration::from_millis(150);
+    pub fn new() -> Caws {
+        Caws{ pressed: Default::default(), count: 0, expire_at: Instant::now()}
+    }
+    fn try_press(&mut self, wparam: WPARAM) -> bool {
+        self.reset_if_expired();
+        if let Some(index) = Self::index(wparam) {
+            if self.pressed[index] == false {
+                self.pressed[index] = true;
+                self.count += 1;
+                self.expire_at = Instant::now() + Caws::TTL;
+            } 
+            debug!("{:?}", self);
+            true
+        } else { 
+            false
+        }
+    }
+    fn try_release(&mut self, wparam: WPARAM) -> bool { 
+        self.reset_if_expired();
+        if let Some(index) = Self::index(wparam) {
+            if self.pressed[index] == true {
+                self.pressed[index] = false;
+                self.count -= 1;
+                self.expire_at = Instant::now() + Caws::TTL;
+            }
+            debug!("{:?}", self);
+            true
+        } else { 
+            false
+        }
+    }
+    fn are_pressed(&mut self) -> bool {
+        self.reset_if_expired();
+        self.count > 0
+    }
+    fn reset(&mut self) {
+        self.pressed.fill(false);
+        self.count = 0;
+        debug!("CAWs are reset by force.");
+    }
+    fn reset_in_no_time(&mut self) {
+        self.expire_at = Instant::now() + Caws::VERY_SHORT_TTL;
+        debug!("CAWs will reset in no time.");
+    }
+    fn reset_if_expired(&mut self) {
+        if Instant::now() >= self.expire_at && self.count > 0 {
+            self.pressed.fill(false);
+            self.count = 0;
+            debug!("CAWs are reset since expiration.");
+        }
+    }
+    const fn index(wparam: WPARAM) -> Option<usize> {
+        let index = match wparam.0 {
+            0x11 => 0, 0xA2 => 1, 0xA3 => 2,
+            0x12 => 3, 0xA4 => 4, 0xA5 => 5,
+            0x5B => 6, 0x5C => 7,
+            _ => { return None; }
+        };
+        Some(index)
+    }
+}
+
+impl fmt::Debug for Caws {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CAWs: [")?;
+        const NAMES: [&'static str;8] = [
+            "CTRL", "LCTRL", "RCTRL", "ALT", "LALT", "RALT", "LWIN", "RWIN"];
+        let mut comma = false;
+        for (index, pressed) in self.pressed.iter().enumerate() {
+            if *pressed {
+                if comma == false {
+                    comma = true
+                } else {
+                    f.write_str(", ")?;
+                }
+                f.write_str(NAMES[index])?;
+            }
+        }
+        f.write_str("]")
+    }
+}
+
 
 /// see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 enum Input{

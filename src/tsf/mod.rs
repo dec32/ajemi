@@ -6,13 +6,13 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std::{collections::HashSet, time::{Instant, Duration}};
+use std:: time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
 // use std::sync::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
-use self::candidate_list::CandidateList;
+use self::{candidate_list::CandidateList, key_event_sink::Caws};
 
 //----------------------------------------------------------------------------
 //
@@ -49,7 +49,7 @@ struct TextServiceInner {
     thread_mgr: Option<ITfThreadMgr>,
     context: Option<ITfContext>,
     // KeyEventSink
-    caws: HashSet<usize>, // ctrl, alt, win
+    caws: Caws, // ctrl, alt, win
     shift: bool,
     // ThreadMrgEventSink
     cookie: Option<u32>,
@@ -71,7 +71,7 @@ impl TextService {
             tid: 0,
             thread_mgr: None,
             context: None,
-            caws: HashSet::new(),
+            caws: Caws::new(),
             shift: false,
             cookie: None,
             spelling: String::with_capacity(32),
