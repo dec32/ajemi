@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, ops::Not};
 use log::{trace, warn};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::GUID};
 use windows::core::Result;
@@ -106,7 +106,11 @@ impl ITfKeyEventSink_Impl for TextService {
 
     fn OnSetFocus(&self, foreground:BOOL) ->  Result<()> {
         trace!("OnSetFocus({})", foreground.as_bool());
-        Ok(())
+        if !foreground.as_bool() {
+            self.write()?.abort()
+        } else {
+            Ok(())
+        }
     }
 }
 

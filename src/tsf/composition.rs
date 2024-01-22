@@ -175,11 +175,13 @@ impl TextServiceInner {
 impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
-        // FIXME the lock can never be obtained
-        let mut inner = self.write()?;
-        inner.set_text(&"")?;
-        inner.composition = None;
-        inner.candidate_list()?.hide();
-        Ok(())
+        // FIXME 
+        // popping out the last letter will trigger this method.
+        // `self.write()` causes deadlock(?) in such circumstances
+        // because `pop` waits for the completion of this method
+        // and this method waits for the releasing of the lock held by `pop`.
+        // `self.try_lock()` avoids such issue
+        // but then `abort` is not guaranteed to be performed when clicking away
+        self.try_write()?.abort()
     }
 }

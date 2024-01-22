@@ -5,10 +5,10 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std::collections::HashSet;
-// use parking_lot::{RwLock, RwLockWriteGuard};
-use std::sync::{RwLock, RwLockWriteGuard};
-use log::error;
+use std::{collections::HashSet, time::{Instant, Duration}, sync::atomic::AtomicBool};
+use parking_lot::{RwLock, RwLockWriteGuard};
+// use std::sync::{RwLock, RwLockWriteGuard};
+use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use self::candidate_list::CandidateList;
@@ -22,6 +22,11 @@ use self::candidate_list::CandidateList;
 //
 //----------------------------------------------------------------------------
 
+
+// type RwLock<T> = parking_lot::lock_api::RwLock<parking_lot::RawRwLock, T>;
+// type RwLockWriteGuard<'a, T> = parking_lot::lock_api::RwLockWriteGuard<'a, parking_lot::RawRwLock, T>;
+
+
 #[implement(
     ITfTextInputProcessor,
     ITfTextInputProcessorEx,
@@ -34,7 +39,8 @@ use self::candidate_list::CandidateList;
 /// states are hidden behind a lock. The lock is supposed to be light-weight since
 /// inputs from user can be frequent. 
 pub struct TextService {
-    inner: RwLock<TextServiceInner>
+    inner: RwLock<TextServiceInner>,
+    reset_flag: AtomicBool // emergency flag
 }
 struct TextServiceInner {
     // Some basic info about the clinet (the program where user is typing)
@@ -72,7 +78,10 @@ impl TextService {
             candidate_list: None,
             interface: None,
         };
-        let text_service = TextService{inner: RwLock::new(inner)};
+        let text_service = TextService{
+            inner: RwLock::new(inner),
+            reset_flag: AtomicBool::new(false)
+        };
         // from takes ownership of the object and returns a smart pointer
         let interface = ITfTextInputProcessor::from(text_service);
         // inject the smart pointer back to the object
@@ -83,27 +92,19 @@ impl TextService {
     }
 
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        // FIXME occasionly fail
-        match self.inner.try_write() {
-            Ok(guard) => Ok(guard),
-            Err(e) => {
-                error!("Failed to obtain write lock.");
-                error!("\t{:?}", e);
-                Err(Error::from(E_FAIL))
-            }
-        }
+        self.inner.try_write().or_else(||{
+            warn!("RwLock::try_write returned None.");
+            let timeout = Instant::now() + Duration::from_millis(200);
+            self.inner.try_write_until(timeout)
+        }).ok_or_else(||{
+            error!("Failed to obtain write lock.");
+            Error::from(E_FAIL)
+        })
     }
 
-    // fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-    //     self.inner.try_write().or_else(||{
-    //         warn!("RwLock::try_write returned None.");
-    //         let timeout = Instant::now() + Duration::from_millis(500);
-    //         self.inner.try_write_until(timeout)
-    //     }).ok_or_else(||{
-    //         error!("Failed to obtain write lock.");
-    //         Error::from(E_FAIL)
-    //     })
-    // }
+    fn try_write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+        self.inner.try_write().ok_or_else(||Error::from(E_FAIL))
+    }
 }
 
 impl TextServiceInner {
