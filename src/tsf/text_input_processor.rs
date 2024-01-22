@@ -64,6 +64,6 @@ impl ITfTextInputProcessorEx_Impl for TextService {
 
 //----------------------------------------------------------------------------
 //
-//  Now see tsf/composition.rs
+//  Now see tsf/key_event_sink.rs
 //
 //----------------------------------------------------------------------------

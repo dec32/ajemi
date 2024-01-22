@@ -42,10 +42,8 @@ impl ITfKeyEventSink_Impl for TextService {
         if inner.caws.try_press(wparam) {
             return Ok(FALSE);
         }
-        // forget the hold after the shortcut is finished
-        // notice: immediate reset will make `Caws::are_pressed` return `false` in `OnKeyDown`.
+        // user is pressing shorcuts
         if inner.caws.are_pressed() {
-            inner.caws.reset_in_no_time();
             return Ok(FALSE);
         }
         let input = Input::from(wparam.0, inner.shift);
@@ -67,14 +65,13 @@ impl ITfKeyEventSink_Impl for TextService {
             return Ok(FALSE);
         }
         if inner.caws.are_pressed() {
-            inner.caws.reset();
             return Ok(FALSE);
         }
         let input = Input::from(wparam.0, inner.shift);
         inner.handle_input(input, context)
     }
 
-    /// Key-ups are for 
+    /// Flip back the SCAWs(SHIFT, CTRL, ALT and WIN)
     fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
         let mut inner = self.write()?;
@@ -130,7 +127,6 @@ pub struct Caws {
 
 impl Caws {
     const TTL: Duration = Duration::from_millis(1500);
-    const VERY_SHORT_TTL: Duration = Duration::from_millis(150);
     pub fn new() -> Caws {
         Caws{ pressed: Default::default(), count: 0, expire_at: Instant::now()}
     }
@@ -165,15 +161,6 @@ impl Caws {
     fn are_pressed(&mut self) -> bool {
         self.reset_if_expired();
         self.count > 0
-    }
-    fn reset(&mut self) {
-        self.pressed.fill(false);
-        self.count = 0;
-        debug!("CAWs are reset by force.");
-    }
-    fn reset_in_no_time(&mut self) {
-        self.expire_at = Instant::now() + Caws::VERY_SHORT_TTL;
-        debug!("CAWs will reset in no time.");
     }
     fn reset_if_expired(&mut self) {
         if Instant::now() >= self.expire_at && self.count > 0 {
