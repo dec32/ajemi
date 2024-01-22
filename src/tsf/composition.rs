@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use log::{trace, error};
+use log::trace;
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::{Result, Error};
@@ -20,6 +20,7 @@ impl TextServiceInner {
         let composition = edit_session::start_composition(
             self.tid, self.context()?, &self.interface()?)?;
         // todo use (0, 0) if failed. 
+        // FIXME does not return the right pos if cursor is recently moved
         let pos = edit_session::get_pos(
             self.tid, self.context()?, unsafe{ &composition.GetRange()? })?;
         self.candidate_list()?.locate(pos.0, pos.1)?;
@@ -50,10 +51,7 @@ impl TextServiceInner {
     }
 
     fn composition(&self) -> Result<&ITfComposition> {
-        self.composition.as_ref().ok_or_else(||{
-            error!("Composition is None.");
-            Error::from(E_FAIL)
-        })
+        self.composition.as_ref().ok_or(Error::from(E_FAIL))
     }
 
     // FIXME this function is slow-ass
@@ -168,7 +166,7 @@ impl TextServiceInner {
 
     // Interupted. Abort everything.
     pub fn abort(&mut self) -> Result<()> {
-        self.set_text(&"")?;
+        let _ = self.set_text(&"");
         self.end_composition()
     }
 }
@@ -179,7 +177,6 @@ impl TextServiceInner {
 impl ITfCompositionSink_Impl for TextService {
     fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
         trace!("OnCompositionTerminated");
-        // FIXME 
         // popping out the last letter will trigger this method.
         // `self.write()` causes deadlock(?) in such circumstances
         // because `pop` waits for the completion of this method
