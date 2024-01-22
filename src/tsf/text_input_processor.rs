@@ -1,6 +1,6 @@
-use log::{trace, debug};
+use log::{trace, debug, warn};
 use windows::Win32::Foundation::E_FAIL;
-use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl};
+use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfSource, ITfThreadMgrEventSink};
 use windows::core::{Result, ComInterface};
 use super::{TextService, candidate_list::CandidateList};
 
@@ -17,10 +17,14 @@ impl ITfTextInputProcessor_Impl for TextService {
             Some(CandidateList::create(parent_window)?)
         };
         unsafe {
-            // Using self as a key event sink to subscribe to events
+            // Use self as event sink to subscribe to events
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
                 tid, &inner.interface::<ITfKeyEventSink>()? , true)?;
             debug!("Added key event sink.");
+
+            inner.cookie = Some(thread_mgr.cast::<ITfSource>()?.AdviseSink(
+                &ITfThreadMgrEventSink::IID, &inner.interface::<ITfThreadMgrEventSink>()?)?);
+            debug!("Added thread manager event sink.")
             // thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
             //     &inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Added langbar item.");
@@ -35,6 +39,14 @@ impl ITfTextInputProcessor_Impl for TextService {
         unsafe {
             thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(inner.tid)?;
             debug!("Removed key event sink.");
+            
+            if let Some(cookie) = inner.cookie {
+                thread_mgr.cast::<ITfSource>()?.UnadviseSink(cookie)?;
+                inner.cookie = None;
+                debug!("Removed thread manager event sink.");
+            } else {
+                warn!("Cookie for thread manager event sink is None.");
+            }
             // thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Removed langbar item.")
         }

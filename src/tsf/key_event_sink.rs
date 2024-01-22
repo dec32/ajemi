@@ -1,4 +1,4 @@
-use std::{ffi::OsString, ops::Not};
+use std::ffi::OsString;
 use log::{trace, warn};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::GUID};
 use windows::core::Result;

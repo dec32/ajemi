@@ -4,7 +4,7 @@ use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::{Result, Error};
 use crate::{extend::OsStrExt2, engine::engine};
-use super::{edit_session, TextServiceInner, TextService};
+use super::{edit_session, TextService, TextServiceInner};
 
 //----------------------------------------------------------------------------
 //
@@ -24,17 +24,21 @@ impl TextServiceInner {
             self.tid, self.context()?, unsafe{ &composition.GetRange()? })?;
         self.candidate_list()?.locate(pos.0, pos.1)?;
         self.composition = Some(composition);
-        self.spelling.clear();
-        self.output.clear();
-        self.groupping.clear();
         Ok(())
     }
 
     pub fn end_composition(&mut self) -> Result<()> {
-        // OnCompositionTerminated will set composition to None at any moment.
-        edit_session::end_composition(self.tid, self.context()?, self.composition()?)?;
+        // clean up the shit as clean as possbile instead of question-markin' all the way thru
+        if let (Some(context), Some(composition)) = (self.context.as_ref(), self.composition.as_ref()) {
+            let _ = edit_session::end_composition(self.tid, context, composition);
+        }
+        if let Some(candidate_list) = self.candidate_list.as_ref() {
+            candidate_list.hide();
+        }
         self.composition = None;
-        self.candidate_list()?.hide();
+        self.spelling.clear();
+        self.output.clear();
+        self.groupping.clear();
         Ok(())
     }
 
@@ -181,7 +185,6 @@ impl ITfCompositionSink_Impl for TextService {
         // because `pop` waits for the completion of this method
         // and this method waits for the releasing of the lock held by `pop`.
         // `self.try_lock()` avoids such issue
-        // but then `abort` is not guaranteed to be performed when clicking away
         self.try_write()?.abort()
     }
 }

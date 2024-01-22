@@ -1,16 +1,17 @@
 pub mod text_input_processor;
 pub mod candidate_list;
 mod key_event_sink;
+mod thread_mgr_event_sink;
 mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std::{collections::HashSet, time::{Instant, Duration}, sync::atomic::AtomicBool};
+use std::{collections::HashSet, time::{Instant, Duration}};
 use parking_lot::{RwLock, RwLockWriteGuard};
 // use std::sync::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
-use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
+use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use self::candidate_list::CandidateList;
 
 //----------------------------------------------------------------------------
@@ -31,6 +32,7 @@ use self::candidate_list::CandidateList;
     ITfTextInputProcessor,
     ITfTextInputProcessorEx,
     ITfKeyEventSink,
+    ITfThreadMgrEventSink,
     ITfCompositionSink,
     ITfLangBarItem
 )]
@@ -40,7 +42,6 @@ use self::candidate_list::CandidateList;
 /// inputs from user can be frequent. 
 pub struct TextService {
     inner: RwLock<TextServiceInner>,
-    reset_flag: AtomicBool // emergency flag
 }
 struct TextServiceInner {
     // Some basic info about the clinet (the program where user is typing)
@@ -50,6 +51,8 @@ struct TextServiceInner {
     // KeyEventSink
     caws: HashSet<usize>, // ctrl, alt, win
     shift: bool,
+    // ThreadMrgEventSink
+    cookie: Option<u32>,
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
@@ -70,6 +73,7 @@ impl TextService {
             context: None,
             caws: HashSet::new(),
             shift: false,
+            cookie: None,
             spelling: String::with_capacity(32),
             output: String::with_capacity(32),
             groupping: Vec::with_capacity(32),
@@ -79,8 +83,7 @@ impl TextService {
             interface: None,
         };
         let text_service = TextService{
-            inner: RwLock::new(inner),
-            reset_flag: AtomicBool::new(false)
+            inner: RwLock::new(inner)
         };
         // from takes ownership of the object and returns a smart pointer
         let interface = ITfTextInputProcessor::from(text_service);
@@ -94,7 +97,7 @@ impl TextService {
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
         self.inner.try_write().or_else(||{
             warn!("RwLock::try_write returned None.");
-            let timeout = Instant::now() + Duration::from_millis(200);
+            let timeout = Instant::now() + Duration::from_millis(50);
             self.inner.try_write_until(timeout)
         }).ok_or_else(||{
             error!("Failed to obtain write lock.");
