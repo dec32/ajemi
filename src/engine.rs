@@ -67,9 +67,7 @@ impl Engine {
     // I hate this kind of out parameters but otherwise the allocations can be crazy.
     // FIXME "waso nasa li lon sewi" will be recognized as "waso nasa lil on sewi" 
     pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
-        // FIXME：when spelling contains non-aschii punctuators it will crash
         trace!("suggest({spelling})");
-
         groupping.clear();
         output.clear();
         if !spelling.is_ascii() {

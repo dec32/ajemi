@@ -1,24 +1,35 @@
+use std::{env, fs, path::{Path, PathBuf}};
 use chrono::Local;
+use log::LevelFilter::*;
 
+#[cfg(debug_assertions)]
+const RELEASE: bool = false;
+#[cfg(not(debug_assertions))]
+const RELEASE: bool = true;
 
 pub fn setup() -> Result<(), fern::InitError>{
+    let path = if let Ok(appdata) = env::var("APPDATA") {
+        PathBuf::from(appdata).join("Ajemi")
+    } else if let Ok(temp) = env::var("TEMP") {
+        PathBuf::from(temp).join("Ajemi")
+    } else {
+        return Ok(());
+    };
+    fs::create_dir_all(&path)?;
+    let path = path.join("log.txt");
+    
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
                 "{} [{:<5}] {}",
-                now(),
+                Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                 record.level(),
                 message
             ))
         })
-        .level(log::LevelFilter::Trace)
-        .chain(std::io::stdout())
-        .chain(fern::log_file("C:\\Users\\Administrator\\Documents\\ajemi.log")?)
+        .level(if RELEASE { Debug } else { Trace })
+        .chain(fern::log_file(path)?)
         .apply()?;
-    Ok(())   
-}
-
-fn now() -> String {
-    Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+    Ok(())
 }
 
