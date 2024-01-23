@@ -44,6 +44,9 @@ impl ITfKeyEventSink_Impl for TextService {
         }
         // user is pressing shorcuts
         if inner.caws.are_pressed() {
+            // FIXME
+            // if not increase TTL, shortcuts like ctrl + ssssssssssss can fail
+            // if increase TTL here, input method may never recover from a broken CAWs
             return Ok(FALSE);
         }
         let input = Input::from(wparam.0, inner.shift);

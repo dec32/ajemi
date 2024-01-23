@@ -6,9 +6,8 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-use std:: time::{Instant, Duration};
+use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
-// use std::sync::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
@@ -130,11 +129,13 @@ impl TextServiceInner {
         })
     }
 
-    fn candidate_list(&self) -> Result<&CandidateList> {
-        self.candidate_list.as_ref().ok_or_else(||{
-            error!("Candidate list is None.");
-            Error::from(E_FAIL)
-        })
+    /// Occasionally fails.
+    fn candidate_list(&mut self) -> Result<&CandidateList> {
+        if self.candidate_list.is_none() {
+            warn!("Candidate list is none. Try to create it again now.");
+            self.candidate_list = CandidateList::create(self.thread_mgr()?).ok();
+        }
+        Ok(self.candidate_list.as_ref().unwrap())
     }
 }
 

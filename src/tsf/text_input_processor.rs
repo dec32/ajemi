@@ -12,10 +12,6 @@ impl ITfTextInputProcessor_Impl for TextService {
         let thread_mgr = thread_mgr.ok_or(E_FAIL)?;
         inner.tid = tid;
         inner.thread_mgr = Some(thread_mgr.clone());
-        inner.candidate_list = {
-            let parent_window = unsafe {thread_mgr.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
-            Some(CandidateList::create(parent_window)?)
-        };
         unsafe {
             // Use self as event sink to subscribe to events
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
@@ -29,6 +25,8 @@ impl ITfTextInputProcessor_Impl for TextService {
             //     &inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Added langbar item.");
         }
+        // If creation fails, try later.
+        inner.candidate_list = CandidateList::create(thread_mgr).ok();
         Ok(())
     }
 
@@ -51,6 +49,7 @@ impl ITfTextInputProcessor_Impl for TextService {
             // debug!("Removed langbar item.")
         }
         inner.thread_mgr = None;
+        inner.candidate_list = None;
         Ok(())
     }
 }

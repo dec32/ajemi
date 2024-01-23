@@ -19,12 +19,12 @@ impl TextServiceInner {
     pub fn start_composition(&mut self) -> Result<()> {
         let composition = edit_session::start_composition(
             self.tid, self.context()?, &self.interface()?)?;
-        // todo use (0, 0) if failed. 
+        self.composition = Some(composition); 
+        let range = unsafe{ &self.composition.as_ref().unwrap().GetRange()? };
         // FIXME does not return the right pos if cursor is recently moved
-        let pos = edit_session::get_pos(
-            self.tid, self.context()?, unsafe{ &composition.GetRange()? })?;
+        let pos = edit_session::get_pos(self.tid, self.context()?, range)?;
+        // candidate lists are more likely to fail so only handle them at the very end
         self.candidate_list()?.locate(pos.0, pos.1)?;
-        self.composition = Some(composition);
         Ok(())
     }
 
@@ -33,13 +33,11 @@ impl TextServiceInner {
         if let (Some(context), Some(composition)) = (self.context.as_ref(), self.composition.as_ref()) {
             let _ = edit_session::end_composition(self.tid, context, composition);
         }
-        if let Some(candidate_list) = self.candidate_list.as_ref() {
-            candidate_list.hide();
-        }
         self.composition = None;
         self.spelling.clear();
         self.output.clear();
         self.groupping.clear();
+        self.candidate_list()?.hide();
         Ok(())
     }
 
@@ -76,10 +74,14 @@ impl TextServiceInner {
     }
 
     fn update_candidate_list(&mut self) -> Result<()> {
-        if self.output.is_empty() {
-            self.candidate_list()?.hide();
+        // cannot borrow `self.output` as immutable because it is also borrowed as mutable
+        // ok guess i have to clone it first
+        let output = OsString::from(&self.output);
+        let candidate_list = self.candidate_list()?;
+        if output.is_empty() {
+            candidate_list.hide();
         } else {
-            self.candidate_list()?.show(&self.output)?;
+            candidate_list.show(&output)?;
         }
         Ok(())
     }
