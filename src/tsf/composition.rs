@@ -168,7 +168,7 @@ impl TextServiceInner {
 
     // Interupted. Abort everything.
     pub fn abort(&mut self) -> Result<()> {
-        let _ = self.set_text(&"");
+        let _ = self.set_text(&self.spelling);
         self.end_composition()
     }
 }
