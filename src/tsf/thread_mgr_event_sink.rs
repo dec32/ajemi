@@ -1,4 +1,3 @@
-use log::trace;
 use windows::Win32::UI::TextServices::{ITfThreadMgrEventSink_Impl, ITfDocumentMgr, ITfContext};
 use windows::core::Result;
 
@@ -13,8 +12,6 @@ impl ITfThreadMgrEventSink_Impl for TextService {
         Ok(())
     }
     fn OnSetFocus(&self, focus: Option<&ITfDocumentMgr>, prevfocus: Option<&ITfDocumentMgr>) ->Result<()> {
-        trace!("OnSetFocus({:?}, {:?})", focus, prevfocus);
-        // todo locate candidate window
         self.write()?.abort()
     }
     fn OnPushContext(&self, pic: Option<&ITfContext>) -> Result<()> {

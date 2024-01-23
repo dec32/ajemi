@@ -1,5 +1,4 @@
 use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt, fmt::Debug};
-use log::error;
 use windows::core::GUID;
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
@@ -36,18 +35,8 @@ impl OsStrExt2 for OsString {
 
 // todo use crate: log_derive
 pub trait ResultExt {
-    fn log_error(self) -> Self;
     fn ignore(self);
 }
 impl <T, E:Debug> ResultExt for Result<T, E> {
-    fn log_error(self) -> Self {
-        if let Err(e) = self.as_ref() {
-            error!("\t{:?}", e);
-        }
-        self
-    }
-
-    fn ignore(self) {
-        
-    }
+    fn ignore(self) {}
 }

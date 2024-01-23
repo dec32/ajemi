@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use log::trace;
+use log::{trace, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::{Result, Error};
@@ -20,11 +20,9 @@ impl TextServiceInner {
         let composition = edit_session::start_composition(
             self.tid, self.context()?, &self.interface()?)?;
         self.composition = Some(composition); 
-        let range = unsafe{ &self.composition.as_ref().unwrap().GetRange()? };
-        // FIXME does not return the right pos if cursor is recently moved
-        let pos = edit_session::get_pos(self.tid, self.context()?, range)?;
-        // candidate lists are more likely to fail so only handle them at the very end
-        self.candidate_list()?.locate(pos.0, pos.1)?;
+        if let Some(pos) = self.get_pos() {
+            self.candidate_list()?.locate(pos.0, pos.1)?;
+        }
         Ok(())
     }
 
@@ -41,11 +39,21 @@ impl TextServiceInner {
         Ok(())
     }
 
-    // make things easier
     fn set_text(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
         let range = unsafe { self.composition()?.GetRange()? };
         edit_session::set_text(self.tid, self.context()?, range, &text)
+    }
+
+    fn get_pos(&self) -> Option<(i32, i32)> {
+        let range = unsafe{ self.composition().ok()?.GetRange().ok()? };
+        let pos = edit_session::get_pos(self.tid, self.context().ok()?, &range).ok()?;
+        if pos.0 <= 0 && pos.1 <= 0 {
+            warn!("Abnormal position: ({}, {})", pos.0, pos.1);
+            None
+        } else {
+            Some(pos)
+        }
     }
 
     fn composition(&self) -> Result<&ITfComposition> {
@@ -76,11 +84,15 @@ impl TextServiceInner {
         // cannot borrow `self.output` as immutable because it is also borrowed as mutable
         // ok guess i have to clone it first
         let output = OsString::from(&self.output);
+        let pos = self.get_pos();
         let candidate_list = self.candidate_list()?;
         if output.is_empty() {
             candidate_list.hide();
         } else {
             candidate_list.show(&output)?;
+            if let Some(pos) = pos {
+                candidate_list.locate(pos.0, pos.1)?;
+            }
         }
         Ok(())
     }
