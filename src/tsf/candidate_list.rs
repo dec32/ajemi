@@ -1,10 +1,10 @@
-use std::{mem::{size_of, self}, ffi::OsString, os::windows::ffi::OsStrExt};
+use std::{mem::{size_of, self}, ffi::{CString, OsString}, os::windows::ffi::OsStrExt};
 
 use log::{trace, debug, error, warn};
 use windows::{Win32::{UI::{TextServices::ITfThreadMgr, WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32W}}, core::{s, PCSTR, Error, HSTRING}};
 use windows::core::Result;
 
-use crate::dll_module;
+use crate::global;
 
 const FONT_SIZE: i32 = 24;
 
@@ -29,7 +29,7 @@ pub fn setup() -> Result<()> {
         lpfnWndProc: Some(wind_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
-        hInstance: dll_module(),
+        hInstance: global::dll_module(),
         hIcon: HICON::default(),
         hCursor: unsafe{ LoadCursorW(None, IDC_ARROW)? },
         hbrBackground: HBRUSH{0: COLOR_MENU.0 as isize},
@@ -44,12 +44,14 @@ pub fn setup() -> Result<()> {
             return GetLastError();
         }
         debug!("Registered window class for candidate list.");
+        let font_name = CString::new(global::FONT).unwrap();
+        let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
         FONT = CreateFontA (
             FONT_SIZE, 0, 0, 0, 
             0, 0, 0, 0, 
             0, 
             OUT_TT_PRECIS.0 as u32, 0, 0, 
-            0, s!("linja waso lili"));
+            0, font_name);
         if FONT == mem::zeroed() {
             error!("Failed to create font.");
             return GetLastError();
@@ -94,7 +96,7 @@ impl CandidateList {
             PCSTR::null(),
             WS_POPUPWINDOW,
             0, 0, 0, 0, 
-            parent_window, None, dll_module(),
+            parent_window, None, global::dll_module(),
             None) };
         if window.0 == 0 {
             error!("CreateWindowExA returned null.");
@@ -110,7 +112,7 @@ impl CandidateList {
             PCSTR::null(), 
             WS_VISIBLE | WS_CHILD, 
             0, 0, 2048, 128, 
-            window, None, dll_module(), 
+            window, None, global::dll_module(), 
             None) };
         unsafe{ SendMessageA(label, WM_SETFONT, WPARAM {0: FONT.0 as usize}, LPARAM {0: 1}) };
         debug!("Created candidate list.");
