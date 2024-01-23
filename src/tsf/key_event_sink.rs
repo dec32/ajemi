@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{ffi::OsString, time::{Duration, Instant}};
+use std::ffi::OsString;
 use log::{debug, trace, warn};
 use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::GUID};
 use windows::core::Result;
@@ -32,24 +32,15 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        // remember the hold but not eat the event since we don't know if 
-        // this shift is held for "uppercase" chars or shortcuts
-        if is_shift(wparam) {
-            inner.shift = true;
+        // remember the "hold" of the modifiers but not eat the event since 
+        // they can be parts of a shortcut
+        if inner.modifiers.try_insert(wparam) {
             return Ok(FALSE);
         }
-        // remember the hold
-        if inner.caws.try_press(wparam) {
+        if inner.modifiers.preparing_shortcut() {
             return Ok(FALSE);
         }
-        // user is pressing shorcuts
-        if inner.caws.are_pressed() {
-            // FIXME
-            // if not increase TTL, shortcuts like ctrl + ssssssssssss can fail
-            // if increase TTL here, input method may never recover from a broken CAWs
-            return Ok(FALSE);
-        }
-        let input = Input::from(wparam.0, inner.shift);
+        let input = Input::from(wparam.0, inner.modifiers.shift());
         inner.test_input(input)
     }
 
@@ -60,43 +51,30 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_shift(wparam) {
-            inner.shift = true;
+        if inner.modifiers.try_insert(wparam) {
             return Ok(FALSE);
         }
-        if inner.caws.try_press(wparam) {
+        if inner.modifiers.preparing_shortcut() {
             return Ok(FALSE);
         }
-        if inner.caws.are_pressed() {
-            return Ok(FALSE);
-        }
-        let input = Input::from(wparam.0, inner.shift);
+        let input = Input::from(wparam.0, inner.modifiers.shift());
         inner.handle_input(input, context)
     }
 
-    /// Flip back the SCAWs(SHIFT, CTRL, ALT and WIN)
+    /// Flip the modifiers back
     fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
-        let mut inner = self.write()?;
-        if is_shift(wparam) {
-            inner.shift = false;
-        } else {
-            inner.caws.try_release(wparam);
-        }
+        self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
     }
 
     fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
-        let mut inner = self.write()?;
-        if is_shift(wparam) {
-            inner.shift = false;
-        } else {
-            inner.caws.try_release(wparam);
-        }
+        self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
     }
 
+    /// I 've never seen this thing called.
     fn OnPreservedKey(&self, _context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
         trace!("OnPreservedKey({:?})", unsafe{ rguid.as_ref() }.map(GUID::to_rfc4122));
         Ok(FALSE)
@@ -112,82 +90,60 @@ impl ITfKeyEventSink_Impl for TextService {
     }
 }
 
-fn is_shift(wparam:WPARAM) -> bool {
-    wparam.0 == 0x10 || wparam.0 == 0xA0 || wparam.0 == 0xA1
+/// Keep track of if the modifiers(CTRL, ALT and SHIFT).
+/// WIN is ignored since Windows already captures all shortcuts containing WIN for us.
+/// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
+pub struct Modifiers {
+    pressed: [bool;9],
+    shift_count: u8,
+    other_count: u8,
 }
 
-/// Keep track of if the CAWs(CTRL, ALT and WIN) are being pressed or not.
-/// The struct maintains a relatively short TTL. If expired, the CAWs are
-/// considered not being pressed. That is because some clients do not send 
-/// proper key-up events and make it seem like some CAWs are never released.
-/// In that case, the input method is completely disabled because it believes
-/// that the user is pounding shortcuts non-stop.
-pub struct Caws {
-    pressed: [bool;8],
-    count: u8,
-    expire_at: Instant,
-}
-
-impl Caws {
-    const TTL: Duration = Duration::from_millis(1500);
-    pub fn new() -> Caws {
-        Caws{ pressed: Default::default(), count: 0, expire_at: Instant::now()}
+impl Modifiers {
+    pub fn new() -> Modifiers {
+        Modifiers{ pressed: Default::default(), shift_count: 0, other_count: 0}
     }
-    fn try_press(&mut self, wparam: WPARAM) -> bool {
-        self.reset_if_expired();
-        if let Some(index) = Self::index(wparam) {
-            if self.pressed[index] == false {
-                self.pressed[index] = true;
-                self.count += 1;
-                self.expire_at = Instant::now() + Caws::TTL;
-            } 
-            debug!("{:?}", self);
-            true
-        } else { 
-            false
-        }
-    }
-    fn try_release(&mut self, wparam: WPARAM) -> bool { 
-        self.reset_if_expired();
-        if let Some(index) = Self::index(wparam) {
-            if self.pressed[index] == true {
-                self.pressed[index] = false;
-                self.count -= 1;
-                self.expire_at = Instant::now() + Caws::TTL;
-            }
-            debug!("{:?}", self);
-            true
-        } else { 
-            false
-        }
-    }
-    fn are_pressed(&mut self) -> bool {
-        self.reset_if_expired();
-        self.count > 0
-    }
-    fn reset_if_expired(&mut self) {
-        if Instant::now() >= self.expire_at && self.count > 0 {
-            self.pressed.fill(false);
-            self.count = 0;
-            debug!("CAWs are reset since expiration.");
-        }
-    }
-    const fn index(wparam: WPARAM) -> Option<usize> {
-        let index = match wparam.0 {
-            0x11 => 0, 0xA2 => 1, 0xA3 => 2,
-            0x12 => 3, 0xA4 => 4, 0xA5 => 5,
-            0x5B => 6, 0x5C => 7,
-            _ => { return None; }
+    fn try_insert(&mut self, wparam: WPARAM) -> bool {
+        let Some(index) = Self::index(wparam) else {
+            return false;
         };
-        Some(index)
+        if self.pressed[index] == false {
+            self.pressed[index] = true;
+            if Self::is_shift(wparam) {
+                self.shift_count += 1;
+            } else {
+                self.other_count += 1;
+            }
+        } 
+        debug!("{:?}", self);
+        true
+    }
+    fn try_remove(&mut self, wparam: WPARAM) -> bool { 
+        let Some(index) = Self::index(wparam) else {
+            return false;
+        };
+        if self.pressed[index] == true {
+            self.pressed[index] = false;
+            if Self::is_shift(wparam) {
+                self.shift_count -= 1;
+            } else {
+                self.other_count -= 1;
+            }
+        }
+        debug!("{:?}", self);
+        true
+    }
+    fn preparing_shortcut(&self) -> bool {
+        self.other_count > 0
+    }
+    fn shift(&self) -> bool {
+        self.shift_count > 0
     }
 }
 
-impl fmt::Debug for Caws {
+impl fmt::Debug for Modifiers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("CAWs: [")?;
-        const NAMES: [&'static str;8] = [
-            "CTRL", "LCTRL", "RCTRL", "ALT", "LALT", "RALT", "LWIN", "RWIN"];
+        f.write_str("Modifiers: [")?;
         let mut comma = false;
         for (index, pressed) in self.pressed.iter().enumerate() {
             if *pressed {
@@ -196,21 +152,52 @@ impl fmt::Debug for Caws {
                 } else {
                     f.write_str(", ")?;
                 }
-                f.write_str(NAMES[index])?;
+                f.write_str(Self::NAMES[index])?;
             }
         }
         f.write_str("]")
     }
 }
 
+#[allow(unused)]
+impl Modifiers {
+    const SHIFT:  usize = 0x10;
+    const CTRL:   usize = 0x11;
+    const ALT:    usize = 0x12;
 
-/// see https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+    const LSHIFT: usize = 0xA0;
+    const RSHIFT: usize = 0xA1;
+    const LCTRL:  usize = 0xA2;
+    const RCTRL:  usize = 0xA3;
+    const LATL:   usize = 0xA4;
+    const RALT:   usize = 0xA5;
+
+    const fn index(wparam: WPARAM) -> Option<usize> {
+        match wparam.0 {
+            0x10..=0x12 => Some(wparam.0 - 0x10),
+            0xA0..=0xA5 => Some(wparam.0 - 0xA0 + 3),
+            _ => None
+        }
+    }
+    const NAMES: [&'static str;9] = [
+        "SHIFT", "CTRL", "ALT", "LSHIFT", "RSHIFT", "LCTRL", "RCTRL", "LALT", "RALT"];
+
+    const fn is_shift(wparam: WPARAM) -> bool {
+        wparam.0 == Self::SHIFT ||
+        wparam.0 == Self::LSHIFT ||
+        wparam.0 == Self::RSHIFT
+    }
+}
+
+
+/// Inputs that are easier to understand and handle.
+/// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
+#[derive(Debug)]
 enum Input{
     Letter(char), Number(char), Punct(char),
-    Space, Backspace, Enter,
+    Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
-    Tab,
-    Unknown
+    Unknown(usize)
 }
 
 impl Input {
@@ -280,7 +267,7 @@ impl Input {
             (0x27, _    ) => Right,
             (0x28, _    ) => Down,
             
-            _ => Unknown
+            _ => Unknown(key_code)
         }
     }
 }
@@ -293,10 +280,10 @@ impl Input {
 //----------------------------------------------------------------------------
 
 impl TextServiceInner {
-    fn test_input(&self, event: Input) -> Result<BOOL> {
-        trace!("test_input");
+    fn test_input(&self, input: Input) -> Result<BOOL> {
+        trace!("test_input({:?})", input);
         if self.composition.is_none() {
-            match event {
+            match input {
                 Letter(_) | Punct(_) => Ok(TRUE),
                 _ => Ok(FALSE),
             }
@@ -305,15 +292,15 @@ impl TextServiceInner {
         }
     }
 
-    fn handle_input(&mut self, event: Input, context: Option<&ITfContext>) -> Result<BOOL> {
-        trace!("handle_input");
+    fn handle_input(&mut self, input: Input, context: Option<&ITfContext>) -> Result<BOOL> {
+        trace!("handle_input({:?})", input);
         let Some(context) = context else {
             warn!("Context is None");
             return Ok(FALSE);
         };
         self.context = Some(context.clone());
         if self.composition.is_none() {
-            match event {
+            match input {
                 // letters start compositions. punctuators need to be re-mapped.
                 Letter(letter) => {
                     self.start_composition()?;
@@ -325,7 +312,7 @@ impl TextServiceInner {
                 _ => {return Ok(FALSE)}
             }
         } else {
-            match event {
+            match input {
                 Letter(letter) => self.push(letter)?,
                 Number(number) => {
                     // todo numbers can be used to select from candidate list
@@ -350,8 +337,7 @@ impl TextServiceInner {
                 } 
                 // disable cursor movement because I am lazy.
                 Left|Up|Right|Down => (),
-                Unknown => {
-                    self.abort()?;
+                Unknown(_) => {
                     return Ok(FALSE);
                 }
             }

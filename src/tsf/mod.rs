@@ -11,7 +11,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
-use self::{candidate_list::CandidateList, key_event_sink::Caws};
+use self::{candidate_list::CandidateList, key_event_sink::Modifiers};
 
 //----------------------------------------------------------------------------
 //
@@ -48,8 +48,7 @@ struct TextServiceInner {
     thread_mgr: Option<ITfThreadMgr>,
     context: Option<ITfContext>,
     // KeyEventSink
-    caws: Caws, // ctrl, alt, win
-    shift: bool,
+    modifiers: Modifiers, // ctrl, shift, alt
     // ThreadMrgEventSink
     cookie: Option<u32>,
     // Composition
@@ -70,8 +69,7 @@ impl TextService {
             tid: 0,
             thread_mgr: None,
             context: None,
-            caws: Caws::new(),
-            shift: false,
+            modifiers: Modifiers::new(),
             cookie: None,
             spelling: String::with_capacity(32),
             output: String::with_capacity(32),
