@@ -56,6 +56,7 @@ struct TextServiceInner {
     spelling: String,
     output: String,
     groupping: Vec<usize>,
+    groupped_spelling: String,
     // UI
     candidate_list: Option<CandidateList>,
     icon: HICON,
@@ -74,6 +75,7 @@ impl TextService {
             spelling: String::with_capacity(32),
             output: String::with_capacity(32),
             groupping: Vec::with_capacity(32),
+            groupped_spelling: String::with_capacity(32),
             composition: None,
             icon: HICON::default(),
             candidate_list: None,

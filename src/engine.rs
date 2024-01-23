@@ -69,8 +69,12 @@ impl Engine {
     pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
         // FIXME：when spelling contains non-aschii punctuators it will crash
         trace!("suggest({spelling})");
+
         groupping.clear();
         output.clear();
+        if !spelling.is_ascii() {
+            return;   
+        }
         let mut from = 0;
         let mut to = spelling.len();
         while from < to {

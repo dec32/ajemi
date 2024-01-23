@@ -52,24 +52,23 @@ impl TextServiceInner {
         self.composition.as_ref().ok_or(Error::from(E_FAIL))
     }
 
-    // FIXME this function is slow-ass
-    fn set_text_as_suggestions(&self) -> Result<()> {
+    fn set_text_as_suggestions(&mut self) -> Result<()> {
         if self.output.is_empty() {
             self.set_text(&self.spelling)
         } else {
-            let mut buf = String::with_capacity(32);
+            self.groupped_spelling.clear();
             let mut from = 0;
             for to in &self.groupping {
-                buf.push_str(&self.spelling[from..*to]);
-                buf.push('\'');
+                self.groupped_spelling.push_str(&self.spelling[from..*to]);
+                self.groupped_spelling.push('\'');
                 from = *to;
             }
             if from != self.spelling.len() {
-                buf.push_str(&self.spelling[from..])
+                self.groupped_spelling.push_str(&self.spelling[from..])
             } else {
-                buf.pop();
+                self.groupped_spelling.pop();
             }
-            self.set_text(&buf)
+            self.set_text(&self.groupped_spelling)
         }
     }
 
