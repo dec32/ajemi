@@ -25,8 +25,6 @@ impl ITfTextInputProcessor_Impl for TextService {
             //     &inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Added langbar item.");
         }
-        // If creation fails, try later.
-        inner.candidate_list = CandidateList::create(thread_mgr).ok();
         Ok(())
     }
 

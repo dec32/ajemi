@@ -82,14 +82,12 @@ pub struct CandidateList {
 }
 
 impl CandidateList {
-    pub fn create(thread_mgr: &ITfThreadMgr) -> Result<CandidateList> {
+    pub fn create(parent_window: HWND) -> Result<CandidateList> {
         // WS_EX_TOOLWINDOW: A floating toolbar that won't appear in taskbar and ALT+TAB.
         // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window losing focus.
         // WS_EX_TOPMOST: A window that is topmost.
         // WS_POPUPWINDOW: A window having not top bar.
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
-
-        let parent_window = unsafe {thread_mgr.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
         let window = unsafe{ CreateWindowExA(
             WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
             WINDOW_CLASS, 

@@ -132,8 +132,9 @@ impl TextServiceInner {
     /// Occasionally fails.
     fn candidate_list(&mut self) -> Result<&CandidateList> {
         if self.candidate_list.is_none() {
-            warn!("Candidate list is none. Try to create it again now.");
-            self.candidate_list = CandidateList::create(self.thread_mgr()?).ok();
+            let parent_window = unsafe {
+                self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
+            self.candidate_list = CandidateList::create(parent_window).ok();
         }
         Ok(self.candidate_list.as_ref().unwrap())
     }
