@@ -17,7 +17,7 @@ The standalone version is available now. Click link below to download the instal
 
 1. Install [RIME](https://rime.im/)
 2. Install the font [Nishiki-teki](https://umihotaru.work/nishiki-teki.zip)
-3. Download the zipped [config files](https://github.com/dec32/Ajemi/releases/download/v1.0-rime/Ajemi.zip)
+3. Download the zipped [config files](https://github.com/dec32/Ajemi/releases/download/rime-schema/Ajemi.zip)
 4. Copy all three config files:
 
     - `ajemi.schema.yaml`
