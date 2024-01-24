@@ -63,9 +63,8 @@ To type punctuators, type:
 
 To type control characters, type:
 
-- `-` for ZERO WIDH JOINER (U+200D)
 - `+` for STACKING JOINER (U+F1995)
-- `=` for SCALING JOINER (U+F1996)
+- `-` for SCALING JOINER (U+F1996)
 - `(` for START OF LONG GLYPH (U+F1997)
 - `)` for END OF LONG GLYPH (U+F1998)
 - `{` for START OF REVERSE LONG GLYPH (U+F199A)
@@ -78,9 +77,8 @@ JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characte
 
 |Spelling          |Glyph                                    |
 |------------------|-----------------------------------------|
-|`toki-pona`       |![](./doc/control-scaling.png)           |
 |`toki+pona`       |![](./doc/control-stacking.png)          |
-|`toki=pona`       |![](./doc/control-scaling.png)           |
+|`toki-pona`       |![](./doc/control-scaling.png)           |
 |`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
 |`{toki-pona} kama`|![](./doc/control-reverse-long-glyph.png)|
 |`[toki pona]`     |![](./doc/control-cartoche.png)          |
