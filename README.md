@@ -58,11 +58,14 @@ To type punctuators, type:
 
 - `.` for MIDDLE DOT (U+F199C)
 - `:` for COLON (U+F199D)
+- `<` for LEFT CORNER BRACKET (U+300C)
+- `>` for RIGHT CORNER BRACKET (U+300D)
 
 To type control characters, type:
 
-- `+` for STACKING JOINTER (U+F1995)
-- `-` for SCALING JOINER (U+F1996)
+- `-` for ZERO WIDH JOINER (U+200D)
+- `+` for STACKING JOINER (U+F1995)
+- `=` for SCALING JOINER (U+F1996)
 - `(` for START OF LONG GLYPH (U+F1997)
 - `)` for END OF LONG GLYPH (U+F1998)
 - `{` for START OF REVERSE LONG GLYPH (U+F199A)
@@ -73,10 +76,11 @@ To type control characters, type:
 
 JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characters provide underscores that work well with certain glyphs (especially pi). CARTOUCHE control characters provide cartouches for proper names. Here's a rough demonstration of their behavior:
 
-|Spelling          |Glyph                                   |
+|Spelling          |Glyph                                    |
 |------------------|-----------------------------------------|
-|`toki+pona`       |![](./doc/control-stacking.png)          |
 |`toki-pona`       |![](./doc/control-scaling.png)           |
+|`toki+pona`       |![](./doc/control-stacking.png)          |
+|`toki=pona`       |![](./doc/control-scaling.png)           |
 |`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
 |`{toki-pona} kama`|![](./doc/control-reverse-long-glyph.png)|
 |`[toki pona]`     |![](./doc/control-cartoche.png)          |
