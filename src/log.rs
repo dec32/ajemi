@@ -10,8 +10,6 @@ const RELEASE: bool = true;
 pub fn setup() -> Result<(), fern::InitError>{
     let path = if let Ok(appdata) = env::var("APPDATA") {
         PathBuf::from(appdata).join("Ajemi")
-    } else if let Ok(temp) = env::var("TEMP") {
-        PathBuf::from(temp).join("Ajemi")
     } else {
         return Ok(());
     };

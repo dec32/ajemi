@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use log::trace;
 use windows::Win32::Foundation::{S_OK, RECT, BOOL};
-use windows::core::{implement, Result, ComInterface, AsImpl, Error};
+use windows::core::{implement, Result, ComInterface, AsImpl};
 use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
-            Err(Error::from(result))
+            Err(result.into())
         } else {
             let session: &Session = session.as_impl();
             Ok(session.composition.take().expect("Composition is None."))
@@ -75,7 +75,7 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
-            Err(Error::from(result))
+            Err(result.into())
         } else {
             Ok(())
         }
@@ -102,7 +102,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
-            Err(Error::from(result))
+            Err(result.into())
         } else {
             Ok(())
         }
@@ -133,7 +133,7 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
-            Err(Error::from(result))
+            Err(result.into())
         } else {
             Ok(())
         }
@@ -167,7 +167,7 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
-            Err(Error::from(result))
+            Err(result.into())
         } else {
             let session: &Session = session.as_impl();
             Ok(session.pos.take())

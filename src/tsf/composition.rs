@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use log::{trace, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
-use windows::core::{Result, Error};
+use windows::core::Result;
 use crate::{extend::OsStrExt2, engine::engine};
 use super::{edit_session, TextService, TextServiceInner};
 
@@ -57,7 +57,7 @@ impl TextServiceInner {
     }
 
     fn composition(&self) -> Result<&ITfComposition> {
-        self.composition.as_ref().ok_or(Error::from(E_FAIL))
+        self.composition.as_ref().ok_or(E_FAIL.into())
     }
 
     fn set_text_as_suggestions(&mut self) -> Result<()> {
@@ -83,7 +83,7 @@ impl TextServiceInner {
     fn update_candidate_list(&mut self) -> Result<()> {
         // cannot borrow `self.output` as immutable because it is also borrowed as mutable
         // ok guess i have to clone it first
-        let output = OsString::from(&self.output);
+        let output = OsString::from(self.output.as_str());
         let pos = self.get_pos();
         let candidate_list = self.candidate_list()?;
         if output.is_empty() {

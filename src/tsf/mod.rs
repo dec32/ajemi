@@ -1,4 +1,5 @@
 pub mod text_input_processor;
+pub mod display_attribute_provider;
 pub mod candidate_list;
 mod key_event_sink;
 mod thread_mgr_event_sink;
@@ -6,11 +7,12 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
+
 use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
-use windows::{core::{Result, implement, AsImpl, Error, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
+use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use self::{candidate_list::CandidateList, key_event_sink::Modifiers};
 
 //----------------------------------------------------------------------------
@@ -21,11 +23,6 @@ use self::{candidate_list::CandidateList, key_event_sink::Modifiers};
 //  return self whenever required.
 //
 //----------------------------------------------------------------------------
-
-
-// type RwLock<T> = parking_lot::lock_api::RwLock<parking_lot::RawRwLock, T>;
-// type RwLockWriteGuard<'a, T> = parking_lot::lock_api::RwLockWriteGuard<'a, parking_lot::RawRwLock, T>;
-
 
 #[implement(
     ITfTextInputProcessor,
@@ -38,7 +35,7 @@ use self::{candidate_list::CandidateList, key_event_sink::Modifiers};
 
 /// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable 
 /// states are hidden behind a lock. The lock is supposed to be light-weight since
-/// inputs from user can be frequent. 
+/// inputs from users can be frequent. 
 pub struct TextService {
     inner: RwLock<TextServiceInner>,
 }
@@ -100,12 +97,12 @@ impl TextService {
             self.inner.try_write_until(timeout)
         }).ok_or_else(||{
             error!("Failed to obtain write lock.");
-            Error::from(E_FAIL)
+            E_FAIL.into()
         })
     }
 
     fn try_write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        self.inner.try_write().ok_or_else(||Error::from(E_FAIL))
+        self.inner.try_write().ok_or_else(||E_FAIL.into())
     }
 }
 
@@ -118,14 +115,14 @@ impl TextServiceInner {
     fn thread_mgr(&self) -> Result<&ITfThreadMgr> {
         self.thread_mgr.as_ref().ok_or_else(||{
             error!("Thread manager is None.");
-            Error::from(E_FAIL)
+            E_FAIL.into()
         })
     }
 
     fn context(&self) -> Result<&ITfContext> {
         self.context.as_ref().ok_or_else(||{
             error!("Context is None.");
-            Error::from(E_FAIL)
+            E_FAIL.into()
         })
     }
 

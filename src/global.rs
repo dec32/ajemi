@@ -1,6 +1,6 @@
 use std::mem;
 
-use windows::Win32::Foundation::HINSTANCE;
+use windows::{core::GUID, Win32::Foundation::HINSTANCE};
 
 // global variables
 static mut DLL_MODULE: HINSTANCE = unsafe{ mem::zeroed() };
@@ -21,5 +21,6 @@ pub const IME_ID: &str = "C93D3D59-2FAC-40E0-ABC6-A3658749E2FA";
 pub const LANG_ID: u16 = 0x409; // en-US
 pub const LANG_PROFILE_ID: &str = "A411A7FC-A082-4B8A-8741-AA4A72613933";
 pub const LANGBAR_ITEM_ID: &str = "95288B2B-4D3B-4D4A-BF5B-9342E4F75E4D";
+pub const DISPLAY_ATTR_ID: GUID = GUID::from_u128(0xE42647FB4BF045709013768487C5CAAE);
 pub const FONT: &str = "linja waso lili";
 

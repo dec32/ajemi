@@ -9,11 +9,11 @@ use std::{ffi::c_void, ptr, mem};
 use extend::ResultExt;
 use tsf::candidate_list;
 use ::log::{debug, error, trace};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfDisplayAttributeProvider, ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
 
-use crate::{extend::GUIDExt, tsf::TextService};
+use crate::{extend::GUIDExt, tsf::{display_attribute_provider::DisplayAttributeProvider, TextService}};
 
 //----------------------------------------------------------------------------
 //
@@ -132,8 +132,11 @@ impl IClassFactory_Impl for ClassFactory {
                     TextService::create::<ITfTextInputProcessor>()?),
                 ITfTextInputProcessorEx::IID => mem::transmute(
                     TextService::create::<ITfTextInputProcessorEx>()?),
+                ITfDisplayAttributeProvider::IID => mem::transmute(
+                    DisplayAttributeProvider::create()
+                ),
                 _ => {
-                    result = Err(Error::from(E_NOINTERFACE));
+                    result = Err(E_NOINTERFACE.into());
                     ptr::null_mut()
                 }
             };

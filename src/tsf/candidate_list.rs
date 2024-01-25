@@ -1,7 +1,7 @@
 use std::{mem::{size_of, self}, ffi::{CString, OsString}, os::windows::ffi::OsStrExt};
 
 use log::{trace, debug, error, warn};
-use windows::{Win32::{UI::{TextServices::ITfThreadMgr, WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32W}}, core::{s, PCSTR, Error, HSTRING}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32W}}, core::{s, PCSTR, HSTRING}};
 use windows::core::Result;
 
 use crate::global;
@@ -84,9 +84,9 @@ pub struct CandidateList {
 impl CandidateList {
     pub fn create(parent_window: HWND) -> Result<CandidateList> {
         // WS_EX_TOOLWINDOW: A floating toolbar that won't appear in taskbar and ALT+TAB.
-        // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window losing focus.
-        // WS_EX_TOPMOST: A window that is topmost.
-        // WS_POPUPWINDOW: A window having not top bar.
+        // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window lose focus.
+        // WS_EX_TOPMOST:    A window that is topmost.
+        // WS_POPUPWINDOW:   A window having not top bar.
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
         let window = unsafe{ CreateWindowExA(
             WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
@@ -99,11 +99,11 @@ impl CandidateList {
         if window.0 == 0 {
             error!("CreateWindowExA returned null.");
             return match unsafe{ GetLastError() } {
-                Ok(_) => Err(Error::from(E_FAIL)),
+                Ok(_) => Err(E_FAIL.into()),
                 Err(e) => Err(e)
             };
         }
-        // The
+        
         let label = unsafe { CreateWindowExA(
             WS_EX_TOPMOST,
             s!("STATIC"),
