@@ -6,6 +6,7 @@ use windows::core::{Result, GUID};
 use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr, GUID_TFCAT_CATEGORY_OF_TIP, GUID_TFCAT_TIP_KEYBOARD, GUID_TFCAT_TIPCAP_SECUREMODE, GUID_TFCAT_TIPCAP_UIELEMENTENABLED, GUID_TFCAT_TIPCAP_INPUTMODECOMPARTMENT, GUID_TFCAT_TIPCAP_COMLESS, GUID_TFCAT_TIPCAP_WOW16, GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT, GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT, GUID_TFCAT_PROP_INKDATA, GUID_TFCAT_PROPSTYLE_STATIC, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY}};
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
+use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
 
 
@@ -21,7 +22,7 @@ use crate::{global::*, extend::OsStrExt2};
 pub unsafe fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID);
+    let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
     let (clsid, _) = hklm.create_subkey(path).unwrap();
     clsid.set_value("", &IME_NAME_ASCII).unwrap();
     // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
@@ -58,7 +59,7 @@ unsafe fn find_dll_path() -> Result<OsString> {
 
 pub unsafe fn unregister_server() -> Result<()> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID);
+    let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
     hklm.delete_subkey_all(path).unwrap();
     Ok(())
 }
@@ -103,20 +104,17 @@ pub unsafe fn register_ime() -> Result<()> {
     // 2. language profile
     // 3. categories(the features the IME has)
 
-    let ime_id = &GUID::from(IME_ID);
-    let lang_profile_id = &GUID::from(LANG_PROFILE_ID);
-
-    input_processor_profiles.Register(ime_id)?;
+    input_processor_profiles.Register(&IME_ID)?;
     debug!("Registered the input method.");
     // todo the icon cannot be registered
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = find_dll_path()?.null_terminated_wchars();
     input_processor_profiles.AddLanguageProfile(
-        ime_id, LANG_ID, lang_profile_id, &ime_name, 
+        &IME_ID, LANG_ID, &LANG_PROFILE_ID, &ime_name, 
         &icon_file, 0)?;
     debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
-        category_mgr.RegisterCategory(ime_id, &rcatid, ime_id)?;
+        category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     debug!("Registered the categories.");
     Ok(())
@@ -134,16 +132,12 @@ pub unsafe fn unregister_ime() -> Result<()> {
         None, 
         CLSCTX_INPROC_SERVER)?;
 
-
-    let ime_id = &GUID::from(IME_ID);
-    let lang_profile_id = &GUID::from(LANG_PROFILE_ID);
-
-    input_processor_profiles.Unregister(ime_id)?;
+    input_processor_profiles.Unregister(&IME_ID)?;
     debug!("Unregistered the input method.");
-    input_processor_profiles.RemoveLanguageProfile(ime_id, LANG_ID, lang_profile_id)?;
+    input_processor_profiles.RemoveLanguageProfile(&IME_ID, LANG_ID, &LANG_PROFILE_ID)?;
     debug!("Unregistered the language profile.");
     for rcatid in SUPPORTED_CATEGORIES {
-        category_mgr.UnregisterCategory(ime_id, &rcatid, ime_id)?;
+        category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     debug!("Unregistered the categories.");
     Ok(())

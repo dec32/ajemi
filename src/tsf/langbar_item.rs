@@ -1,7 +1,7 @@
 use log::trace;
 use windows::Win32::Foundation::{POINT, RECT, BOOL};
 use windows::Win32::UI::WindowsAndMessaging::HICON;
-use windows::core::{Result, BSTR, GUID};
+use windows::core::{Result, BSTR};
 use windows::Win32::UI::TextServices::{ITfLangBarItemButton_Impl, ITfMenu, TfLBIClick, ITfLangBarItem_Impl, TF_LANGBARITEMINFO, TF_LBI_STYLE_BTN_BUTTON};
 use crate::{IME_ID, LANGBAR_ITEM_ID};
 
@@ -12,8 +12,8 @@ use super::TextService;
 impl ITfLangBarItem_Impl for TextService {
     fn GetInfo(&self, pinfo: *mut TF_LANGBARITEMINFO) -> Result<()> {
         unsafe {
-            (*pinfo).clsidService = GUID::from(IME_ID);
-            (*pinfo).guidItem = GUID::from(LANGBAR_ITEM_ID);
+            (*pinfo).clsidService = IME_ID;
+            (*pinfo).guidItem = LANGBAR_ITEM_ID;
             (*pinfo).dwStyle = TF_LBI_STYLE_BTN_BUTTON;
             (*pinfo).ulSort = 0;
         }

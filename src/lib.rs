@@ -88,8 +88,8 @@ extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, p
         *ppv = match *riid {
             IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
             IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
-            _guid => {
-                error!("The required interface {{{}}} is not available.", _guid.to_rfc4122());
+            guid => {
+                error!("The required interface {} is not available.", guid.to_rfc4122());
                 result = CLASS_E_CLASSNOTAVAILABLE;
                 ptr::null_mut()
             }
