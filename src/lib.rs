@@ -44,7 +44,6 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
-    trace!("DllRegisterServer");
     if register_server().is_ok() && register_ime().is_ok(){
         debug!("Registered server successfully.");
         S_OK
@@ -60,7 +59,6 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    trace!("DllUnregisterServer");
     let errors: Vec<Error> = [unregister_ime(), unregister_server()].into_iter()
         .filter(Result::is_err)
         .map(Result::unwrap_err)
@@ -79,7 +77,6 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 #[allow(non_snake_case, dead_code)]
 #[no_mangle]
 extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
-    trace!("DllGetClassObject");
     // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
@@ -104,7 +101,6 @@ extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
     // it seems not that of a important thing to do according to 
     // https://github.com/microsoft/windows-rs/issues/2472 tho
-    trace!("DllCanUnloadNow");
     S_FALSE
 }
 
@@ -124,7 +120,7 @@ impl ClassFactory {
 #[allow(non_snake_case)]
 impl IClassFactory_Impl for ClassFactory {
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
-        trace!("CreateInstance");
+        trace!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
         let mut result = Ok(());
         unsafe {
             *ppvobject = match *riid {
@@ -144,8 +140,8 @@ impl IClassFactory_Impl for ClassFactory {
         result
     }
 
-    fn LockServer(&self, _flock: BOOL) -> Result<()> {
-        trace!("LockServer");
+    fn LockServer(&self, flock: BOOL) -> Result<()> {
+        trace!("LockServer({})", flock.as_bool());
         Ok(())
     }
 }

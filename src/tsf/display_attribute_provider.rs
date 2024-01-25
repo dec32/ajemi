@@ -115,11 +115,7 @@ impl ITfDisplayAttributeInfo_Impl for DisplayAttributeInfo {
     }
 
     fn GetAttributeInfo(&self, attr: *mut TF_DISPLAYATTRIBUTE) -> Result<()> {
-        let attr: Option<&mut TF_DISPLAYATTRIBUTE> = unsafe { attr.as_mut() };
-        let Some(attr) = attr else {
-            return Ok(());
-        };
-        attr.lsStyle = TF_LS_SOLID;
+        unsafe { (*attr).lsStyle = TF_LS_SOLID };
         Ok(())
     }
 

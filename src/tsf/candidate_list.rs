@@ -127,7 +127,6 @@ impl CandidateList {
     }
     
     pub fn show(&self, text: &OsString) -> Result<()>{
-        trace!("show");
         unsafe {
             let height;
             let width;
@@ -154,7 +153,6 @@ impl CandidateList {
     }
 
     pub fn hide(&self) {
-        trace!("hide");
         unsafe { ShowWindow(self.window, SW_HIDE); }
     }
 }
