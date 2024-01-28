@@ -1,12 +1,18 @@
-use std::{mem::{size_of, self}, ffi::{CString, OsString}, os::windows::ffi::OsStrExt};
+use std::{ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 
-use log::{trace, debug, error, warn};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, WS_POPUPWINDOW, WS_VISIBLE, ShowWindow, SW_HIDE, WNDCLASSEXA, RegisterClassExA, IDC_ARROW, LoadCursorW, HICON, DefWindowProcA, CS_IME, CS_DBLCLKS, CS_HREDRAW, CS_VREDRAW, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, SW_SHOWNOACTIVATE, SetWindowPos, SWP_NOACTIVATE, HWND_TOPMOST, WS_CHILD, SetWindowTextW, SendMessageA, WM_SETFONT, SWP_NOMOVE, SWP_NOSIZE}, Foundation::{HWND, GetLastError, WPARAM, LPARAM, LRESULT, E_FAIL, SIZE}, Graphics::Gdi::{COLOR_MENU, HBRUSH, CreateFontA, OUT_TT_PRECIS, HFONT, HDC, GetDC, SelectObject, GetTextExtentPoint32W}}, core::{s, PCSTR, HSTRING}};
+use log::{trace, debug, error};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SendMessageA, SetLayeredWindowAttributes, SetWindowLongPtrA, SetWindowPos, SetWindowTextW, ShowWindow, UpdateLayeredWindow, CS_DBLCLKS, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, LWA_COLORKEY, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_LONG_PTR_INDEX, WM_PAINT, WM_SETFONT, WNDCLASSEXA, WS_CHILD, WS_EX_CLIENTEDGE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUPWINDOW, WS_VISIBLE}, Foundation::{GetLastError, BOOL, COLORREF, E_FAIL, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, CreatePen, CreateSolidBrush, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, RoundRect, SelectObject, SetBkColor, SetDCBrushColor, SetDCPenColor, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER, BLENDFUNCTION, CC_CHORD, COLOR_MENU, HBRUSH, HDC, HFONT, HPEN, OUT_TT_PRECIS, PAINTSTRUCT, PS_SOLID}}, core::{s, PCSTR, HSTRING}};
 use windows::core::Result;
 
-use crate::global;
+use crate::{extend::OsStrExt2, global, ui::Color};
 
 const FONT_SIZE: i32 = 24;
+const HIGHTLIGHT_TEXT_COLOR: Color = Color::hex(0xFFFFFFF);
+
+const BORDER_WIDTH: i32 = 4;
+const BORDER_COLOR: Color = Color::hex(0xE0E0E0);
+const HIGHTLIGHT_COLOR: Color = Color::hex(0x0A3AFA);
+const TRANSPARENT: Color = Color::hex(0x123456);
 
 const PADDING_TOP: i32 = 0;
 const PADDING_RIGHT: i32 = 2;
@@ -16,9 +22,9 @@ const PADDING_BOTTOM: i32 = 2;
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
 
+
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 static mut FONT: HFONT = unsafe { mem::zeroed() };
-static mut DC: HDC = unsafe { mem::zeroed() };
 
 /// To create a window you need to register the window class beforehand.
 pub fn setup() -> Result<()> {
@@ -28,11 +34,11 @@ pub fn setup() -> Result<()> {
         style: CS_IME | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wind_proc),
         cbClsExtra: 0,
-        cbWndExtra: 0,
+        cbWndExtra: size_of::<Box<PaintArg>>().try_into().unwrap(),
         hInstance: global::dll_module(),
         hIcon: HICON::default(),
         hCursor: unsafe{ LoadCursorW(None, IDC_ARROW)? },
-        hbrBackground: HBRUSH{0: COLOR_MENU.0 as isize},
+        hbrBackground: TRANSPARENT.into(),
         lpszMenuName: PCSTR::null(),
         lpszClassName: WINDOW_CLASS,
         hIconSm: HICON::default()
@@ -56,18 +62,11 @@ pub fn setup() -> Result<()> {
             error!("Failed to create font.");
             return GetLastError();
         }
-        DC = GetDC(None);
-        SelectObject(DC, FONT);
         debug!("Created font.");
     }
     Ok(())
 }
 
-#[allow(unused)]
-unsafe extern "system" fn wind_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    // trace!("wind_proc({:?}, {}, {:?}, {:?})", hwnd, wm(msg), wparam, lparam);
-    DefWindowProcA(hwnd, msg, wparam, lparam)
-}
 
 //----------------------------------------------------------------------------
 //
@@ -78,7 +77,6 @@ unsafe extern "system" fn wind_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam
 #[derive(Default)]
 pub struct CandidateList {
     window: HWND,
-    label: HWND,
 }
 
 impl CandidateList {
@@ -87,9 +85,10 @@ impl CandidateList {
         // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window lose focus.
         // WS_EX_TOPMOST:    A window that is topmost.
         // WS_POPUPWINDOW:   A window having not top bar.
+        // WS_EX_TRANSPARENT:
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
         let window = unsafe{ CreateWindowExA(
-            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
+            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_LAYERED, 
             WINDOW_CLASS, 
             PCSTR::null(),
             WS_POPUPWINDOW,
@@ -103,18 +102,7 @@ impl CandidateList {
                 Err(e) => Err(e)
             };
         }
-        
-        let label = unsafe { CreateWindowExA(
-            WS_EX_TOPMOST,
-            s!("STATIC"),
-            PCSTR::null(), 
-            WS_VISIBLE | WS_CHILD, 
-            0, 0, 2048, 128, 
-            window, None, global::dll_module(), 
-            None) };
-        unsafe{ SendMessageA(label, WM_SETFONT, WPARAM {0: FONT.0 as usize}, LPARAM {0: 1}) };
-        debug!("Created candidate list.");
-        Ok(CandidateList{window, label})
+        Ok(CandidateList{window})
     }
 
     pub fn locate(&self, x: i32, y: i32) -> Result<()>{
@@ -123,32 +111,33 @@ impl CandidateList {
             self.window, HWND_TOPMOST, 
             x + POS_OFFSETX, y + POS_OFFSETY, 0, 0,
             SWP_NOACTIVATE | SWP_NOSIZE)? };
+
         Ok(())
     }
     
-    pub fn show(&self, text: &OsString) -> Result<()>{
-        unsafe {
-            let height;
-            let width;
-            let mut size = SIZE::default();
-            let encoded: Vec<u16> = text.encode_wide().collect();
-            if GetTextExtentPoint32W(DC,&encoded , &mut size).as_bool() {
-                height = PADDING_TOP + PADDING_BOTTOM + size.cy;
-                width = PADDING_LEFT + PADDING_RIGHT + size.cx;
-            } else {
-                warn!("GetTextExtentPoint32W failed.");
-                let len: i32 = text.to_string_lossy().chars().count().try_into().unwrap();
-                height = PADDING_TOP + PADDING_BOTTOM + FONT_SIZE;
-                width = PADDING_LEFT + PADDING_RIGHT + FONT_SIZE * len;
-            }
-            
-            SetWindowTextW(self.label,&HSTRING::from(text))?;
+    pub fn show(&self, text: &OsString) -> Result<()> {
+        unsafe{ 
+            // calculate the size of the candidate window
+            let text = text.wchars();
+            let hdc: HDC = GetDC(self.window);
+            SelectObject(hdc, FONT);
+            let text_size = {
+                let mut size = SIZE::default();
+                GetTextExtentPoint32W(hdc,&text, &mut size);
+                size
+            };
+            let wnd_size = SIZE {cx: text_size.cx + 10, cy: text_size.cy + 10};
+            // passing extra args to WndProc
+            let arg = PaintArg {wnd_size, text_size, text}.to_long_ptr();
+            SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
+            // resize
             SetWindowPos(
                 self.window, HWND_TOPMOST, 
-                0, 0, width, height,
+                0, 0, wnd_size.cx + 20, wnd_size.cy + 20,
                 SWP_NOACTIVATE | SWP_NOMOVE)?;
+            // show window will trigger repaint (I guess)
             ShowWindow(self.window, SW_SHOWNOACTIVATE);
-        }
+        };
         Ok(())
     }
 
@@ -157,11 +146,93 @@ impl CandidateList {
     }
 }
 
-//----------------------------------------------------------------------------
-//
-//  Getter
-//
-//----------------------------------------------------------------------------
+struct PaintArg {
+    wnd_size: SIZE,
+    text_size: SIZE,
+    text: Vec<u16>,
+}
+
+impl PaintArg {
+    unsafe fn to_long_ptr(self) -> isize{
+        mem::transmute(ManuallyDrop::new(Box::new(self)))
+    }
+
+    unsafe fn from_long_ptr(long_ptr: isize) -> Option<Box<PaintArg>>{
+        if long_ptr == 0 {
+            None
+        } else {
+            Some(mem::transmute(long_ptr))
+        }
+        
+    }
+}
+
+unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    trace!("wind_proc({:?}, {}, {:?}, {:?})", window, wm(msg), wparam, lparam);
+    if msg != WM_PAINT {
+        return DefWindowProcA(window, msg, wparam, lparam);
+    }
+
+    // load the extra arg
+    let Some(arg) = PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) else {
+        error!("Args for repaint is not found.");
+        return LRESULT{ 0: 0 };
+    };
+
+    SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0);
+
+    // GDI non sense
+    let mut ps = PAINTSTRUCT {
+        hdc: HDC::default(),
+        fErase: false.into(),
+        rcPaint: RECT {
+            left: 256, top: 256,
+            right: 256, bottom: 256
+        },
+        fRestore: false.into(),
+        fIncUpdate: false.into(),
+        rgbReserved: [0; 32],
+    };
+    let hdc: HDC = BeginPaint(window, &mut ps);
+    if hdc.is_invalid() {
+        error!("BeginPaint failed.");
+        return LRESULT{ 0: 0 }
+    }
+    
+    // round rect
+    let pen = CreatePen(PS_SOLID, BORDER_WIDTH, BORDER_COLOR);
+    let brush = CreateSolidBrush(HIGHTLIGHT_COLOR);
+    SelectObject(hdc, pen);
+    SelectObject(hdc, brush);
+    RoundRect(hdc, 0, 0, arg.wnd_size.cx, arg.wnd_size.cy, 10, 10);
+
+    // text
+    SelectObject(hdc, FONT);
+    SetTextColor(hdc, HIGHTLIGHT_TEXT_COLOR);
+    SetBkColor(hdc, HIGHTLIGHT_COLOR);
+    TextOutW(
+        hdc, 
+        (arg.wnd_size.cx - arg.text_size.cx) / 2, 
+        (arg.wnd_size.cy - arg.text_size.cy) / 2, 
+        &arg.text);
+
+    EndPaint(window, &ps);
+
+    // to apply transparency you need to write such crap
+    let blend_function = BLENDFUNCTION{
+        BlendOp: AC_SRC_OVER as u8, 
+        BlendFlags: 0, 
+        SourceConstantAlpha: 0xFF,
+        AlphaFormat: AC_SRC_ALPHA as u8
+    };
+    let screen_hdc = GetDC(None);
+    let _ = UpdateLayeredWindow(
+        window, screen_hdc,
+         None, None, 
+         hdc, Some(&POINT{ x:0, y:0 }), 
+         TRANSPARENT, Some(&blend_function), ULW_ALPHA);
+    return LRESULT{ 0: 0 }
+}
 
 #[allow(unused)]
 const fn wm(code: u32) -> &'static str {

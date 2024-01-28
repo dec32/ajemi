@@ -4,6 +4,7 @@ mod log;
 mod extend;
 mod tsf;
 mod engine;
+mod ui;
 
 use std::{ffi::c_void, ptr, mem};
 use extend::ResultExt;
