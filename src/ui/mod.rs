@@ -1,4 +1,4 @@
-use windows::{core::Interface, Win32::{Foundation::COLORREF, Graphics::Gdi::{CreateSolidBrush, HBRUSH}}};
+use windows::Win32::{Foundation::COLORREF, Graphics::Gdi::{CreateSolidBrush, HBRUSH}};
 use windows::core::IntoParam;
 use windows::core::Param;
 
@@ -10,7 +10,6 @@ impl Color {
     pub const fn rgb(r:u8, g:u8, b:u8) -> Color {
         Color{r, g, b}
     }
-
 
     pub const fn hex(mut hex: u32) -> Color {
         let b = (hex % 0x100) as u8;
@@ -38,15 +37,6 @@ impl From<Color> for HBRUSH {
         unsafe{ CreateSolidBrush(COLORREF::from(color)) }
     }
 }
-
-
-// FIXME how is this not working?
-// impl<T: From<Color> + Interface + Clone> IntoParam<T> for Color {
-//     fn into_param(self) -> Param<T> {
-//         Param::Owned(T::from(self.clone()))
-//     }
-// }
-
 
 impl IntoParam<COLORREF> for Color {
     fn into_param(self) -> Param<COLORREF> {
