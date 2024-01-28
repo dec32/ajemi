@@ -1,12 +1,12 @@
 use std::{ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SendMessageA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DBLCLKS, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SendMessageA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 
 use crate::{extend::OsStrExt2, global, ui::Color};
 
-const TEXT_HEIGHT: i32 = 22;
+const TEXT_HEIGHT: i32 = 24;
 const TEXT_COLOR: Color = Color::gray(0);
 
 const CLIP_WIDTH: i32 = 3;
@@ -27,8 +27,7 @@ static mut FONT: HFONT = unsafe { mem::zeroed() };
 pub fn setup() -> Result<()> {
     let wcex = WNDCLASSEXA {
         cbSize: size_of::<WNDCLASSEXA>() as u32,
-        // TODO 这些 Style 是幹嘛的
-        style: CS_IME | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW,
+        style: CS_IME | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(wind_proc),
         cbClsExtra: 0,
         cbWndExtra: size_of::<Box<PaintArg>>().try_into().unwrap(),
@@ -64,6 +63,14 @@ pub fn setup() -> Result<()> {
     Ok(())
 }
 
+// use default handlers for everything but repaint
+unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    match msg {
+        WM_PAINT => paint(window),
+        _  => DefWindowProcA(window, msg, wparam, lparam)
+    }
+}
+
 
 //----------------------------------------------------------------------------
 //
@@ -81,8 +88,7 @@ impl CandidateList {
         // WS_EX_TOOLWINDOW: A floating toolbar that won't appear in taskbar and ALT+TAB.
         // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window lose focus.
         // WS_EX_TOPMOST:    A window that is topmost.
-        // WS_POPUPWINDOW:   A window having not top bar.
-        // WS_EX_TRANSPARENT:
+        // WS_POPUP:         A window having no top bar or border.
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
         let window = unsafe{ CreateWindowExA(
             WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
@@ -111,14 +117,18 @@ impl CandidateList {
 
         Ok(())
     }
-    
+
+    pub fn hide(&self) {
+        unsafe { ShowWindow(self.window, SW_HIDE); }
+    }
+
     pub fn show(&self, text: &OsString) -> Result<()> {
         unsafe{ 
             // calculate the size of the candidate window
             let text = text.wchars();
-            let hdc: HDC = GetDC(self.window);
-            SelectObject(hdc, FONT);
             let text_size = {
+                let hdc: HDC = GetDC(self.window);
+                SelectObject(hdc, FONT);
                 let mut size = SIZE::default();
                 GetTextExtentPoint32W(hdc,&text, &mut size);
                 size
@@ -141,10 +151,6 @@ impl CandidateList {
         };
         Ok(())
     }
-
-    pub fn hide(&self) {
-        unsafe { ShowWindow(self.window, SW_HIDE); }
-    }
 }
 
 struct PaintArg {
@@ -154,6 +160,7 @@ struct PaintArg {
 }
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
+        // TODO make sure there's no memory leak
         mem::transmute(ManuallyDrop::new(Box::new(self)))
     }
     unsafe fn from_long_ptr(long_ptr: isize) -> Option<Box<PaintArg>>{
@@ -165,45 +172,37 @@ impl PaintArg {
     }
 }
 
-unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    match msg {
-        WM_PAINT => {
-            let mut ps = PAINTSTRUCT::default();
-            let hdc: HDC = BeginPaint(window, &mut ps);
-            if hdc.is_invalid() {
-                error!("BeginPaint failed.");
-                return LRESULT::default();
-            }
-            paint(window, hdc);
-            EndPaint(window, &mut ps);
-            LRESULT::default()
-        },
-        _  => DefWindowProcA(window, msg, wparam, lparam)
-    }
-}
-
-unsafe fn paint(window: HWND, hdc: HDC) {
+unsafe fn paint(window: HWND) -> LRESULT{
     // load the extra arg
     let Some(arg) = PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) else {
         error!("Args for repaint is not found.");
-        return;
+        return LRESULT::default();
     };
-
+    SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0);
+    // specify the area to repainted (in this case, the whole window)
+    let mut ps = PAINTSTRUCT::default();
+    ps.fErase = true.into();
+    ps.rcPaint = RECT {left:0, top:0, right: arg.wnd_size.cx, bottom: arg.wnd_size.cy};
+    let dc: HDC = BeginPaint(window, &mut ps);
+    if dc.is_invalid() {
+        error!("BeginPaint failed.");
+        return LRESULT::default();
+    }
+    // paint
     let clip = RECT{ left: 0, top: 0, right: CLIP_WIDTH, bottom: arg.wnd_size.cy };
     let label = RECT{left: 0, top: 0, right: arg.wnd_size.cx, bottom: arg.wnd_size.cy};
-
-    SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0);
-    FillRect(hdc, &label, LABEL_COLOR);
-    FillRect(hdc, &clip, CLIP_COLOR);
-    // text
-    SelectObject(hdc, FONT);
-    SetTextColor(hdc, TEXT_COLOR);
-    SetBkMode(hdc, TRANSPARENT);
+    FillRect(dc, &label, LABEL_COLOR);
+    FillRect(dc, &clip, CLIP_COLOR);
+    SelectObject(dc, FONT);
+    SetTextColor(dc, TEXT_COLOR);
+    SetBkMode(dc, TRANSPARENT);
     TextOutW(
-        hdc, 
+        dc, 
         CLIP_WIDTH + (arg.wnd_size.cx - CLIP_WIDTH - arg.text_size.cx) / 2, 
         (arg.wnd_size.cy - arg.text_size.cy) / 2, 
         &arg.text);
+    EndPaint(window, &mut ps);
+    LRESULT::default()
 }
 
 
