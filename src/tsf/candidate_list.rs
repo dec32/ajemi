@@ -1,7 +1,7 @@
 use std::{ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SendMessageA, SetLayeredWindowAttributes, SetWindowLongPtrA, SetWindowPos, SetWindowTextW, ShowWindow, UpdateLayeredWindow, CS_DBLCLKS, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, LWA_COLORKEY, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_LONG_PTR_INDEX, WM_PAINT, WM_SETFONT, WNDCLASSEXA, WS_CHILD, WS_EX_CLIENTEDGE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUPWINDOW, WS_VISIBLE}, Foundation::{GetLastError, BOOL, COLORREF, E_FAIL, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, CreatePen, CreateSolidBrush, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, RoundRect, SelectObject, SetBkColor, SetDCBrushColor, SetDCPenColor, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER, BLENDFUNCTION, CC_CHORD, COLOR_MENU, HBRUSH, HDC, HFONT, HPEN, OUT_TT_PRECIS, PAINTSTRUCT, PS_SOLID}}, core::{s, PCSTR, HSTRING}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SendMessageA, SetLayeredWindowAttributes, SetWindowLongPtrA, SetWindowPos, SetWindowTextW, ShowWindow, UpdateLayeredWindow, CS_DBLCLKS, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, LWA_ALPHA, LWA_COLORKEY, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WINDOW_LONG_PTR_INDEX, WM_PAINT, WM_SETFONT, WNDCLASSEXA, WS_CHILD, WS_EX_CLIENTEDGE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_POPUPWINDOW, WS_VISIBLE}, Foundation::{GetLastError, BOOL, COLORREF, E_FAIL, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, CreatePen, CreateSolidBrush, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, RoundRect, SelectObject, SetBkColor, SetDCBrushColor, SetDCPenColor, SetTextColor, TextOutW, AC_SRC_ALPHA, AC_SRC_OVER, BLENDFUNCTION, CC_CHORD, COLOR_MENU, HBRUSH, HDC, HFONT, HPEN, OUT_TT_PRECIS, PAINTSTRUCT, PS_SOLID}}, core::{s, PCSTR, HSTRING}};
 use windows::core::Result;
 
 use crate::{extend::OsStrExt2, global, ui::Color};
@@ -88,10 +88,10 @@ impl CandidateList {
         // WS_EX_TRANSPARENT:
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
         let window = unsafe{ CreateWindowExA(
-            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_LAYERED, 
+            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
             WINDOW_CLASS, 
             PCSTR::null(),
-            WS_POPUPWINDOW,
+            WS_POPUP,
             0, 0, 0, 0, 
             parent_window, None, global::dll_module(),
             None) };
@@ -151,54 +151,44 @@ struct PaintArg {
     text_size: SIZE,
     text: Vec<u16>,
 }
-
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
         mem::transmute(ManuallyDrop::new(Box::new(self)))
     }
-
     unsafe fn from_long_ptr(long_ptr: isize) -> Option<Box<PaintArg>>{
         if long_ptr == 0 {
             None
         } else {
             Some(mem::transmute(long_ptr))
         }
-        
     }
 }
 
 unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     trace!("wind_proc({:?}, {}, {:?}, {:?})", window, wm(msg), wparam, lparam);
-    if msg != WM_PAINT {
-        return DefWindowProcA(window, msg, wparam, lparam);
+    match msg {
+        WM_PAINT => {
+            let mut ps = PAINTSTRUCT::default();
+            let hdc: HDC = BeginPaint(window, &mut ps);
+            if hdc.is_invalid() {
+                error!("BeginPaint failed.");
+                return LRESULT::default();
+            }
+            paint(window, hdc);
+            EndPaint(window, &mut ps);
+            LRESULT::default()
+        },
+        _  => DefWindowProcA(window, msg, wparam, lparam)
     }
+}
 
+unsafe fn paint(window: HWND, hdc: HDC) {
     // load the extra arg
     let Some(arg) = PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) else {
         error!("Args for repaint is not found.");
-        return LRESULT{ 0: 0 };
+        return;
     };
-
     SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0);
-
-    // GDI non sense
-    let mut ps = PAINTSTRUCT {
-        hdc: HDC::default(),
-        fErase: false.into(),
-        rcPaint: RECT {
-            left: 256, top: 256,
-            right: 256, bottom: 256
-        },
-        fRestore: false.into(),
-        fIncUpdate: false.into(),
-        rgbReserved: [0; 32],
-    };
-    let hdc: HDC = BeginPaint(window, &mut ps);
-    if hdc.is_invalid() {
-        error!("BeginPaint failed.");
-        return LRESULT{ 0: 0 }
-    }
-    
     // round rect
     let pen = CreatePen(PS_SOLID, BORDER_WIDTH, BORDER_COLOR);
     let brush = CreateSolidBrush(HIGHTLIGHT_COLOR);
@@ -216,22 +206,19 @@ unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lpar
         (arg.wnd_size.cy - arg.text_size.cy) / 2, 
         &arg.text);
 
-    EndPaint(window, &ps);
-
     // to apply transparency you need to write such crap
-    let blend_function = BLENDFUNCTION{
-        BlendOp: AC_SRC_OVER as u8, 
-        BlendFlags: 0, 
-        SourceConstantAlpha: 0xFF,
-        AlphaFormat: AC_SRC_ALPHA as u8
-    };
-    let screen_hdc = GetDC(None);
-    let _ = UpdateLayeredWindow(
-        window, screen_hdc,
-         None, None, 
-         hdc, Some(&POINT{ x:0, y:0 }), 
-         TRANSPARENT, Some(&blend_function), ULW_ALPHA);
-    return LRESULT{ 0: 0 }
+    // let blend_function = BLENDFUNCTION{
+    //     BlendOp: AC_SRC_OVER as u8, 
+    //     BlendFlags: 0, 
+    //     SourceConstantAlpha: 0xFF,
+    //     AlphaFormat: AC_SRC_ALPHA as u8
+    // };
+    // let screen_hdc = GetDC(None);
+    // let _ = UpdateLayeredWindow(
+    //     window, screen_hdc,
+    //         None, None, 
+    //         hdc, Some(&POINT{ x:0, y:0 }), 
+    //         TRANSPARENT, Some(&blend_function), ULW_ALPHA);
 }
 
 #[allow(unused)]
