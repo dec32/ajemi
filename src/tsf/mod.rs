@@ -1,6 +1,5 @@
 pub mod text_input_processor;
 pub mod display_attribute_provider;
-pub mod candidate_list;
 mod key_event_sink;
 mod thread_mgr_event_sink;
 mod composition;
@@ -13,7 +12,9 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
-use self::{candidate_list::CandidateList, key_event_sink::Modifiers};
+use crate::ui::candidate_list::CandidateList;
+
+use self::key_event_sink::Modifiers;
 
 //----------------------------------------------------------------------------
 //

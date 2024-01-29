@@ -8,7 +8,7 @@ mod ui;
 
 use std::{ffi::c_void, ptr, mem};
 use extend::ResultExt;
-use tsf::candidate_list;
+use ui::candidate_list;
 use ::log::{debug, error, trace};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfDisplayAttributeProvider, ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;

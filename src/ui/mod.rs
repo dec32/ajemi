@@ -1,3 +1,5 @@
+pub mod candidate_list;
+
 use windows::Win32::{Foundation::COLORREF, Graphics::Gdi::{CreateSolidBrush, HBRUSH}};
 use windows::core::IntoParam;
 use windows::core::Param;
