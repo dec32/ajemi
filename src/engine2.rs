@@ -1,4 +1,5 @@
-use std::{collections::HashMap, cell::OnceCell};
+use core::fmt;
+use std::{collections::{HashMap, HashSet}, cell::OnceCell};
 use Candidate::*;
 
 /// A struct to store and query words and punctuators
@@ -61,16 +62,20 @@ impl Engine {
 }
 
 
-// query
-#[derive(Default, Clone, Debug)]
+// Query
+#[derive(Default, Clone)]
 struct Suggestion {
     output: String,
     groupping: Vec<usize>,
-    prefix_count: u8,
+}
+
+impl fmt::Debug for Suggestion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.output)
+    }
 }
 
 impl Engine {
-
     pub fn remap_punct(&self, punct: char) -> char {
         self.puncts.get(&punct).cloned().unwrap_or(punct)
     }
@@ -80,45 +85,102 @@ impl Engine {
             return Vec::new(); 
         }
         let mut suggs = Vec::new();
-        self.suggest_recursively(spelling, 0, 1, Suggestion::default(), &mut suggs);
-        // todo sort
-        suggs
-    }
-
-    fn suggest_recursively(
-        &self, spelling: &str, 
-        mut from: usize, mut to: usize, mut sugg: Suggestion, 
-        suggs: &mut Vec<Suggestion>) 
-    {
-        let mut mutated = false;
-        while to <= spelling.len() {
+        // first assume the user does not use any prefix
+        let mut exact_sugg = Suggestion::default();
+        let mut from = 0;
+        let mut to = spelling.len();
+        while from < to {
             let slice = &spelling[from..to];
-            let candidate = match self.candidates.get(slice) {
-                Some(Exact(exact, _)) => exact,
-                Some(Unique(unique)) => {
-                    sugg.prefix_count += 1;
-                    unique
+            if let Some(Exact(word, _)) = self.candidates.get(slice) {
+                exact_sugg.groupping.push(to);
+                exact_sugg.output.push_str(word);
+                from = to;
+                to = spelling.len();
+            } else {
+                to -= 1;
+            }
+        }
+        // then take unique prefixes into considerations as well
+        let mut unique_sugg = Suggestion::default();
+        let mut from = 0;
+        let mut to = spelling.len();
+        let mut containing_prefixes = false;
+        while from < to {
+            let slice = &spelling[from..to];
+            let candiate = self.candidates.get(slice);
+            if let Some(Unique(_)) = candiate {
+                containing_prefixes = true;
+            }
+            match candiate {
+                Some(Exact(word, _)) | Some(Unique(word)) => {
+                    unique_sugg.groupping.push(to);
+                    unique_sugg.output.push_str(word);
+                    from = to;
+                    to = spelling.len();
                 },
                 _ => {
-                    to += 1;
+                    to -= 1;
+                }
+            }
+        }
+        if !containing_prefixes {
+            unique_sugg.output.clear();
+        }
+
+        // push
+        match (!exact_sugg.output.is_empty(), !unique_sugg.output.is_empty()) {
+            (true, false) => suggs.push(exact_sugg),
+            (false, true) => suggs.push(unique_sugg),
+            (false, false) => (),
+            (true, true) => {
+                // decide which one makes more sense
+                let exact_trailing = spelling.len() - exact_sugg.groupping.last().unwrap();
+                let unique_trailing = spelling.len() - unique_sugg.groupping.last().unwrap();
+                if exact_trailing <= unique_trailing {
+                    suggs.push(exact_sugg);
+                    suggs.push(unique_sugg);
+                } else {
+                    suggs.push(unique_sugg);
+                    suggs.push(exact_sugg);
+                }
+            }
+        }
+        // finally suggest a few words instead of full sentences
+        let mut remains = 5 - suggs.len();
+        let mut exclude: HashSet<String> = suggs.iter()
+            .filter(|it|it.output.chars().count() == 1)
+            .map(|it|it.output.clone())
+            .collect();
+        'outer_loop:
+        for to in (1..spelling.len()).rev() {
+            let slice = &spelling[0..to];
+            let empty_vec = Vec::new();
+            let (word, words) = match self.candidates.get(slice) {
+                Some(Exact(word, words)) => 
+                    (Some(word), words),
+                Some(Unique(word)) => 
+                    (Some(word), &empty_vec),
+                Some(Duplicates(words)) => 
+                    (None, words),
+                None => {
                     continue;
                 }
             };
-            // found an exact match, but before continueing, we should check if 
-            // there's even longer exact matches. for example, "li" is an exact match, 
-            // but the next two chars can be "pu", making "lipu", an longer match
-            self.suggest_recursively(spelling, from, to + 1, sugg.clone(), suggs);
-            // keep going
-            sugg.output.push_str(candidate);
-            sugg.groupping.push(to);
-            mutated = true;
-            from = to;
-            to = from + 1;
+            for w in word.into_iter().chain(words) {
+                if exclude.contains(w) {
+                    continue;
+                }
+                suggs.push(Suggestion{ output: w.clone(), groupping: vec![to] });
+                exclude.insert(w.clone());
+                remains -= 1;
+                if remains <= 0 {
+                    break 'outer_loop;
+                }
+            }
         }
-        if mutated {
-            suggs.push(sugg)
-        }
+        suggs
     }
+
 }
 
 
@@ -321,8 +383,11 @@ fn repl() {
     loop {
         buf.clear();
         stdin().read_line(&mut buf).unwrap();
-        let suggestion = engine().suggest(&buf);
-        println!("{:?}", suggestion);
+        let suggs = engine().suggest(&buf);
+        for sugg in suggs {
+            println!("{:?}", sugg);
+        }
+        
     }
 }
 
