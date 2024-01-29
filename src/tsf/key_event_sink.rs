@@ -194,7 +194,7 @@ impl Modifiers {
 /// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
 #[derive(Debug)]
 enum Input{
-    Letter(char), Number(char), Punct(char),
+    Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
     Unknown(usize)
@@ -216,8 +216,8 @@ impl Input {
             (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
             (0x41..=0x5A, true ) => Letter(add('A', offset(key_code, 0x41))),
             // Numbers
-            (0x30..=0x39, false) => Number(add('0', offset(key_code, 0x30))),
-            (0x60..=0x69, _    ) => Number(add('0', offset(key_code, 0x60))),
+            (0x30..=0x39, false) => Number(0 + (key_code - 0x30)),
+            (0x60..=0x69, _    ) => Number(0 + (key_code - 0x60)),
             // Punctuators
             (0x31, true ) => Punct('!'),
             (0x32, true ) => Punct('@'),
@@ -316,7 +316,7 @@ impl TextServiceInner {
                 Letter(letter) => self.push(letter)?,
                 Number(number) => {
                     // todo numbers can be used to select from candidate list
-                    self.force_commit(number)?;
+                    self.select(number - 1)?;
                 },
                 Punct(punct) => {
                     self.force_commit(engine().remap_punct(punct))?;
@@ -336,7 +336,7 @@ impl TextServiceInner {
                     self.release()?
                 } 
                 // disable cursor movement because I am lazy.
-                Left|Up|Right|Down => (),
+                Left | Up | Right | Down => (),
                 Unknown(_) => {
                     return Ok(FALSE);
                 }
