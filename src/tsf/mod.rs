@@ -125,17 +125,11 @@ impl TextServiceInner {
         })
     }
 
-    fn try_create_candiate_list(&mut self) -> Result<()> {
-        if self.candidate_list.is_none() {
-            let parent_window = unsafe {
-                self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
-            self.candidate_list = CandidateList::create(parent_window).ok();
-        }
-        Ok(())
-    }
-    /// Occasionally fails.
     fn candidate_list(&self) -> Result<&CandidateList> {
-        self.candidate_list.as_ref().ok_or(E_FAIL.into())
+        self.candidate_list.as_ref().ok_or_else(||{
+            error!("Candidate list is None.");
+            E_FAIL.into()
+        })
     }
 }
 

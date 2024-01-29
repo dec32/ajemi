@@ -1,6 +1,6 @@
 use std::{ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
@@ -103,7 +103,7 @@ impl CandidateList {
                 Err(e) => Err(e)
             };
         }
-        Ok(CandidateList{window})
+        Ok(CandidateList{ window })
     }
 
     pub fn locate(&self, x: i32, y: i32) -> Result<()>{
@@ -114,10 +114,6 @@ impl CandidateList {
             SWP_NOACTIVATE | SWP_NOSIZE)? };
 
         Ok(())
-    }
-
-    pub fn hide(&self) {
-        unsafe { ShowWindow(self.window, SW_HIDE); }
     }
 
     pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
@@ -155,6 +151,14 @@ impl CandidateList {
             InvalidateRect(self.window, None, BOOL::from(true));
         };
         Ok(())
+    }
+
+    pub fn hide(&self) {
+        unsafe { ShowWindow(self.window, SW_HIDE); }
+    }
+
+    pub fn destroy(&self) -> Result<()> {
+        unsafe { DestroyWindow(self.window) }
     }
 }
 

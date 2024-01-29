@@ -2,6 +2,8 @@ use log::{trace, debug, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfSource, ITfThreadMgrEventSink};
 use windows::core::{Result, ComInterface};
+use crate::ui::candidate_list::CandidateList;
+
 use super::TextService;
 
 #[allow(non_snake_case)]
@@ -20,7 +22,11 @@ impl ITfTextInputProcessor_Impl for TextService {
 
             inner.cookie = Some(thread_mgr.cast::<ITfSource>()?.AdviseSink(
                 &ITfThreadMgrEventSink::IID, &inner.interface::<ITfThreadMgrEventSink>()?)?);
-            debug!("Added thread manager event sink.")
+            debug!("Added thread manager event sink.");
+
+            let parent_window = thread_mgr.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()?;
+            inner.candidate_list = Some(CandidateList::create(parent_window)?);
+            debug!("Created candidate list.");
             // thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
             //     &inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Added langbar item.");
@@ -35,7 +41,6 @@ impl ITfTextInputProcessor_Impl for TextService {
         unsafe {
             thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(inner.tid)?;
             debug!("Removed key event sink.");
-            
             if let Some(cookie) = inner.cookie {
                 thread_mgr.cast::<ITfSource>()?.UnadviseSink(cookie)?;
                 inner.cookie = None;
@@ -43,6 +48,8 @@ impl ITfTextInputProcessor_Impl for TextService {
             } else {
                 warn!("Cookie for thread manager event sink is None.");
             }
+            inner.candidate_list()?.destroy()?;
+            debug!("Destroyed candidate list.");
             // thread_mgr.cast::<ITfLangBarItemMgr>()?.RemoveItem(&inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Removed langbar item.")
         }

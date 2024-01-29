@@ -80,11 +80,8 @@ impl TextServiceInner {
     }
 
     fn update_candidate_list(&mut self) -> Result<()> {
-        // cannot borrow `self.output` as immutable because it is also borrowed as mutable
-        // ok guess i have to clone it first
-        let pos = self.get_pos();
-        self.try_create_candiate_list()?;
         let candidate_list = self.candidate_list()?;
+        let pos = self.get_pos();
         if self.suggestions.is_empty() {
             candidate_list.hide();
         } else {
@@ -166,11 +163,12 @@ impl TextServiceInner {
             self.set_text(&sugg.output)?;
             self.end_composition()
         } else {
-            let trailing = &self.spelling[last..].to_string();
             self.set_text(&sugg.output)?;
             self.end_composition()
-
             // FIXME keeping the trailing chars won't work
+            // let trailing = &self.spelling[last..].to_string();
+            // self.set_text(&sugg.output)?;
+            // self.end_composition();
             // self.start_composition()?;
             // self.spelling.push_str(&trailing);
             // self.set_text(&self.spelling);
