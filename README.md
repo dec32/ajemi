@@ -6,7 +6,7 @@ Ajemi is an IME (input method) for Toki Pona. With proper font support, it allow
 
 ## Install Standalone Version
 
-![](./doc/preview-standalone.gif)
+![](https://github.com/dec32/Ajemi/releases/download/v0.1/preview.gif)
 
 The standalone version is available now. Click link below to download the installer.
 
