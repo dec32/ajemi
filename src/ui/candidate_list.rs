@@ -1,6 +1,6 @@
 use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
@@ -31,7 +31,7 @@ static mut FONT: HFONT = unsafe { mem::zeroed() };
 pub fn setup() -> Result<()> {
     let wcex = WNDCLASSEXA {
         cbSize: size_of::<WNDCLASSEXA>() as u32,
-        style: CS_IME | CS_HREDRAW | CS_VREDRAW,
+        style: CS_IME | CS_HREDRAW | CS_VREDRAW | CS_DROPSHADOW,
         lpfnWndProc: Some(wind_proc),
         cbClsExtra: 0,
         cbWndExtra: size_of::<Box<PaintArg>>().try_into().unwrap(),
@@ -88,7 +88,7 @@ pub struct CandidateList {
 }
 
 impl CandidateList {
-    pub fn create(parent_window: HWND) -> Result<CandidateList> {
+    pub fn create(_parent_window: HWND) -> Result<CandidateList> {
         // WS_EX_TOOLWINDOW: A floating toolbar that won't appear in taskbar and ALT+TAB.
         // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window lose focus.
         // WS_EX_TOPMOST:    A window that is topmost.
@@ -100,7 +100,7 @@ impl CandidateList {
             PCSTR::null(),
             WS_POPUP,
             0, 0, 0, 0, 
-            parent_window, None, global::dll_module(),
+            None, None, global::dll_module(),
             None) };
         if window.0 == 0 {
             error!("CreateWindowExA returned null.");
