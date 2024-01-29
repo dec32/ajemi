@@ -4,9 +4,10 @@ use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA,
 use windows::core::Result;
 use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
-const TEXT_HEIGHT: i32 = 24;
+const TEXT_HEIGHT: i32 = 22;
 const TEXT_COLOR: Color = Color::gray(0);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(0);
+const TEXT_INDEX_COLOR: Color = Color::gray(128);
 
 const CLIP_WIDTH: i32 = 3;
 const CLIP_COLOR: Color =  Color::rgb(0, 120, 215);
@@ -14,8 +15,8 @@ const CLIP_COLOR: Color =  Color::rgb(0, 120, 215);
 const LABEL_COLOR: Color = Color::gray(250);
 const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
 
-const LABEL_PADDING_TOP: i32 = 4;
-const LABEL_PADDING_BOTTOM: i32 = 4;
+const LABEL_PADDING_TOP: i32 = 2;
+const LABEL_PADDING_BOTTOM: i32 = 2;
 const LABEL_PADDING_LEFT: i32 = 2;
 const LABEL_PADDING_RIGHT: i32 = 2;
 
@@ -123,29 +124,37 @@ impl CandidateList {
 
     pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
         unsafe{ 
-            let mut text_size = SIZE::default();
+            let mut index_list = Vec::with_capacity(suggs.len());
             let mut text_list = Vec::with_capacity(suggs.len());
+
+            let mut index_width: i32 = 0;
+            let mut text_width: i32 = 0;
+            let mut text_height: i32 = 0;
+            
             let dc: HDC = GetDC(self.window);
             SelectObject(dc, FONT);
             for (index, sugg) in suggs.iter().enumerate() {
-                let index = index + 1;
-                let text = &sugg.output;
-                // indexes are not guaranteed to be the same width but whatever
-                let text = OsString::from(format!("{index}. {text}")).wchars();
                 let mut size = SIZE::default();
+
+                let index = OsString::from(format!("{}. ", index + 1)).wchars();
+                GetTextExtentPoint32W(dc,&index, &mut size);
+                index_width = max(index_width, size.cx);
+                index_list.push(index);
+
+                let text = OsString::from(&sugg.output).wchars();
                 GetTextExtentPoint32W(dc,&text, &mut size);
-                text_size.cy = size.cy;
-                text_size.cx = max(text_size.cx, size.cx);
+                text_width = max(text_width, size.cx);
+                text_height = size.cy;
                 text_list.push(text);
             }
 
             let candidates: i32 = suggs.len().try_into().unwrap();
             let wnd_size = SIZE {
-                cx: CLIP_WIDTH + LABEL_PADDING_LEFT + text_size.cx + LABEL_PADDING_RIGHT,
-                cy: candidates * (LABEL_PADDING_TOP + text_size.cy + LABEL_PADDING_BOTTOM)
+                cx: CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + text_width + LABEL_PADDING_RIGHT,
+                cy: candidates * (LABEL_PADDING_TOP + text_height + LABEL_PADDING_BOTTOM)
             };
             // passing extra args to WndProc
-            let arg = PaintArg {wnd_size, text_size, text_list}.to_long_ptr();
+            let arg = PaintArg {wnd_size, text_list, index_list, index_width, text_height }.to_long_ptr();
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
             // resize and show
             SetWindowPos(
@@ -170,8 +179,10 @@ impl CandidateList {
 
 struct PaintArg {
     wnd_size: SIZE,
-    text_size: SIZE,
+    index_list: Vec<Vec<u16>>,
     text_list: Vec<Vec<u16>>,
+    index_width: i32,
+    text_height: i32,
 }
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
@@ -201,35 +212,36 @@ unsafe fn paint(window: HWND) -> LRESULT{
         error!("BeginPaint failed.");
         return LRESULT::default();
     }
-    // paint
-    let label_size = SIZE{
-        cx: LABEL_PADDING_LEFT + arg.text_size.cx + LABEL_PADDING_RIGHT,
-        cy: LABEL_PADDING_TOP + arg.text_size.cy + LABEL_PADDING_BOTTOM,
-    };
+    // paint labels
+    let label_height = LABEL_PADDING_TOP + arg.text_height + LABEL_PADDING_BOTTOM;
     let wnd = RECT{ left: 0, top: 0, right: arg.wnd_size.cx, bottom: arg.wnd_size.cy};
-    let clip = RECT{ left: 0, top: 0, right: CLIP_WIDTH, bottom: label_size.cy };
-    let label_highlight = RECT{ left: 0, top: 0, right: arg.wnd_size.cx, bottom: arg.wnd_size.cy};
+    let clip = RECT{ left: 0, top: 0, right: CLIP_WIDTH, bottom: label_height };
+    let label_highlight = RECT{ left: 0, top: 0, right: arg.wnd_size.cx, bottom: label_height};
     FillRect(dc, &wnd, LABEL_COLOR);
     FillRect(dc, &label_highlight, LABEL_HIGHTLIGHT_COLOR);
     FillRect(dc, &clip, CLIP_COLOR);
-    // text
-    let text_x = CLIP_WIDTH + LABEL_PADDING_LEFT;
-    let mut text_y = LABEL_PADDING_TOP;
 
+    // pain text
+    let index_x = CLIP_WIDTH + LABEL_PADDING_LEFT;
+    let text_x = index_x + arg.index_width;
+    let mut y = LABEL_PADDING_TOP;
     SelectObject(dc, FONT);
     SetBkMode(dc, TRANSPARENT);
-    SetTextColor(dc, TEXT_HIGHLIGHT_COLOR);
-    TextOutW(dc, text_x, text_y, &arg.text_list[0]);
-
-    SetTextColor(dc, TEXT_COLOR);
-    for text in arg.text_list[1..].iter() {
-        text_y += label_size.cy;
-        TextOutW(dc, text_x, text_y, text);
+    TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);
+    TextOut(dc, text_x, y, &arg.text_list[0], TEXT_HIGHLIGHT_COLOR);
+    for i in 1..arg.text_list.len() {
+        y += label_height;
+        TextOut(dc, index_x, y, &arg.index_list[i], TEXT_INDEX_COLOR);
+        TextOut(dc, text_x, y, &arg.text_list[i], TEXT_COLOR);
     }
-
     EndPaint(window, &mut ps);
     LRESULT::default()
 }
 
+#[allow(non_snake_case)]
+unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: Color) {
+    SetTextColor(hdc, color);
+    TextOutW(hdc, x, y, wchars);
+}
 
 
