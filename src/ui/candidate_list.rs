@@ -2,7 +2,7 @@ use std::{ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{extend::OsStrExt2, global, ui::Color};
+use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
 const TEXT_HEIGHT: i32 = 24;
 const TEXT_COLOR: Color = Color::gray(0);
@@ -120,9 +120,16 @@ impl CandidateList {
         unsafe { ShowWindow(self.window, SW_HIDE); }
     }
 
-    pub fn show(&self, text: &OsString) -> Result<()> {
+    pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
         unsafe{ 
             // calculate the size of the candidate window
+            // let mut text = String::new();
+            // for sugg in suggs {
+            //     text.push('/');
+            //     text.push_str(&sugg.output);
+            // }
+            let text = &suggs[0].output;
+            let text = OsString::from(text);
             let text = text.wchars();
             let text_size = {
                 let hdc: HDC = GetDC(self.window);

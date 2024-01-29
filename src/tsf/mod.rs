@@ -12,7 +12,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
 use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
-use crate::ui::candidate_list::CandidateList;
+use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
 
 use self::key_event_sink::Modifiers;
 
@@ -52,8 +52,7 @@ struct TextServiceInner {
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
-    output: String,
-    groupping: Vec<usize>,
+    suggestions: Vec<Suggestion>,
     groupped_spelling: String,
     // UI
     candidate_list: Option<CandidateList>,
@@ -71,8 +70,7 @@ impl TextService {
             modifiers: Modifiers::new(),
             cookie: None,
             spelling: String::with_capacity(32),
-            output: String::with_capacity(32),
-            groupping: Vec::with_capacity(32),
+            suggestions: Vec::new(),
             groupped_spelling: String::with_capacity(32),
             composition: None,
             icon: HICON::default(),
@@ -127,14 +125,17 @@ impl TextServiceInner {
         })
     }
 
-    /// Occasionally fails.
-    fn candidate_list(&mut self) -> Result<&CandidateList> {
+    fn try_create_candiate_list(&mut self) -> Result<()> {
         if self.candidate_list.is_none() {
             let parent_window = unsafe {
                 self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()}?;
             self.candidate_list = CandidateList::create(parent_window).ok();
         }
-        Ok(self.candidate_list.as_ref().unwrap())
+        Ok(())
+    }
+    /// Occasionally fails.
+    fn candidate_list(&self) -> Result<&CandidateList> {
+        self.candidate_list.as_ref().ok_or(E_FAIL.into())
     }
 }
 

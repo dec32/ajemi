@@ -1,11 +1,33 @@
-use std::{collections::HashMap, cell::OnceCell};
+use core::fmt;
+use std::{collections::{HashMap, HashSet}, cell::OnceCell};
+use Candidate::*;
 
-/// A struct to store and query words and punctuators
+/// To expain why a certain spelling is mapped to certain word(s)
+enum Candidate {
+    /// The spelling is an exact spelling of a certain word.
+    /// Meanwhile it can also be a prefix of other words.
+    /// For example, `"li"` is `Exact("li", ["lili", "linja", "lipu"])`.
+    Exact(String, Vec<String>),
+    /// The spelling is unique prefix for a certain word. No other words starts with it.
+    /// For example, `"kije"` is `Unique("kijetesantakalu")`.
+    Unique(String),
+    /// The spelling is not an exact spelling or a unique prefix.
+    /// For example, `"an"` is `Duplicates(["anpa", "ante", "anu"])`.
+    Duplicates(Vec<String>)
+}
+
+/// Suggestions from engine
+#[derive(Default, Clone)]
+pub struct Suggestion {
+    pub output: String,
+    pub groupping: Vec<usize>,
+}
+
+/// Engine. A struct to store and query words and punctuators
 #[derive(Default)]
 pub struct Engine {
-    // todo the values are actually pretty small (1 ~ 2 chars) thus cheap to copy
-    // try implement a stringlet type that implments the Copy trait, not sure if thats possible
-    dict: HashMap<String, String>,
+    // todo use SmallString
+    candidates: HashMap<String, Candidate>,
     puncts: HashMap<char, char>,
 }
 
@@ -13,83 +35,143 @@ impl Engine {
     fn new() -> Engine{
         Default::default()
     }
-
-    /// Map all spellings and unique prefixes to their correspond words. 
-    /// 
-    /// A prefix being "unique" means in the whole lexicon there's only one word that start with it.
-    ///  
-    /// For example, "kije" is a unique prefix for "kijetesantakalu" because there's no other word
-    /// that starts with "kije".
     fn load_dict(&mut self, entries: Vec<(&str, &str)>) {
-        use Candidate::*;
-        enum Candidate {
-            Exact(String),
-            Unique(String),
-            Duplicate,
-        }
         let mut candidates = HashMap::new();
         for (spelling, word) in entries {
-            candidates.insert(spelling.to_string(), Exact(word.to_string()));
+            // store exact spellings -> words
+            candidates.insert(spelling.to_string(), Exact(word.to_string(), Vec::new()));
+            // store prefixes -> words
             for len in 1..spelling.len() {
                 let prefix = &spelling[0..len];
-                match candidates.get(prefix) {
-                    None => 
-                        candidates.insert(prefix.to_string(), Unique(word.to_string())),
-                    Some(Unique(_)) | Some(Duplicate) => 
-                        candidates.insert(prefix.to_string(), Duplicate),
-                    Some(Exact(_)) 
-                        => None,
-                };
+                match candidates.get_mut(prefix) {
+                    None => {
+                        candidates.insert(prefix.to_string(), Unique(word.to_string()));
+                    },
+                    Some(Unique(unique)) => {
+                        let mut duplicates = Vec::new();
+                        duplicates.push(unique.clone());
+                        duplicates.push(word.to_string());
+                        candidates.insert(prefix.to_string(), Duplicates(duplicates));
+                    },
+                    Some(Duplicates(duplicates)) | Some(Exact(_, duplicates)) => {
+                        duplicates.push(word.to_string());
+                    }
+                }
             }
         }
-        // by doing so, we lost the info about whether an ascii sequence is an exact spelling
-        // or a unique prefix. i tried keeping the info, but then the suggest method would 
-        // randomly stop recognizing prefixes.
-        // haven't figured out why and possbilly will never do. i don't have time
-        let mut dict = HashMap::new();
-        for (prefix_or_spelling, candidate) in candidates {
-            match candidate {
-                Exact(word) | Unique(word) => 
-                    dict.insert(prefix_or_spelling, word),
-                Duplicate =>
-                    None
-            };
-        }
-        self.dict = dict;
+        self.candidates = candidates;
     }
 
     fn insert_punt(&mut self, punct: char, remapped: char) {
         self.puncts.insert(punct, remapped);
     }
 
-    // I hate this kind of out parameters but otherwise the allocations can be crazy.
-    // FIXME "waso nasa li lon sewi" will be recognized as "waso nasa lil on sewi" 
-    pub fn suggest(&self, spelling: &str, groupping: &mut Vec<usize>, output: &mut String){
-        groupping.clear();
-        output.clear();
+    pub fn remap_punct(&self, punct: char) -> char {
+        self.puncts.get(&punct).cloned().unwrap_or(punct)
+    }
+
+    pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
+        const LEN: usize = 5;
         if !spelling.is_ascii() {
-            return;   
+            return Vec::new(); 
         }
+        let mut suggs = Vec::with_capacity(LEN);
+        // first assume the user does not use any prefix
+        let mut exact_sugg = Suggestion::default();
         let mut from = 0;
         let mut to = spelling.len();
         while from < to {
-            // And I suspect there's something to do with slicing...
             let slice = &spelling[from..to];
-            // to match `Some(Exact(word)) | Some(Unique(word))` will cause the issue mentioned above
-            if let Some(word) = self.dict.get(slice) {
-                groupping.push(to);
-                output.push_str(word);
+            if let Some(Exact(word, _)) = self.candidates.get(slice) {
+                exact_sugg.groupping.push(to);
+                exact_sugg.output.push_str(word);
                 from = to;
                 to = spelling.len();
             } else {
                 to -= 1;
             }
         }
+        // then take unique prefixes into considerations as well
+        let mut unique_sugg = Suggestion::default();
+        let mut from = 0;
+        let mut to = spelling.len();
+        let mut containing_prefixes = false;
+        while from < to {
+            let slice = &spelling[from..to];
+            let candiate = self.candidates.get(slice);
+            if let Some(Unique(_)) = candiate {
+                containing_prefixes = true;
+            }
+            match candiate {
+                Some(Exact(word, _)) | Some(Unique(word)) => {
+                    unique_sugg.groupping.push(to);
+                    unique_sugg.output.push_str(word);
+                    from = to;
+                    to = spelling.len();
+                },
+                _ => {
+                    to -= 1;
+                }
+            }
+        }
+        if !containing_prefixes {
+            unique_sugg.output.clear();
+        }
+
+        // push
+        match (!exact_sugg.output.is_empty(), !unique_sugg.output.is_empty()) {
+            (true, false) => suggs.push(exact_sugg),
+            (false, true) => suggs.push(unique_sugg),
+            (false, false) => (),
+            (true, true) => {
+                // decide which one makes more sense
+                let exact_trailing = spelling.len() - exact_sugg.groupping.last().unwrap();
+                let unique_trailing = spelling.len() - unique_sugg.groupping.last().unwrap();
+                if exact_trailing <= unique_trailing {
+                    suggs.push(exact_sugg);
+                    suggs.push(unique_sugg);
+                } else {
+                    suggs.push(unique_sugg);
+                    suggs.push(exact_sugg);
+                }
+            }
+        }
+        // finally suggest a few words instead of full sentences
+        let mut remains = LEN - suggs.len();
+        let mut exclude: HashSet<String> = suggs.iter()
+            .filter(|it|it.output.chars().count() == 1)
+            .map(|it|it.output.clone())
+            .collect();
+        'outer_loop:
+        for to in (1..spelling.len()).rev() {
+            let slice = &spelling[0..to];
+            let empty_vec = Vec::new();
+            let (word, words) = match self.candidates.get(slice) {
+                Some(Exact(word, words)) => 
+                    (Some(word), words),
+                Some(Unique(word)) => 
+                    (Some(word), &empty_vec),
+                Some(Duplicates(words)) => 
+                    (None, words),
+                None => {
+                    continue;
+                }
+            };
+            for w in word.into_iter().chain(words) {
+                if exclude.contains(w) {
+                    continue;
+                }
+                suggs.push(Suggestion{ output: w.clone(), groupping: vec![to] });
+                exclude.insert(w.clone());
+                remains -= 1;
+                if remains <= 0 {
+                    break 'outer_loop;
+                }
+            }
+        }
+        suggs
     }
 
-    pub fn remap_punct(&self, punct: char) -> char {
-        self.puncts.get(&punct).cloned().unwrap_or(punct)
-    }
 }
 
 
@@ -283,4 +365,22 @@ fn i_dont_know_now_to_write_macros() {
         println!("(\"{}\", \"{}\"),", split[1], split[0]);
     }
 }
+
+#[test]
+fn repl() {
+    use std::io::stdin;
+    setup();
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        stdin().read_line(&mut buf).unwrap();
+        let suggs = engine().suggest(&buf);
+        for sugg in suggs {
+            println!("{}", sugg.output);
+        }
+        
+    }
+}
+
+
 

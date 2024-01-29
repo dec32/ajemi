@@ -33,8 +33,7 @@ impl TextServiceInner {
         }
         self.composition = None;
         self.spelling.clear();
-        self.output.clear();
-        self.groupping.clear();
+        self.suggestions.clear();
         self.candidate_list()?.hide();
         Ok(())
     }
@@ -60,13 +59,13 @@ impl TextServiceInner {
         self.composition.as_ref().ok_or(E_FAIL.into())
     }
 
-    fn set_text_as_suggestions(&mut self) -> Result<()> {
-        if self.output.is_empty() {
+    fn udpate_text(&mut self) -> Result<()> {
+        if self.suggestions.is_empty() {
             self.set_text(&self.spelling)
         } else {
             self.groupped_spelling.clear();
             let mut from = 0;
-            for to in &self.groupping {
+            for to in &self.suggestions[0].groupping {
                 self.groupped_spelling.push_str(&self.spelling[from..*to]);
                 self.groupped_spelling.push('\'');
                 from = *to;
@@ -83,13 +82,13 @@ impl TextServiceInner {
     fn update_candidate_list(&mut self) -> Result<()> {
         // cannot borrow `self.output` as immutable because it is also borrowed as mutable
         // ok guess i have to clone it first
-        let output = OsString::from(self.output.as_str());
         let pos = self.get_pos();
+        self.try_create_candiate_list()?;
         let candidate_list = self.candidate_list()?;
-        if output.is_empty() {
+        if self.suggestions.is_empty() {
             candidate_list.hide();
         } else {
-            candidate_list.show(&output)?;
+            candidate_list.show(&self.suggestions)?;
             if let Some(pos) = pos {
                 candidate_list.locate(pos.0, pos.1)?;
             }
@@ -105,8 +104,8 @@ impl TextServiceInner {
         trace!("push({ch})"); 
         // todo auto-commit
         self.spelling.push(ch);
-        engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
-        self.set_text_as_suggestions()?;
+        self.suggestions = engine().suggest(&self.spelling);
+        self.udpate_text()?;
         self.update_candidate_list()?;
         Ok(())
     }
@@ -117,58 +116,65 @@ impl TextServiceInner {
         if self.spelling.is_empty() {
             return self.abort();
         }
-        engine().suggest(&self.spelling, &mut self.groupping, &mut self.output);
-        self.set_text_as_suggestions()?;
+        self.suggestions = engine().suggest(&self.spelling);
+        self.udpate_text()?;
         self.update_candidate_list()?;
         Ok(())
     }
 
     /// Commit the suggestion, keeping the unrecognizable trailing characters
     pub fn commit(&mut self) -> Result<()>{
-        if self.output.is_empty() {
+        if self.suggestions.is_empty() {
             self.spelling.push(' ');
             self.set_text(&self.spelling)?;
             self.end_composition()
         } else {
-            let last = *self.groupping.last().unwrap();
-            if last == self.spelling.len() {
-                self.set_text(&self.output)?;
-                self.end_composition()
-            } else {
-                // // FIXME it will eat the already composed part
-                // let trailing = &self.spelling[last..].to_string();
-                // self.set_text(context, &self.output)?;
-                // self.end(context)?;
-                // self.start(context)?;
-                // self.spelling.push_str(&trailing);
-                // self.set_text(context, &self.spelling)
-                self.force_commit(' ')
-            }            
+            self.select(0)         
         }
     }
 
     /// Commit the suggestion and release the unrecognizable trailing characters.
     pub fn force_commit(&mut self, ch: char) -> Result<()>{
         trace!("force_commit");
-        if self.output.is_empty() {
+        if self.suggestions.is_empty() {
             self.spelling.push(ch);
             self.set_text(&self.spelling)?;
         } else {
-            let last = *self.groupping.last().unwrap();
+            let sugg = self.suggestions.get(0).unwrap();
+            // todo fix clone
+            let mut output = String::from(&sugg.output);
+            let last = *sugg.groupping.last().unwrap();
             if last < self.spelling.len() {
-                self.output.push(' ');
-                self.output.push_str(&self.spelling[last..])
+                output.push(' ');
+                output.push_str(&self.spelling[last..])
             }
-            self.output.push(ch);
-            self.set_text(&self.output)?;
+            output.push(ch);
+            self.set_text(&sugg.output)?;
         }
         self.end_composition()
     }
 
     /// Select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
     #[allow(dead_code)]
-    pub fn select(&mut self) -> Result<()> {
-        todo!("for v0.1 there's not multiple candidates to select from")
+    pub fn select(&mut self, index: usize) -> Result<()> {
+        if index >= self.suggestions.len() {
+            return Ok(());
+        }
+        let sugg = self.suggestions.get(index).unwrap();
+        let last = *sugg.groupping.last().unwrap();
+        if last == self.spelling.len() {
+            self.set_text(&sugg.output)?;
+            self.end_composition()
+        } else {
+            let trailing = &self.spelling[last..].to_string();
+            self.set_text(&sugg.output)?;
+            self.end_composition()
+
+            // FIXME keeping the trailing chars won't work
+            // self.start_composition()?;
+            // self.spelling.push_str(&trailing);
+            // self.set_text(&self.spelling);
+        }
     }
 
     // Release the raw ascii chars
