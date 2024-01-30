@@ -1,6 +1,6 @@
 use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
@@ -80,11 +80,10 @@ impl CandidateList {
         unsafe {
             let window = CreateWindowExA(
                 WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
-                WINDOW_CLASS, 
-                PCSTR::null(),
+                WINDOW_CLASS, PCSTR::null(),
                 WS_POPUP,
-                0, 0, 0, 0, 
-                None, None, global::dll_module(),
+                0, 0, 0, 0, None, None, 
+                global::dll_module(),
                 None);
             if window.0 == 0 {
                 error!("CreateWindowExA returned null.");
@@ -107,6 +106,7 @@ impl CandidateList {
                     Err(e) => Err(e)
                 };
             }
+            ReleaseDC(window, dc);
             Ok(CandidateList{ window, font })
         }
     }
@@ -146,6 +146,7 @@ impl CandidateList {
                 text_height = size.cy;
                 text_list.push(text);
             }
+            ReleaseDC(self.window, dc);
 
             let candidates: i32 = suggs.len().try_into().unwrap();
             let wnd_size = SIZE {
@@ -158,9 +159,7 @@ impl CandidateList {
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
             // resize and show
             SetWindowPos(
-                self.window, HWND_TOPMOST, 
-                0, 0, wnd_size.cx, wnd_size.cy,
-                SWP_NOACTIVATE | SWP_NOMOVE)?;
+                self.window, HWND_TOPMOST, 0, 0, wnd_size.cx, wnd_size.cy, SWP_NOACTIVATE | SWP_NOMOVE)?;
             ShowWindow(self.window, SW_SHOWNOACTIVATE);
             // force repaint
             InvalidateRect(self.window, None, BOOL::from(true));
@@ -235,6 +234,7 @@ unsafe fn paint(window: HWND) -> LRESULT{
         TextOut(dc, index_x, y, &arg.index_list[i], TEXT_INDEX_COLOR);
         TextOut(dc, text_x, y, &arg.text_list[i], TEXT_COLOR);
     }
+    ReleaseDC(window, dc);
     EndPaint(window, &mut ps);
     LRESULT::default()
 }
