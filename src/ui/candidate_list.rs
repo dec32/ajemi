@@ -2,7 +2,7 @@ use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
+use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color, FONT_SIZE};
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 // Color scheme
@@ -13,12 +13,11 @@ const CLIP_COLOR: Color =  Color::hex(0x0078D7);
 const LABEL_COLOR: Color = Color::gray(250);
 const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
 // Layout
-const FONT_SIZE: i32 = 16;
 const CLIP_WIDTH: i32 = 3;
-const LABEL_PADDING_TOP: i32 = 2;
-const LABEL_PADDING_BOTTOM: i32 = 2;
-const LABEL_PADDING_LEFT: i32 = 2;
-const LABEL_PADDING_RIGHT: i32 = 2;
+const LABEL_PADDING_TOP: i32 = 4;
+const LABEL_PADDING_BOTTOM: i32 = 4;
+const LABEL_PADDING_LEFT: i32 = 4;
+const LABEL_PADDING_RIGHT: i32 = 4;
 
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
@@ -135,7 +134,7 @@ impl CandidateList {
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
 
-                let index = OsString::from(format!("{}. ", index + 1)).wchars();
+                let index = OsString::from(format!("{} ", index + 1)).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 index_width = max(index_width, size.cx);
                 index_list.push(index);
@@ -168,7 +167,9 @@ impl CandidateList {
     }
 
     pub fn hide(&self) {
-        unsafe { ShowWindow(self.window, SW_HIDE); }
+        unsafe { 
+            ShowWindow(self.window, SW_HIDE); 
+        }
     }
 
     pub fn destroy(&self) -> Result<()> {
