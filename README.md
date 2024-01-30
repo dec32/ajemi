@@ -26,7 +26,7 @@ The standalone version is available now. Click link below to download the instal
 
    into: `C:/User/{YOUR_ACCOUNT}/AppData/Roaming/Rime`
 
-5. Press WIN + SPACE to switch to RIME and reload it via:
+5. Press <kbd>Win</kbd>+<kbd>Space</kbd> to switch to RIME and reload it via:
 
     ![](./doc/reload.jpg)
 
@@ -42,15 +42,15 @@ P.S. If you are using mac or Linux, copy the config files into:
 ## Usage
 
 
-To type a glyph, simply type its spelling, and press SPACE to confirm. 
+To type a glyph, simply type its spelling, and press <kbd>Space</kbd> to confirm. 
 
 ![](./doc/kijetesantakalu.gif)
 
-Suggestions from pop-ups will help you type faster. Press SPACE to accept the highlighted one. Press number keys to pick any of them.
+Suggestions from pop-ups will help you type faster. Press <kbd>Space</kbd> to accept the highlighted one. Press number keys to pick any of them.
 
 ![](./doc/kije.gif)
 
-Pressing ENTER will release the raw ASCII text.
+Pressing <kbd>Enter</kbd> will release the raw ASCII text.
 
 ![](./doc/release.gif)
 
