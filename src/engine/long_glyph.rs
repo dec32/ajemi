@@ -1,104 +1,65 @@
-use crate::extend::StringExt;
-use LongGlyph::*;
-
-
-const ALA: char = '󱤂';     // frequently used and has good font support
-const PI: char = '󱥍';      // frequently used and has good font support
-const ANU: char = '󱤇';     // lack font support.
-const TAWA: char = '󱥩';    // less frequently used
-const KEPEKEN: char = '󱤙'; // less frequently used
-const AWEN: char = '󱤈';    // less frequently used
-const LON: char =  '󱤬';    // less frequently used
-const TAN: char = '󱥧';     // less frequently used and lack font support
-const KEN: char = '󱤘';     // less frequently used and "ken ala ken" make things a lot harder
+const ALA: char = '󱤂';
+const AWEN: char = '󱤈';
+const KEN: char = '󱤘';
+const KEPEKEN: char = '󱤙';
+const LON: char =  '󱤬';
+const PI: char = '󱥍';
+const TAWA: char = '󱥩';
 
 const START_OF_LONG_GLYGH: char = '󱦗';
 const END_OF_LONG_GLYPH: char = '󱦘';
 const START_OF_REVERSE_LONG_GLYGH: char = '󱦚';
 const END_OF_LONG_REVERSE_GLYPH: char = '󱦛';
 
-#[allow(unused)]
-enum LongGlyph { Leftwards, Ala, Anu }
-
 pub fn process_long_glyph(text: &mut String) {
-    let mut long_glyph = None;
-    let mut chars = Vec::with_capacity(text.len() * 2);
-    let mut index = 0;
-    for (i, ch) in text.chars().enumerate() {
-        chars.push(ch);
-        if long_glyph.is_some() {
-            continue;
-        }
-        let lg = match ch {
-            PI => Some(Leftwards),
-            ALA => Some(Ala),
-            ANU|TAWA|KEPEKEN|TAN|KEN|AWEN|LON => None, // disabled for now
-            _ => None
-        };
-        if lg.is_some() {
-            long_glyph = lg;
-            index = i;
-        }
-    }
-    if long_glyph.is_none() {
-        return;
-    }
-    match long_glyph.unwrap() {
-        Leftwards => {
-            if index == chars.len() - 1 {
-                return;
+    let mut output = String::new();
+    let mut open = false;
+    let mut general_question = None;
+    for ch in text.chars() {
+        if ch == ALA {
+            let Some(mut prev) = output.pop() else {
+                output.push(ch);
+                continue;
+            };
+            if prev == START_OF_LONG_GLYGH {
+                open = false;
+                prev = output.pop().unwrap();
             }
-            text.clear();
-            text.push_chars(&chars[0..=index]);
-            text.push(START_OF_LONG_GLYGH);
-            text.push_chars(&chars[index + 1..]);
-            text.push(END_OF_LONG_GLYPH);
-        }
-        Anu => {
-            if chars.len() <= 1 || index == 0{
-                return;
+            if open {
+                output.push(END_OF_LONG_GLYPH);
             }
-            text.clear();
-            text.push_chars(&chars[0..index - 1]);
-            if index >= 1 {
-                text.push(START_OF_REVERSE_LONG_GLYGH);
-                text.push(chars[index - 1]);
-                text.push(END_OF_LONG_REVERSE_GLYPH);
-                text.push(chars[index]);
-                if index < chars.len() - 1 {
-                    text.push(START_OF_LONG_GLYGH);
-                    text.push(chars[index + 1]);
-                    text.push(END_OF_LONG_GLYPH);  
+            general_question = Some(prev);
+            output.push(START_OF_REVERSE_LONG_GLYGH);
+            output.push(prev);
+            output.push(END_OF_LONG_REVERSE_GLYPH);
+            output.push(ch);
+        } else {
+            if let Some(gp) = general_question {
+                if ch == gp {
+                    output.push(START_OF_LONG_GLYGH);
+                    output.push(ch);
+                    output.push(END_OF_LONG_GLYPH);
+                } else {
+                    general_question = None;
+                    output.push(ch);
+                }
+                continue;
+            } else {
+                output.push(ch);
+                if matches!(ch, AWEN|KEN|KEPEKEN|LON|PI|TAWA) && !open {
+                    output.push(START_OF_LONG_GLYGH);
+                    open = true;
                 }
             }
-            if index < chars.len() -2 {
-                text.push_chars(&chars[index + 2..]);
-            }
-        }
-        Ala => {
-            if chars.len() <= 1 || index == 0{
-                return;
-            }
-            text.clear();
-            text.push_chars(&chars[0..index - 1]);
-            if index >= 1 {
-                text.push(START_OF_REVERSE_LONG_GLYGH);
-                text.push(chars[index - 1]);
-                text.push(END_OF_LONG_REVERSE_GLYPH);
-                text.push(chars[index]);
-                if index < chars.len() - 1 {
-                    if chars[index + 1] == chars[index - 1] {
-                        text.push(START_OF_LONG_GLYGH);
-                        text.push(chars[index + 1]);
-                        text.push(END_OF_LONG_GLYPH);
-                    } else {
-                        text.push(chars[index + 1]);
-                    }
-                }
-            }
-            if index < chars.len() - 2 {
-                text.push_chars(&chars[index + 2..]);
-            }
         }
     }
+    if open {
+        let prev = output.pop().unwrap();
+        if prev != START_OF_LONG_GLYGH {
+            output.push(prev);
+            output.push(END_OF_LONG_GLYPH);
+        }
+    }
+    text.clear();
+    text.push_str(&output);
 }
