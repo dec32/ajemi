@@ -44,9 +44,7 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     }
 
     let session = ITfEditSession::from(Session {
-        context: context, 
-        composition_sink: composition_sink, 
-        composition: Cell::new(None)
+        context, composition_sink, composition: Cell::new(None)
     });
 
     unsafe {
@@ -129,7 +127,7 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
         }
     }
 
-    let session = ITfEditSession::from(Session{context: context, text: text});
+    let session = ITfEditSession::from(Session{context, text});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
@@ -162,8 +160,7 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
         }
     }
 
-    let session = ITfEditSession::from(Session{
-        context, range, pos: Cell::new((0, 0))});
+    let session = ITfEditSession::from(Session{context, range, pos: Cell::new((0, 0))});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {

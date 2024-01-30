@@ -20,8 +20,8 @@ impl TextServiceInner {
         let composition = edit_session::start_composition(
             self.tid, self.context()?, &self.interface()?)?;
         self.composition = Some(composition); 
-        if let Some(pos) = self.get_pos() {
-            self.candidate_list()?.locate(pos.0, pos.1)?;
+        if let Some((x, y)) = self.get_pos() {
+            self.candidate_list()?.locate(x, y)?;
         }
         Ok(())
     }
@@ -84,13 +84,12 @@ impl TextServiceInner {
 
     fn update_candidate_list(&mut self) -> Result<()> {
         let candidate_list = self.candidate_list()?;
-        let pos = self.get_pos();
         if self.suggestions.is_empty() {
             candidate_list.hide();
         } else {
             candidate_list.show(&self.suggestions)?;
-            if let Some(pos) = pos {
-                candidate_list.locate(pos.0, pos.1)?;
+            if let Some((x, y)) = self.get_pos() {
+                candidate_list.locate(x, y)?;
             }
         }
         Ok(())
@@ -101,8 +100,6 @@ impl TextServiceInner {
 // calling these function while not composing would cause the program to crash
 impl TextServiceInner {
     pub fn push(&mut self, ch: char) -> Result<()>{
-        trace!("push({ch})"); 
-        // todo auto-commit
         self.spelling.push(ch);
         self.suggestions = engine().suggest(&self.spelling);
         self.udpate_preedit()?;
@@ -111,7 +108,7 @@ impl TextServiceInner {
     }
 
     pub fn pop(&mut self) -> Result<()>{
-        trace!("pop");
+        // todo pop can be used to revert selection
         self.spelling.pop();
         if self.spelling.is_empty() {
             return self.abort();
@@ -201,7 +198,15 @@ impl TextServiceInner {
 
     // Interupted. Abort everything.
     pub fn abort(&mut self) -> Result<()> {
-        let _ = self.set_text(&self.spelling);
+        if self.selected.is_empty() {
+            let _ = self.set_text(&self.spelling);
+        } else {
+            if !self.spelling.is_empty() {
+                self.selected.push(' ');
+                self.selected.push_str(&self.spelling);
+            }
+            let _ = self.set_text(&self.selected)?;
+        }
         self.end_composition()
     }
 }
