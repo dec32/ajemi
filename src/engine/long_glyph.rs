@@ -1,25 +1,24 @@
 use crate::extend::StringExt;
 use LongGlyph::*;
 
-const PI: char = '󱥍';
-const TAWA: char = '󱥩';
-const KEPEKEN: char = '󱤙';
-const TAN: char = '󱥧';
-const KEN: char = '󱤘';
-const AWEN: char = '󱤈';
-const LON: char =  '󱤬';
-const ALA: char = '󱤂';
-const ANU: char = '󱤇'; 
+
+const ALA: char = '󱤂';     // frequently used and has good font support
+const PI: char = '󱥍';      // frequently used and has good font support
+const ANU: char = '󱤇';     // lack font support.
+const TAWA: char = '󱥩';    // less frequently used
+const KEPEKEN: char = '󱤙'; // less frequently used
+const AWEN: char = '󱤈';    // less frequently used
+const LON: char =  '󱤬';    // less frequently used
+const TAN: char = '󱥧';     // less frequently used and lack font support
+const KEN: char = '󱤘';     // less frequently used and "ken ala ken" make things a lot harder
+
 const START_OF_LONG_GLYGH: char = '󱦗';
 const END_OF_LONG_GLYPH: char = '󱦘';
 const START_OF_REVERSE_LONG_GLYGH: char = '󱦚';
 const END_OF_LONG_REVERSE_GLYPH: char = '󱦛';
 
-enum LongGlyph { 
-    Leftwards, 
-    Ala, 
-    Anu 
-}
+#[allow(unused)]
+enum LongGlyph { Leftwards, Ala, Anu }
 
 pub fn process_long_glyph(text: &mut String) {
     let mut long_glyph = None;
@@ -31,9 +30,9 @@ pub fn process_long_glyph(text: &mut String) {
             continue;
         }
         let lg = match ch {
-            PI|TAWA|KEPEKEN|TAN|KEN|AWEN|LON => Some(Leftwards),
+            PI => Some(Leftwards),
             ALA => Some(Ala),
-            ANU => Some(Anu),
+            ANU|TAWA|KEPEKEN|TAN|KEN|AWEN|LON => None, // disabled for now
             _ => None
         };
         if lg.is_some() {
