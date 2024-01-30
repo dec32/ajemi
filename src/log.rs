@@ -25,7 +25,7 @@ pub fn setup() -> Result<(), fern::InitError>{
                 message
             ))
         })
-        .level(if RELEASE { Debug } else { Trace })
+        .level(if RELEASE { Warn } else { Trace })
         .chain(fern::log_file(path)?)
         .apply()?;
     Ok(())
