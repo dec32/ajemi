@@ -31,7 +31,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: ".\target\release\ajemi.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: ".\res\linja-waso-lili.ttf"; DestDir: "{autofonts}"; FontInstall: "linja waso lili"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: ".\res\FairfaxHD.ttf"; DestDir: "{autofonts}"; FontInstall: "Fairfax HD"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
