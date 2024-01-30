@@ -1,20 +1,20 @@
 use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color};
 
-const TEXT_HEIGHT: i32 = 22;
+const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
+// Color scheme
 const TEXT_COLOR: Color = Color::gray(0);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(0);
 const TEXT_INDEX_COLOR: Color = Color::gray(128);
-
-const CLIP_WIDTH: i32 = 3;
-const CLIP_COLOR: Color =  Color::rgb(0, 120, 215);
-
+const CLIP_COLOR: Color =  Color::hex(0x0078D7);
 const LABEL_COLOR: Color = Color::gray(250);
 const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
-
+// Layout
+const FONT_SIZE: i32 = 16;
+const CLIP_WIDTH: i32 = 3;
 const LABEL_PADDING_TOP: i32 = 2;
 const LABEL_PADDING_BOTTOM: i32 = 2;
 const LABEL_PADDING_LEFT: i32 = 2;
@@ -22,10 +22,6 @@ const LABEL_PADDING_RIGHT: i32 = 2;
 
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
-
-
-const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
-static mut FONT: HFONT = unsafe { mem::zeroed() };
 
 /// To create a window you need to register the window class beforehand.
 pub fn setup() -> Result<()> {
@@ -43,35 +39,21 @@ pub fn setup() -> Result<()> {
         lpszClassName: WINDOW_CLASS,
         hIconSm: HICON::default()
     };
-
     unsafe {
         if RegisterClassExA(&wcex) == 0 {
             error!("Failed to register window class for candidate list");
             return GetLastError();
         }
         debug!("Registered window class for candidate list.");
-        let font_name = CString::new(global::FONT).unwrap();
-        let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
-        FONT = CreateFontA (
-            TEXT_HEIGHT, 0, 0, 0, 
-            0, 0, 0, 0, 
-            0, 
-            OUT_TT_PRECIS.0 as u32, 0, 0, 
-            0, font_name);
-        if FONT == mem::zeroed() {
-            error!("Failed to create font.");
-            return GetLastError();
-        }
-        debug!("Created font.");
     }
     Ok(())
 }
 
-// use default handlers for everything but repaint
+/// use default handlers for everything but repaint
 unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_PAINT => paint(window),
-        _  => DefWindowProcA(window, msg, wparam, lparam)
+        _  => DefWindowProcA(window, msg, wparam, lparam),
     }
 }
 
@@ -85,31 +67,48 @@ unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lpar
 #[derive(Default)]
 pub struct CandidateList {
     window: HWND,
+    font: HFONT,
 }
 
 impl CandidateList {
     pub fn create(_parent_window: HWND) -> Result<CandidateList> {
-        // WS_EX_TOOLWINDOW: A floating toolbar that won't appear in taskbar and ALT+TAB.
-        // WS_EX_NOACTIVATE: A window that doesn't take the foreground thus not making parent window lose focus.
-        // WS_EX_TOPMOST:    A window that is topmost.
-        // WS_POPUP:         A window having no top bar or border.
+        // WS_EX_TOOLWINDOW:  A floating toolbar that won't appear in taskbar and ALT+TAB.
+        // WS_EX_NOACTIVATE:  A window that doesn't take the foreground thus not making parent window lose focus.
+        // WS_EX_TOPMOST:     A window that is topmost.
+        // WS_POPUP:          A window having no top bar or border.
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
-        let window = unsafe{ CreateWindowExA(
-            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
-            WINDOW_CLASS, 
-            PCSTR::null(),
-            WS_POPUP,
-            0, 0, 0, 0, 
-            None, None, global::dll_module(),
-            None) };
-        if window.0 == 0 {
-            error!("CreateWindowExA returned null.");
-            return match unsafe{ GetLastError() } {
-                Ok(_) => Err(E_FAIL.into()),
-                Err(e) => Err(e)
-            };
+        unsafe {
+            let window = CreateWindowExA(
+                WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
+                WINDOW_CLASS, 
+                PCSTR::null(),
+                WS_POPUP,
+                0, 0, 0, 0, 
+                None, None, global::dll_module(),
+                None);
+            if window.0 == 0 {
+                error!("CreateWindowExA returned null.");
+                return match GetLastError() {
+                    Ok(_) => Err(E_FAIL.into()),
+                    Err(e) => Err(e)
+                };
+            }
+            let dc: HDC = GetDC(window);
+            let pixel_per_inch = GetDeviceCaps(dc, LOGPIXELSY);
+            let font_size = FONT_SIZE * pixel_per_inch / 72;
+            let font_name = CString::new(global::FONT).unwrap();
+            let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
+            let font = CreateFontA (
+                font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
+            if font.is_invalid() {
+                error!("CreateFontA failed.");
+                return match GetLastError() {
+                    Ok(_) => Err(E_FAIL.into()),
+                    Err(e) => Err(e)
+                };
+            }
+            Ok(CandidateList{ window, font })
         }
-        Ok(CandidateList{ window })
     }
 
     pub fn locate(&self, x: i32, y: i32) -> Result<()>{
@@ -132,17 +131,17 @@ impl CandidateList {
             let mut text_height: i32 = 0;
             
             let dc: HDC = GetDC(self.window);
-            SelectObject(dc, FONT);
+            SelectObject(dc, self.font);
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
 
                 let index = OsString::from(format!("{}. ", index + 1)).wchars();
-                GetTextExtentPoint32W(dc,&index, &mut size);
+                GetTextExtentPoint32W(dc, &index, &mut size);
                 index_width = max(index_width, size.cx);
                 index_list.push(index);
 
                 let text = OsString::from(&sugg.output).wchars();
-                GetTextExtentPoint32W(dc,&text, &mut size);
+                GetTextExtentPoint32W(dc, &text, &mut size);
                 text_width = max(text_width, size.cx);
                 text_height = size.cy;
                 text_list.push(text);
@@ -154,7 +153,8 @@ impl CandidateList {
                 cy: candidates * (LABEL_PADDING_TOP + text_height + LABEL_PADDING_BOTTOM)
             };
             // passing extra args to WndProc
-            let arg = PaintArg {wnd_size, text_list, index_list, index_width, text_height }.to_long_ptr();
+            let arg = PaintArg {
+                wnd_size, text_list, index_list, index_width, text_height, font: self.font}.to_long_ptr();
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
             // resize and show
             SetWindowPos(
@@ -183,6 +183,7 @@ struct PaintArg {
     text_list: Vec<Vec<u16>>,
     index_width: i32,
     text_height: i32,
+    font: HFONT
 }
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
@@ -225,7 +226,7 @@ unsafe fn paint(window: HWND) -> LRESULT{
     let index_x = CLIP_WIDTH + LABEL_PADDING_LEFT;
     let text_x = index_x + arg.index_width;
     let mut y = LABEL_PADDING_TOP;
-    SelectObject(dc, FONT);
+    SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
     TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);
     TextOut(dc, text_x, y, &arg.text_list[0], TEXT_HIGHLIGHT_COLOR);
