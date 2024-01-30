@@ -1,6 +1,8 @@
 use std::{collections::{HashMap, HashSet}, cell::OnceCell};
 use Candidate::*;
 
+use crate::extend::StringExt;
+
 /// To expain why a certain spelling is mapped to certain word(s)
 enum Candidate {
     /// The spelling is an exact spelling of a certain word.
@@ -90,6 +92,7 @@ impl Engine {
                 to -= 1;
             }
         }
+        Self::process_long_glyph(&mut exact_sugg.output);
         // then take unique prefixes into considerations as well
         let mut unique_sugg = Suggestion::default();
         let mut from = 0;
@@ -113,6 +116,7 @@ impl Engine {
                 }
             }
         }
+        Self::process_long_glyph(&mut unique_sugg.output);
         if !containing_prefixes {
             unique_sugg.output.clear();
         }
@@ -169,6 +173,86 @@ impl Engine {
             }
         }
         suggs
+    }
+
+    fn process_long_glyph(text: &mut String) {
+        enum LongGlyph { Leftwards, Ala, Anu }
+        use LongGlyph::*;
+        let mut long_glyph = None;
+        let mut chars = Vec::with_capacity(text.len() * 2);
+        let mut index = 0;
+        for (i, ch) in text.chars().enumerate() {
+            chars.push(ch);
+            if long_glyph.is_some() {
+                continue;
+            }
+            let lg = match ch {
+                // pi tawa kepeken tan ken awen lon
+                '󱥍'|'󱥩'|'󱤙'|'󱥧'|'󱤘'|'󱤈'|'󱤬' => Some(Leftwards),
+                '󱤂' => Some(Ala),
+                '󱤇' => Some(Anu),
+                _ => None
+            };
+            if lg.is_some() {
+                long_glyph = lg;
+                index = i;
+            }
+        }
+        if long_glyph.is_none() {
+            return;
+        }
+        match long_glyph.unwrap() {
+            Leftwards => {
+                if index == chars.len() - 1 {
+                    return;
+                }
+                text.clear();
+                text.push_chars(&chars[0..=index]);
+                text.push('󱦗'); // (
+                text.push_chars(&chars[index + 1..]);
+                text.push('󱦘'); // )
+            }
+            Anu => {
+                text.clear();
+                text.push_chars(&chars[0..index - 1]);
+                if index >= 1 {
+                    text.push('󱦚'); // {
+                    text.push(chars[index - 1]);
+                    text.push('󱦛'); // }
+                    text.push(chars[index]);
+                    if index < chars.len() - 1 {
+                        text.push('󱦗'); // (
+                        text.push(chars[index + 1]);
+                        text.push('󱦘'); // )    
+                    }
+                }
+                if index < chars.len() -2 {
+                    text.push_chars(&chars[index + 2..]);
+                }
+            }
+            Ala => {
+                text.clear();
+                text.push_chars(&chars[0..index - 1]);
+                if index >= 1 {
+                    text.push('󱦚'); // {
+                    text.push(chars[index - 1]);
+                    text.push('󱦛'); // }
+                    text.push(chars[index]);
+                    if index < chars.len() - 1 {
+                        if chars[index + 1] == chars[index - 1] {
+                            text.push('󱦗'); // (
+                            text.push(chars[index + 1]);
+                            text.push('󱦘'); // )
+                        } else {
+                            text.push(chars[index + 1]);
+                        }
+                    }
+                }
+                if index < chars.len() - 2 {
+                    text.push_chars(&chars[index + 2..]);
+                }
+            }
+        }
     }
 
 }

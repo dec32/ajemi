@@ -44,6 +44,18 @@ impl OsStrExt2 for OsString {
     }
 }
 
+pub trait StringExt {
+    fn push_chars(&mut self, chars: &[char]);
+}
+
+impl StringExt for String {
+    fn push_chars(&mut self, chars: &[char]) {
+        for ch in chars {
+            self.push(*ch);
+        }
+    }
+}
+
 // todo use crate: log_derive
 pub trait ResultExt {
     fn ignore(self);
