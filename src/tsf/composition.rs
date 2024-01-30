@@ -33,6 +33,7 @@ impl TextServiceInner {
         }
         self.composition = None;
         self.spelling.clear();
+        self.selected.clear();
         self.suggestions.clear();
         self.candidate_list()?.hide();
         Ok(())
@@ -59,23 +60,25 @@ impl TextServiceInner {
         self.composition.as_ref().ok_or(E_FAIL.into())
     }
 
-    fn udpate_text(&mut self) -> Result<()> {
+    fn udpate_preedit(&mut self) -> Result<()> {
+        self.preedit.clear();
+        self.preedit.push_str(&self.selected);
         if self.suggestions.is_empty() {
-            self.set_text(&self.spelling)
+            self.preedit.push_str(&self.spelling);
+            self.set_text(&self.preedit)
         } else {
-            self.groupped_spelling.clear();
             let mut from = 0;
             for to in &self.suggestions[0].groupping {
-                self.groupped_spelling.push_str(&self.spelling[from..*to]);
-                self.groupped_spelling.push('\'');
+                self.preedit.push_str(&self.spelling[from..*to]);
+                self.preedit.push('\'');
                 from = *to;
             }
             if from != self.spelling.len() {
-                self.groupped_spelling.push_str(&self.spelling[from..])
+                self.preedit.push_str(&self.spelling[from..])
             } else {
-                self.groupped_spelling.pop();
+                self.preedit.pop();
             }
-            self.set_text(&self.groupped_spelling)
+            self.set_text(&self.preedit)
         }
     }
 
@@ -102,7 +105,7 @@ impl TextServiceInner {
         // todo auto-commit
         self.spelling.push(ch);
         self.suggestions = engine().suggest(&self.spelling);
-        self.udpate_text()?;
+        self.udpate_preedit()?;
         self.update_candidate_list()?;
         Ok(())
     }
@@ -114,45 +117,39 @@ impl TextServiceInner {
             return self.abort();
         }
         self.suggestions = engine().suggest(&self.spelling);
-        self.udpate_text()?;
+        self.udpate_preedit()?;
         self.update_candidate_list()?;
         Ok(())
     }
 
-    /// Commit the suggestion, keeping the unrecognizable trailing characters
+    /// Commit the 1st suggestion, keeping the unrecognizable trailing characters
     pub fn commit(&mut self) -> Result<()>{
         if self.suggestions.is_empty() {
-            self.spelling.push(' ');
-            self.set_text(&self.spelling)?;
-            self.end_composition()
+            self.force_release(' ')
         } else {
             self.select(0)         
         }
     }
 
-    /// Commit the suggestion and release the unrecognizable trailing characters.
+    /// Commit the 1st suggestion and release the unrecognizable trailing characters.
     pub fn force_commit(&mut self, ch: char) -> Result<()>{
-        trace!("force_commit");
         if self.suggestions.is_empty() {
-            self.spelling.push(ch);
-            self.set_text(&self.spelling)?;
+            self.force_release(ch)
         } else {
             let sugg = self.suggestions.get(0).unwrap();
-            // todo fix clone
-            let mut output = String::from(&sugg.output);
+            self.selected.push_str(&sugg.output);
             let last = *sugg.groupping.last().unwrap();
-            if last < self.spelling.len() {
-                output.push(' ');
-                output.push_str(&self.spelling[last..])
+            if last != self.spelling.len() {
+                self.selected.push(' ');
+                self.selected.push_str(&self.spelling[last..])
             }
-            output.push(ch);
-            self.set_text(&sugg.output)?;
+            self.selected.push(ch);
+            self.set_text(&self.selected)?;
+            self.end_composition()
         }
-        self.end_composition()
     }
 
-    /// Select the desired suggestion by pressing num keys (or maybe tab, enter or any thing else)
-    #[allow(dead_code)]
+    /// Select the desired suggestion by pressing numbers.
     pub fn select(&mut self, index: usize) -> Result<()> {
         if index >= self.suggestions.len() {
             return Ok(());
@@ -160,24 +157,45 @@ impl TextServiceInner {
         let sugg = self.suggestions.get(index).unwrap();
         let last = *sugg.groupping.last().unwrap();
         if last == self.spelling.len() {
-            self.set_text(&sugg.output)?;
+            if self.selected.is_empty() {
+                self.set_text(&sugg.output)?;
+            } else {
+                self.selected.push_str(&sugg.output);
+                self.set_text(&self.selected)?;
+            };
             self.end_composition()
         } else {
-            self.set_text(&sugg.output)?;
-            self.end_composition()
-            // FIXME keeping the trailing chars won't work
-            // let trailing = &self.spelling[last..].to_string();
-            // self.set_text(&sugg.output)?;
-            // self.end_composition();
-            // self.start_composition()?;
-            // self.spelling.push_str(&trailing);
-            // self.set_text(&self.spelling);
+            self.selected.push_str(&sugg.output);
+            // TODO strip off the begining instead of re allocate
+            self.spelling = self.spelling[last..].to_string(); 
+            self.suggestions = engine().suggest(&self.spelling);
+            self.udpate_preedit()?;
+            self.update_candidate_list()
         }
     }
 
     // Release the raw ascii chars
     pub fn release(&mut self) -> Result<()> {
-        self.set_text(&self.spelling)?;
+        if self.selected.is_empty() {
+            self.set_text(&self.spelling)?;
+        } else {
+            self.selected.push(' ');
+            self.selected.push_str(&self.spelling);
+            self.set_text(&self.selected)?;
+        }
+        self.end_composition()
+    }
+
+    fn force_release(&mut self, ch: char) -> Result<()> {
+        if self.selected.is_empty() {
+            self.spelling.push(ch);
+            self.set_text(&self.spelling)?;
+        } else {
+            self.selected.push(' ');
+            self.selected.push_str(&self.spelling);
+            self.selected.push(ch);
+            self.set_text(&self.selected)?;
+        }
         self.end_composition()
     }
 
