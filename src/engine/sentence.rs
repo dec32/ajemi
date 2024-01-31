@@ -10,7 +10,7 @@ struct Sentence {
 
 #[allow(unused)]
 impl Engine {
-    fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion>{
+    pub(super) fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion>{
         let mut sents = self.suggest_sentences(spelling);
         let mut best_sent = None;
         let mut max_weight = 0.0;

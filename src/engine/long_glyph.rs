@@ -11,7 +11,7 @@ const END_OF_LONG_GLYPH: char = '󱦘';
 const START_OF_REVERSE_LONG_GLYGH: char = '󱦚';
 const END_OF_LONG_REVERSE_GLYPH: char = '󱦛';
 
-pub fn process_long_glyph(text: &mut String) {
+pub(super) fn insert_long_glyph(text: &mut String) {
     let mut output = String::new();
     let mut open = false;
     let mut general_question = None;
