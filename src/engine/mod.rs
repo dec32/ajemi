@@ -25,6 +25,15 @@ pub struct Suggestion {
     pub groupping: Vec<usize>,
 }
 
+// Suggestion containing extra infos for sentence predicting
+#[derive(Default, Clone)]
+struct Sentence {
+    output: String,
+    groupping: Vec<usize>,
+    exact_count: u8,
+    unique_count: u8
+}
+
 /// Engine. A struct to store and query words and punctuators
 #[derive(Default)]
 pub struct Engine {
@@ -176,6 +185,80 @@ impl Engine {
     }
 }
 
+
+// something experimental
+impl Engine {
+    #[allow(dead_code)]
+    fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {
+        let mut sent = Sentence::default();
+        let mut sents = Vec::new();
+        self.suggest_sentences_recursive(spelling, 0, &mut sent, &mut sents);
+        sents.push(sent);
+        sents
+    }
+
+    fn suggest_sentences_recursive(
+        &self, 
+        spelling: &str, 
+        from: usize, 
+        sent: &mut Sentence, 
+        sents: &mut Vec<Sentence>
+    ) 
+    {
+        // find the longest exact match and the longest unique match
+        // however if the exact one is longer than the unique one, neglect latter.
+        let mut exact = None;
+        let mut exact_to = 0;
+        let mut unique = None;
+        let mut unique_to = 0;
+
+        let mut found_unique = false;
+        for to in (from+1..=spelling.len()).rev() {
+            match self.candidates.get(&spelling[from..to]) {
+                Some(Exact(word, _)) => {
+                    exact = Some(word);
+                    exact_to = to;
+                    break;
+                }
+                Some(Unique(word)) => {
+                    if found_unique {
+                        continue;
+                    }
+                    found_unique = true;
+                    unique = Some(word);
+                    unique_to = to;
+                }
+                _ => ()
+            }
+        }
+        // clone if needed
+        let mut extra_sent = if exact.is_some() && unique.is_some() {
+            Some(sent.clone())
+        } else {
+            None
+        };
+        if let Some(exact) = exact {
+            sent.output.push_str(&exact);
+            sent.groupping.push(exact_to);
+            sent.exact_count += 1;
+            self.suggest_sentences_recursive(spelling, exact_to, sent, sents)
+        }
+        if let Some(unique) = unique {
+            let sent = if extra_sent.is_some() {
+                extra_sent.as_mut().unwrap()
+            } else {
+                sent
+            };
+            sent.output.push_str(&unique);
+            sent.groupping.push(unique_to);
+            sent.unique_count += 1;
+            self.suggest_sentences_recursive(spelling, unique_to, sent, sents)
+        }
+        if let Some(extra_sent) = extra_sent {
+            sents.push(extra_sent);
+        }
+    }
+}
 
 
 //----------------------------------------------------------------------------
@@ -382,6 +465,22 @@ fn repl() {
             println!("{}", sugg.output);
         }
         
+    }
+}
+
+
+#[test]
+fn repl_sentence() {
+    use std::io::stdin;
+    setup();
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        stdin().read_line(&mut buf).unwrap();
+        let sents = engine().suggest_sentences(&buf);
+        for sent in sents {
+            println!("{}", sent.output)
+        }
     }
 }
 
