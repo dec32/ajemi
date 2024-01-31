@@ -134,7 +134,7 @@ impl CandidateList {
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
 
-                let index = OsString::from(format!("{} ", index + 1)).wchars();
+                let index = OsString::from(format!("{}. ", index + 1)).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 index_width = max(index_width, size.cx);
                 index_list.push(index);
