@@ -25,8 +25,10 @@ impl Engine {
                 max_weight = weight;
                 best_sent = Some(sent);
             }
-        }        
-        best_sent.map(|s|Suggestion{output:s.output, groupping: s.groupping})
+        }
+        best_sent
+            .filter(|s|!s.output.is_empty())
+            .map(|s|Suggestion{output:s.output, groupping: s.groupping})
     }
     
     fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {
