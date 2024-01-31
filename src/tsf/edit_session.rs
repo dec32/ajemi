@@ -1,9 +1,13 @@
 use std::cell::Cell;
-
-use log::trace;
+use log::{error, trace};
 use windows::Win32::Foundation::{S_OK, RECT, BOOL};
 use windows::core::{implement, Result, ComInterface, AsImpl};
-use windows::Win32::UI::TextServices::{ITfEditSession, ITfEditSession_Impl, ITfContextComposition, ITfCompositionSink, ITfComposition, ITfContext, TF_ES_READWRITE, ITfInsertAtSelection, TF_IAS_QUERYONLY, ITfRange, TF_ST_CORRECTION};
+use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+use windows::Win32::System::Variant::VARIANT;
+use windows::Win32::UI::TextServices::{CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_ST_CORRECTION};
+
+use crate::extend::VARANTExt;
+use crate::DISPLAY_ATTR_ID;
 
 //----------------------------------------------------------------------------
 //
@@ -37,7 +41,6 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
                 context_composition.StartComposition(
                     ec, &range, self.composition_sink)?
             };
-            // now to apply underscore to text
             self.composition.set(Some(composition));
             Ok(())
         }
@@ -83,6 +86,7 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
 pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) -> Result<()> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
+        context: &'a ITfContext,
         range: ITfRange,
         text: &'a [u16],
     }
@@ -91,12 +95,21 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
         #[allow(non_snake_case)]
         fn DoEditSession(&self, ec:u32) -> Result<()> {
             unsafe {
-                self.range.SetText(ec, TF_ST_CORRECTION, self.text)
+                self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
+                let category_mgr: ITfCategoryMgr = CoCreateInstance(
+                    &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+                let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
+                let prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
+                let variant = VARIANT::i4(guid_atom as i32);
+                if let Err(e) = prop.SetValue(ec, &self.range, &variant) {
+                    error!("Failed to set display attribute. {}", e);
+                }
+                Ok(())
             }
         }
     }
 
-    let session = ITfEditSession::from(Session{range: range, text: text});
+    let session = ITfEditSession::from(Session{context, range, text});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {

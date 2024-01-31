@@ -11,7 +11,7 @@ winreg = "0.52"
 parking_lot = "0.12"
 
 [dependencies.windows]
-version = "0.*"
+version = "0.52.0"
 features = [
     "implement",
     "Win32_Foundation",
@@ -22,7 +22,9 @@ features = [
     "Win32_Security",
     "Win32_System_Registry",
     "Win32_System_LibraryLoader",
-    "Win32_Graphics_Gdi"
+    "Win32_Graphics_Gdi",
+    "Win32_System_Ole",
+    "Win32_System_Variant"
 ]
 
 [build-dependencies]
