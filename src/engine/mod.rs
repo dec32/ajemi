@@ -2,7 +2,7 @@ mod long_glyph;
 use std::{collections::{HashMap, HashSet}, cell::OnceCell};
 use Candidate::*;
 
-use crate::engine::long_glyph::process_long_glyph;
+use crate::{engine::long_glyph::process_long_glyph, CANDIDATE_NUM};
 
 /// To expain why a certain spelling is mapped to certain word(s)
 enum Candidate {
@@ -73,11 +73,10 @@ impl Engine {
     }
 
     pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
-        const LEN: usize = 5;
         if !spelling.is_ascii() {
             return Vec::new(); 
         }
-        let mut suggs = Vec::with_capacity(LEN);
+        let mut suggs = Vec::with_capacity(CANDIDATE_NUM);
         // first assume the user does not use any prefix
         let mut exact_sugg = Suggestion::default();
         let mut from = 0;
@@ -141,7 +140,7 @@ impl Engine {
             }
         }
         // finally suggest a few words instead of full sentences
-        let mut remains = LEN - suggs.len();
+        let mut remains = CANDIDATE_NUM - suggs.len();
         let mut exclude: HashSet<String> = suggs.iter()
             .filter(|it|it.output.chars().count() == 1)
             .map(|it|it.output.clone())
