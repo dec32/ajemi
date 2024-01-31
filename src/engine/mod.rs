@@ -91,7 +91,7 @@ impl Engine {
             .map(|it|it.output.clone())
             .collect();
         'outer_loop:
-        for to in (1..spelling.len()).rev() {
+        for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
             let empty_vec = Vec::new();
             let (word, words) = match self.candidates.get(slice) {
