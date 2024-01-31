@@ -1,30 +1,14 @@
 use std::sync::atomic::AtomicBool;
-use log::debug;
 use windows::Win32::Foundation::{E_INVALIDARG, E_NOTIMPL};
-use windows::Win32::UI::TextServices::{ITfDisplayAttributeProvider, ITfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo,  IEnumTfDisplayAttributeInfo_Impl,  ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE, TF_LS_SOLID};
+use windows::Win32::UI::TextServices::{ITfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo,  IEnumTfDisplayAttributeInfo_Impl,  ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE, TF_LS_SOLID};
 use windows::core::{implement, Result, BSTR, GUID};
 use std::sync::atomic::Ordering::*;
-
 use crate::global;
+use super::TextService;
 
-
-//----------------------------------------------------------------------------
-//
-//  The provider that is to be directly created from ClassFactory
-//
-//----------------------------------------------------------------------------
-
-#[implement(ITfDisplayAttributeProvider)]
-pub struct DisplayAttributeProvider;
-impl DisplayAttributeProvider {
-    pub fn create() -> ITfDisplayAttributeProvider {
-        debug!("Created DisplayAttributeProvider");
-        ITfDisplayAttributeProvider::from(Self{})
-    }
-}
 
 #[allow(non_snake_case)]
-impl ITfDisplayAttributeProvider_Impl for DisplayAttributeProvider {
+impl ITfDisplayAttributeProvider_Impl for TextService {
     fn EnumDisplayAttributeInfo(&self) -> Result<IEnumTfDisplayAttributeInfo> {
         Ok(EnumDisplayAttributeInfo::create())
     }

@@ -11,7 +11,7 @@ use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{error, warn};
 
-use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
+use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext, ITfDisplayAttributeProvider}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
 
 use self::key_event_sink::Modifiers;
@@ -31,7 +31,8 @@ use self::key_event_sink::Modifiers;
     ITfKeyEventSink,
     ITfThreadMgrEventSink,
     ITfCompositionSink,
-    ITfLangBarItem
+    ITfLangBarItem,
+    ITfDisplayAttributeProvider
 )]
 
 /// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable 
