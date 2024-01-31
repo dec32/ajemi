@@ -86,37 +86,17 @@ impl Engine {
             return Vec::new(); 
         }
         let mut suggs = Vec::with_capacity(CANDIDATE_NUM);
-        // first assume the user does not use any prefix
-        let mut exact_sugg = Suggestion::default();
+        // Suggest a sentence
+        let mut sugg = Suggestion::default();
         let mut from = 0;
         let mut to = spelling.len();
-        while from < to {
-            let slice = &spelling[from..to];
-            if let Some(Exact(word, _)) = self.candidates.get(slice) {
-                exact_sugg.groupping.push(to);
-                exact_sugg.output.push_str(word);
-                from = to;
-                to = spelling.len();
-            } else {
-                to -= 1;
-            }
-        }
-        process_long_glyph(&mut exact_sugg.output);
-        // then take unique prefixes into considerations as well
-        let mut unique_sugg = Suggestion::default();
-        let mut from = 0;
-        let mut to = spelling.len();
-        let mut containing_prefixes = false;
         while from < to {
             let slice = &spelling[from..to];
             let candiate = self.candidates.get(slice);
-            if let Some(Unique(_)) = candiate {
-                containing_prefixes = true;
-            }
             match candiate {
                 Some(Exact(word, _)) | Some(Unique(word)) => {
-                    unique_sugg.groupping.push(to);
-                    unique_sugg.output.push_str(word);
+                    sugg.groupping.push(to);
+                    sugg.output.push_str(word);
                     from = to;
                     to = spelling.len();
                 },
@@ -125,30 +105,11 @@ impl Engine {
                 }
             }
         }
-        process_long_glyph(&mut unique_sugg.output);
-        if !containing_prefixes {
-            unique_sugg.output.clear();
+        if !sugg.output.is_empty() {
+            process_long_glyph(&mut sugg.output);
+            suggs.push(sugg);
         }
-
-        // push
-        match (!exact_sugg.output.is_empty(), !unique_sugg.output.is_empty()) {
-            (true, false) => suggs.push(exact_sugg),
-            (false, true) => suggs.push(unique_sugg),
-            (false, false) => (),
-            (true, true) => {
-                // decide which one makes more sense
-                let exact_trailing = spelling.len() - exact_sugg.groupping.last().unwrap();
-                let unique_trailing = spelling.len() - unique_sugg.groupping.last().unwrap();
-                if exact_trailing <= unique_trailing {
-                    suggs.push(exact_sugg);
-                    suggs.push(unique_sugg);
-                } else {
-                    suggs.push(unique_sugg);
-                    suggs.push(exact_sugg);
-                }
-            }
-        }
-        // finally suggest a few words instead of full sentences
+        // suggest single words
         let mut remains = CANDIDATE_NUM - suggs.len();
         let mut exclude: HashSet<String> = suggs.iter()
             .filter(|it|it.output.chars().count() == 1)
