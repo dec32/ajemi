@@ -1,11 +1,19 @@
 use std::sync::atomic::AtomicBool;
 use windows::Win32::Foundation::{E_INVALIDARG, E_NOTIMPL};
-use windows::Win32::UI::TextServices::{ITfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo,  IEnumTfDisplayAttributeInfo_Impl,  ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_DISPLAYATTRIBUTE, TF_LS_SOLID};
+use windows::Win32::UI::TextServices::{IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_ATTR_INPUT, TF_DA_COLOR, TF_DISPLAYATTRIBUTE, TF_LS_SOLID};
 use windows::core::{implement, Result, BSTR, GUID};
 use std::sync::atomic::Ordering::*;
-use crate::global;
+use crate::{global, DISPLAY_ATTR_ID};
 use super::TextService;
 
+//---------------------------------------------------------------------------------
+//
+//  To provide display atrributes you need to implement ITfDisplayAttributeProvider
+//  and "make it available from the class factory" according to MSDN. They lied.
+//  Windows will nerver acquire the instance from class factory. It will only 
+//  implicitly cast the ITfTextInputProcessor instance to ITfDisplayAttributeProvider.
+//
+//---------------------------------------------------------------------------------
 
 #[allow(non_snake_case)]
 impl ITfDisplayAttributeProvider_Impl for TextService {
@@ -69,8 +77,6 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumDisplayAttributeInfo {
     }
 }
 
-
-
 //----------------------------------------------------------------------------
 //
 //  Our one and only display attribute that does nothing but adding underlines
@@ -79,11 +85,9 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumDisplayAttributeInfo {
 
 #[implement(ITfDisplayAttributeInfo)]
 #[derive(Default)]
-struct DisplayAttributeInfo {
-    
-}
+pub struct DisplayAttributeInfo;
 impl DisplayAttributeInfo {
-    fn create() -> ITfDisplayAttributeInfo {
+    pub fn create() -> ITfDisplayAttributeInfo {
         ITfDisplayAttributeInfo::from(Self{})
     }
 }
@@ -91,7 +95,7 @@ impl DisplayAttributeInfo {
 #[allow(non_snake_case)]
 impl ITfDisplayAttributeInfo_Impl for DisplayAttributeInfo {
     fn GetGUID(&self) -> Result<GUID> {
-        Ok(global::DISPLAY_ATTR_ID)
+        Ok(DISPLAY_ATTR_ID)
     }
 
     fn GetDescription(&self) -> Result<BSTR> {
@@ -99,7 +103,16 @@ impl ITfDisplayAttributeInfo_Impl for DisplayAttributeInfo {
     }
 
     fn GetAttributeInfo(&self, attr: *mut TF_DISPLAYATTRIBUTE) -> Result<()> {
-        unsafe { (*attr).lsStyle = TF_LS_SOLID };
+        unsafe{ 
+            *attr = TF_DISPLAYATTRIBUTE {
+                crText: TF_DA_COLOR::default(),
+                crBk: TF_DA_COLOR::default(),
+                crLine: TF_DA_COLOR::default(),
+                lsStyle: TF_LS_SOLID,
+                fBoldLine: false.into(),
+                bAttr: TF_ATTR_INPUT,
+            };
+        }
         Ok(())
     }
 

@@ -70,7 +70,7 @@ impl TextServiceInner {
             let mut from = 0;
             for to in &self.suggestions[0].groupping {
                 self.preedit.push_str(&self.spelling[from..*to]);
-                self.preedit.push(' ');
+                self.preedit.push('\'');
                 from = *to;
             }
             if from != self.spelling.len() {
