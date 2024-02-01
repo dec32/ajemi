@@ -333,11 +333,10 @@ impl TextServiceInner {
         return Ok(TRUE);
     }
 
-    fn insert_char(&self, ch: char) -> Result<()> {
-        // todo avoid heap alloc
-        let mut text = String::with_capacity(1);
-        text.push(ch);
-        let text = OsString::from(text).wchars();
+    fn insert_char(&mut self, ch: char) -> Result<()> {
+        self.char_buf.clear();
+        self.char_buf.push(ch);
+        let text = OsString::from(&self.char_buf).wchars();
         edit_session::insert_text(self.tid, self.context()?, &text)
     }
 }

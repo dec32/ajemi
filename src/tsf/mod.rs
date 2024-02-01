@@ -46,10 +46,11 @@ struct TextServiceInner {
     tid: u32,
     thread_mgr: Option<ITfThreadMgr>,
     context: Option<ITfContext>,
-    // KeyEventSink
-    modifiers: Modifiers, // ctrl, shift, alt
     // ThreadMrgEventSink
     cookie: Option<u32>,
+    // KeyEventSink
+    modifiers: Modifiers, // ctrl, shift, alt
+    char_buf: String,
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
@@ -70,6 +71,7 @@ impl TextService {
             thread_mgr: None,
             context: None,
             modifiers: Modifiers::new(),
+            char_buf: String::with_capacity(4),
             cookie: None,
             composition: None,
             spelling: String::with_capacity(32),
