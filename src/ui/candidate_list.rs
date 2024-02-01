@@ -11,13 +11,18 @@ const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(0);
 const TEXT_INDEX_COLOR: Color = Color::gray(128);
 const CLIP_COLOR: Color =  Color::hex(0x0078D7);
 const LABEL_COLOR: Color = Color::gray(250);
-const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
+// const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
+const LABEL_HIGHTLIGHT_COLOR: Color = Color::rgb(232, 232, 255);
 // Layout
 const CLIP_WIDTH: i32 = 3;
-const LABEL_PADDING_TOP: i32 = 4;
-const LABEL_PADDING_BOTTOM: i32 = 4;
+const LABEL_PADDING_TOP: i32 = 2;
+const LABEL_PADDING_BOTTOM: i32 = 2;
 const LABEL_PADDING_LEFT: i32 = 4;
 const LABEL_PADDING_RIGHT: i32 = 4;
+const WND_PADDING_TOP: i32 = 3;
+const WND_PADDING_BOTTOM: i32 = 3;
+const WND_PADDING_LEFT: i32 = 3;
+const WND_PADDING_RIGHT: i32 = 3;
 
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
@@ -147,10 +152,10 @@ impl CandidateList {
                 candi_list.push(candi);
             }
             ReleaseDC(self.window, dc);
-            let candidate_num: i32 = suggs.len().try_into().unwrap();
-            let wnd_height = candidate_num * (LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM);
-            let wnd_width = CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT;
-            let wnd_width = max(wnd_width, wnd_height * 618/1000);
+            let candi_num: i32 = suggs.len().try_into().unwrap();
+            let wnd_height = WND_PADDING_TOP + candi_num * (LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM) + WND_PADDING_BOTTOM;
+            let wnd_width = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT + WND_PADDING_RIGHT;
+            let wnd_width = max(wnd_width, wnd_height * 4 / 5);
             // passing extra args to WndProc
             let arg = PaintArg {
                 wnd_width, wnd_height, candi_list, index_list, index_width, row_height, font: self.font}.to_long_ptr();
@@ -214,17 +219,32 @@ unsafe fn paint(window: HWND) -> LRESULT{
     }
     // paint labels
     let label_height = LABEL_PADDING_TOP + arg.row_height + LABEL_PADDING_BOTTOM;
-    let wnd = RECT{ left: 0, top: 0, right: arg.wnd_width, bottom: arg.wnd_height};
-    let clip = RECT{ left: 0, top: 0, right: CLIP_WIDTH, bottom: label_height };
-    let label_highlight = RECT{ left: 0, top: 0, right: arg.wnd_width, bottom: label_height};
+    let wnd = RECT{ 
+        left: 0, 
+        top: 0, 
+        right: arg.wnd_width, 
+        bottom: arg.wnd_height
+    };
+    let clip = RECT{ 
+        left: WND_PADDING_LEFT, 
+        top: WND_PADDING_TOP, 
+        right: WND_PADDING_LEFT + CLIP_WIDTH, 
+        bottom: WND_PADDING_TOP + label_height 
+    };
+    let label_highlight = RECT{ 
+        left: WND_PADDING_LEFT, 
+        top: WND_PADDING_TOP, 
+        right: arg.wnd_width - WND_PADDING_RIGHT, 
+        bottom: WND_PADDING_TOP + label_height
+    };
     FillRect(dc, &wnd, LABEL_COLOR);
     FillRect(dc, &label_highlight, LABEL_HIGHTLIGHT_COLOR);
     FillRect(dc, &clip, CLIP_COLOR);
 
     // pain text
-    let index_x = CLIP_WIDTH + LABEL_PADDING_LEFT;
+    let index_x = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT;
     let candi_x = index_x + arg.index_width;
-    let mut y = LABEL_PADDING_TOP;
+    let mut y = WND_PADDING_TOP + LABEL_PADDING_TOP;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
     TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);
