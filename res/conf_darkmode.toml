@@ -1,0 +1,14 @@
+[font]
+family = "sitelen seli kiwen juniko"
+size = 20
+
+[layout]
+vertical = false
+
+[color]
+candidate = 0xFFFFFF
+index = 0x606060
+background = 0x101010
+clip = 0xC80000
+highlight = 0x800000
+highlighted = 0xFFFFFF
