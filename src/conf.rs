@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
 use toml::{Table, Value};
 use crate::{extend::TableExt, ui::Color};
 // font
@@ -14,18 +14,14 @@ pub static mut CLIP_COLOR: Color = Color::white();
 pub static mut PANEL_COLOR: Color = Color::white();
 pub static mut HIGHTLIGHT_COLOR: Color = Color::white();
 
+static mut LAST_MODIFIED: u64 = 0;
+
 pub fn setup() {
-    unsafe {
-        use_default();
-    }
+    unsafe { use_default(); }
 }
 
 pub fn reload() {
-    unsafe { 
-        // todo check last modified
-        use_default();
-        use_customized();
-     }
+    unsafe { use_customized(); }
 }
 
 unsafe fn use_default() {
@@ -42,6 +38,11 @@ unsafe fn use_default() {
 
 unsafe fn use_customized() -> Option<()> {
     let path = PathBuf::from(env::var("APPDATA").ok()?).join("Ajemi").join("conf.toml");
+    let last_modified = fs::metadata(&path).ok()?.last_write_time();
+    if last_modified == LAST_MODIFIED {
+        return Some(());
+    }
+    use_default();
     let text = fs::read_to_string(path).ok()?;
     let mut table = text.parse::<Table>().ok()?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
@@ -61,5 +62,5 @@ unsafe fn use_customized() -> Option<()> {
         font.give("family", &mut FONT);
         font.give("size", &mut FONT_SIZE);
     }
-    None
+    Some(())
 }

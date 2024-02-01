@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use log::{debug, error, trace};
+use log::{error, trace};
 use windows::Win32::Foundation::{S_OK, RECT, BOOL};
 use windows::core::{implement, Result, ComInterface, AsImpl};
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
@@ -99,9 +99,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
                 let category_mgr: ITfCategoryMgr = CoCreateInstance(
                     &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
-                debug!("Registered GUID for display attribut.");
                 let prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-                debug!("Got property of context.");
                 let variant = VARIANT::i4(guid_atom as i32);
                 if let Err(e) = prop.SetValue(ec, &self.range, &variant) {
                     error!("Failed to set display attribute. {}", e);
