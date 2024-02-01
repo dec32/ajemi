@@ -3,6 +3,7 @@ use log::{trace, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::Result;
+use crate::PREEDIT_DELIMITER;
 use crate::{extend::OsStrExt2, engine::engine};
 use super::{edit_session, TextService, TextServiceInner};
 
@@ -70,7 +71,7 @@ impl TextServiceInner {
             let mut from = 0;
             for to in &self.suggestions[0].groupping {
                 self.preedit.push_str(&self.spelling[from..*to]);
-                self.preedit.push('\'');
+                self.preedit.push_str(PREEDIT_DELIMITER);
                 from = *to;
             }
             if from != self.spelling.len() {

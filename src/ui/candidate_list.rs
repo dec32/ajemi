@@ -2,7 +2,7 @@ use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{BeginPaint, CreateFontA, EndPaint, FillRect, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color, FONT_SIZE};
+use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX, FONT_SIZE};
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 // Color scheme
@@ -133,8 +133,8 @@ impl CandidateList {
             SelectObject(dc, self.font);
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
-
-                let index = OsString::from(format!("{}. ", index + 1)).wchars();
+                let index = format!("{}{}", CANDI_INDEXES[index], CANDI_INDEX_SUFFIX);
+                let index = OsString::from(index).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 row_height = max(row_height, size.cy);
                 index_width = max(index_width, size.cx);

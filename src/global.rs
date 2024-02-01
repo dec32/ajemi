@@ -25,5 +25,8 @@ pub const DISPLAY_ATTR_ID: GUID = GUID::from_u128(0xE42647FB_4BF0_4570_9013_7684
 // customization
 pub const FONT: &str = "sitelen seli kiwen juniko";
 pub const FONT_SIZE: i32 = 20;
-pub const CANDIDATE_NUM: usize = 5;
+pub const CANDI_NUM: usize = 5;
+pub const CANDI_INDEXES: [&str; CANDI_NUM] = ["1", "2", "3", "4", "5"];
+pub const CANDI_INDEX_SUFFIX: &str = ". ";
+pub const PREEDIT_DELIMITER: &str = "'";
 
