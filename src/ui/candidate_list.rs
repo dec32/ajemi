@@ -28,11 +28,7 @@ const LABEL_PADDING_TOP: i32 = 2;
 const LABEL_PADDING_BOTTOM: i32 = 2;
 const LABEL_PADDING_LEFT: i32 = 3;
 const LABEL_PADDING_RIGHT: i32 = 4;
-const WND_PADDING_TOP: i32 = 0;
-const WND_PADDING_BOTTOM: i32 = 0;
-const WND_PADDING_LEFT: i32 = 0;
-const WND_PADDING_RIGHT: i32 = 0;
-
+const BORDER_WIDTH: i32 = 0;
 
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
@@ -164,10 +160,9 @@ impl CandidateList {
                 candi_list.push(candi);
             }
             ReleaseDC(self.window, dc);
-            let candi_num: i32 = suggs.len().try_into().unwrap();
 
-            let mut wnd_height = WND_PADDING_TOP + WND_PADDING_BOTTOM;
-            let mut wnd_width = WND_PADDING_LEFT + WND_PADDING_RIGHT;
+            let mut wnd_height = 0;
+            let mut wnd_width = 0;
             let label_height =  LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM;
             if HORIZONTAL {
                 wnd_height += label_height;
@@ -178,14 +173,17 @@ impl CandidateList {
                     wnd_width += candi_width;
                 }
             } else {
+                let candi_num: i32 = suggs.len().try_into().unwrap();
                 wnd_height += candi_num * label_height;
                 wnd_width += CLIP_WIDTH + LABEL_PADDING_LEFT + index_max_width + candi_max_width + LABEL_PADDING_RIGHT;
                 wnd_width = max(wnd_width, wnd_height * 4 / 5)
             }
+            wnd_height += BORDER_WIDTH * 2;
+            wnd_width += BORDER_WIDTH * 2;
             // passing extra args to WndProc
             let arg = PaintArg {
                 wnd_width, wnd_height, 
-                index_max_width, row_height, candi_width_list: candi_width_list.clone(),
+                index_max_width, candi_max_width, row_height, candi_width_list: candi_width_list.clone(),
                 candi_list, index_list, font: self.font,
             };
             let long_ptr = arg.to_long_ptr();
@@ -215,6 +213,7 @@ struct PaintArg {
     wnd_width: i32,
     wnd_height: i32,
     index_max_width: i32,
+    candi_max_width: i32,
     candi_width_list: Vec<i32>,
     row_height: i32,
     font: HFONT,
@@ -253,7 +252,7 @@ unsafe fn paint(window: HWND) -> LRESULT{
     let label_width = if HORIZONTAL {
         LABEL_PADDING_LEFT + arg.index_max_width + arg.candi_width_list[0] + LABEL_PADDING_RIGHT
     } else {
-        arg.wnd_width - CLIP_WIDTH
+        LABEL_PADDING_LEFT + arg.candi_max_width + LABEL_PADDING_RIGHT
     };
     let wnd = RECT{ 
         left: 0, 
@@ -262,25 +261,25 @@ unsafe fn paint(window: HWND) -> LRESULT{
         bottom: arg.wnd_height
     };
     let clip = RECT{ 
-        left: WND_PADDING_LEFT, 
-        top: WND_PADDING_TOP, 
-        right: WND_PADDING_LEFT + CLIP_WIDTH, 
-        bottom: WND_PADDING_TOP + label_height 
+        left: BORDER_WIDTH, 
+        top: BORDER_WIDTH, 
+        right: BORDER_WIDTH + CLIP_WIDTH, 
+        bottom: BORDER_WIDTH + label_height 
     };
     let label_highlight = RECT{ 
-        left: WND_PADDING_LEFT + CLIP_WIDTH, 
-        top: WND_PADDING_TOP, 
-        right: WND_PADDING_LEFT + CLIP_WIDTH + label_width,
-        bottom: WND_PADDING_TOP + label_height
+        left: clip.right, 
+        top: BORDER_WIDTH, 
+        right: clip.right + label_width,
+        bottom: BORDER_WIDTH + label_height
     };
     FillRect(dc, &wnd, LABEL_COLOR);
     FillRect(dc, &label_highlight, LABEL_HIGHTLIGHT_COLOR);
     FillRect(dc, &clip, CLIP_COLOR);
 
     // paint text
-    let mut index_x = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT;
-    let mut candi_x = index_x + arg.index_max_width;
-    let mut y = WND_PADDING_TOP + LABEL_PADDING_TOP;
+    let mut index_x = BORDER_WIDTH + CLIP_WIDTH + LABEL_PADDING_LEFT;
+    let mut candi_x = BORDER_WIDTH + index_x + arg.index_max_width;
+    let mut y = BORDER_WIDTH + LABEL_PADDING_TOP;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
     TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);

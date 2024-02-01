@@ -27,6 +27,6 @@ pub const FONT: &str = "sitelen seli kiwen juniko";
 pub const FONT_SIZE: i32 = 20;
 pub const CANDI_NUM: usize = 5;
 pub const CANDI_INDEXES: [&str; CANDI_NUM] = ["1", "2", "3", "4", "5"];
-pub const CANDI_INDEX_SUFFIX: &str = ". ";
+pub const CANDI_INDEX_SUFFIX: &str = ".";
 pub const PREEDIT_DELIMITER: &str = "'";
 
