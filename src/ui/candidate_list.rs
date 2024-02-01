@@ -22,15 +22,17 @@ const LABEL_HIGHTLIGHT_COLOR: Color = Color::rgb(232, 232, 255);
 // const LABEL_HIGHTLIGHT_COLOR: Color = Color::rgb(128, 0, 0);
 
 // Layout
+const HORIZONTAL: bool = true;
 const CLIP_WIDTH: i32 = 3;
 const LABEL_PADDING_TOP: i32 = 2;
 const LABEL_PADDING_BOTTOM: i32 = 2;
 const LABEL_PADDING_LEFT: i32 = 3;
 const LABEL_PADDING_RIGHT: i32 = 4;
 const WND_PADDING_TOP: i32 = 0;
-const WND_PADDING_BOTTOM: i32 = 1;
+const WND_PADDING_BOTTOM: i32 = 0;
 const WND_PADDING_LEFT: i32 = 0;
-const WND_PADDING_RIGHT: i32 = 1;
+const WND_PADDING_RIGHT: i32 = 0;
+
 
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
@@ -139,9 +141,10 @@ impl CandidateList {
             let mut candi_list = Vec::with_capacity(suggs.len());
 
             let mut row_height: i32 = 0;
-            let mut index_width: i32 = 0;
-            let mut candi_width: i32 = 0;
-            
+            let mut index_max_width: i32 = 0;
+            let mut candi_max_width: i32 = 0;
+            let mut candi_width_list = Vec::with_capacity(suggs.len());
+                
             let dc: HDC = GetDC(self.window);
             SelectObject(dc, self.font);
             for (index, sugg) in suggs.iter().enumerate() {
@@ -150,24 +153,43 @@ impl CandidateList {
                 let index = OsString::from(index).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 row_height = max(row_height, size.cy);
-                index_width = max(index_width, size.cx);
+                index_max_width = max(index_max_width, size.cx);
                 index_list.push(index);
 
                 let candi = OsString::from(&sugg.output).wchars();
                 GetTextExtentPoint32W(dc, &candi, &mut size);
                 row_height = max(row_height, size.cy);
-                candi_width = max(candi_width, size.cx);
+                candi_max_width = max(candi_max_width, size.cx);
+                candi_width_list.push(size.cx);
                 candi_list.push(candi);
             }
             ReleaseDC(self.window, dc);
             let candi_num: i32 = suggs.len().try_into().unwrap();
-            let wnd_height = WND_PADDING_TOP + candi_num * (LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM) + WND_PADDING_BOTTOM;
-            let wnd_width = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT + WND_PADDING_RIGHT;
-            let wnd_width = max(wnd_width, wnd_height * 4 / 5);
+
+            let mut wnd_height = WND_PADDING_TOP + WND_PADDING_BOTTOM;
+            let mut wnd_width = WND_PADDING_LEFT + WND_PADDING_RIGHT;
+            let label_height =  LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM;
+            if HORIZONTAL {
+                wnd_height += label_height;
+                wnd_width += CLIP_WIDTH;
+                for candi_width in candi_width_list.iter() {
+                    wnd_width += LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
+                    wnd_width += index_max_width;
+                    wnd_width += candi_width;
+                }
+            } else {
+                wnd_height += candi_num * label_height;
+                wnd_width += CLIP_WIDTH + LABEL_PADDING_LEFT + index_max_width + candi_max_width + LABEL_PADDING_RIGHT;
+                wnd_width = max(wnd_width, wnd_height * 4 / 5)
+            }
             // passing extra args to WndProc
             let arg = PaintArg {
-                wnd_width, wnd_height, candi_list, index_list, index_width, row_height, font: self.font}.to_long_ptr();
-            SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
+                wnd_width, wnd_height, 
+                index_max_width, row_height, candi_width_list: candi_width_list.clone(),
+                candi_list, index_list, font: self.font,
+            };
+            let long_ptr = arg.to_long_ptr();
+            SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), long_ptr);
             // resize and show
             SetWindowPos(
                 self.window, HWND_TOPMOST, 0, 0, wnd_width, wnd_height, SWP_NOACTIVATE | SWP_NOMOVE)?;
@@ -192,7 +214,8 @@ impl CandidateList {
 struct PaintArg {
     wnd_width: i32,
     wnd_height: i32,
-    index_width: i32,
+    index_max_width: i32,
+    candi_width_list: Vec<i32>,
     row_height: i32,
     font: HFONT,
     index_list: Vec<Vec<u16>>,
@@ -227,6 +250,11 @@ unsafe fn paint(window: HWND) -> LRESULT{
     }
     // paint labels
     let label_height = LABEL_PADDING_TOP + arg.row_height + LABEL_PADDING_BOTTOM;
+    let label_width = if HORIZONTAL {
+        LABEL_PADDING_LEFT + arg.index_max_width + arg.candi_width_list[0] + LABEL_PADDING_RIGHT
+    } else {
+        arg.wnd_width - CLIP_WIDTH
+    };
     let wnd = RECT{ 
         left: 0, 
         top: 0, 
@@ -240,25 +268,30 @@ unsafe fn paint(window: HWND) -> LRESULT{
         bottom: WND_PADDING_TOP + label_height 
     };
     let label_highlight = RECT{ 
-        left: WND_PADDING_LEFT, 
+        left: WND_PADDING_LEFT + CLIP_WIDTH, 
         top: WND_PADDING_TOP, 
-        right: arg.wnd_width - WND_PADDING_RIGHT, 
+        right: WND_PADDING_LEFT + CLIP_WIDTH + label_width,
         bottom: WND_PADDING_TOP + label_height
     };
     FillRect(dc, &wnd, LABEL_COLOR);
     FillRect(dc, &label_highlight, LABEL_HIGHTLIGHT_COLOR);
     FillRect(dc, &clip, CLIP_COLOR);
 
-    // pain text
-    let index_x = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT;
-    let candi_x = index_x + arg.index_width;
+    // paint text
+    let mut index_x = WND_PADDING_LEFT + CLIP_WIDTH + LABEL_PADDING_LEFT;
+    let mut candi_x = index_x + arg.index_max_width;
     let mut y = WND_PADDING_TOP + LABEL_PADDING_TOP;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
     TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);
     TextOut(dc, candi_x, y, &arg.candi_list[0], TEXT_HIGHLIGHT_COLOR);
     for i in 1..arg.candi_list.len() {
-        y += label_height;
+        if HORIZONTAL {
+            index_x += arg.index_max_width + arg.candi_width_list[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
+            candi_x += arg.index_max_width + arg.candi_width_list[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
+        } else {
+            y += label_height;
+        }
         TextOut(dc, index_x, y, &arg.index_list[i], TEXT_INDEX_COLOR);
         TextOut(dc, candi_x, y, &arg.candi_list[i], TEXT_COLOR);
     }
