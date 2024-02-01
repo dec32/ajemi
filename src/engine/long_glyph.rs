@@ -22,6 +22,11 @@ pub(super) fn insert_long_glyph(text: &mut String) {
                 output.push(ch);
                 continue;
             };
+            if prev == END_OF_LONG_GLYPH || prev == ALA {
+                output.push(prev);
+                output.push(ch);
+                continue; 
+            }
             // ala only closes long glyphs that just begin to form structure like "ken ala ken"
             if prev == START_OF_LONG_GLYGH {
                 open = false;
