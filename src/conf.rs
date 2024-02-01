@@ -46,10 +46,10 @@ unsafe fn use_customized() -> Option<()> {
     let mut table = text.parse::<Table>().ok()?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
         color.give("candidate", &mut CANDI_COLOR);
-        color.give("candidate-highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
+        color.give("highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
         color.give("index", &mut INDEX_COLOR);
         color.give("clip", &mut CLIP_COLOR);
-        color.give("panel", &mut PANEL_COLOR);
+        color.give("background", &mut PANEL_COLOR);
         color.give("highlight", &mut HIGHTLIGHT_COLOR);
     }
 
