@@ -1,47 +1,65 @@
 use std::{env, fs, path::PathBuf};
-use toml::Table;
-use crate::ui::Color;
+use toml::{Table, Value};
+use crate::{extend::TableExt, ui::Color};
+// font
+pub static mut FONT: String = String::new(); 
+pub static mut FONT_SIZE: i32 = 0;
+// layout
+pub static mut VERTICAL: bool = false;
+// color scheme
+pub static mut CANDI_COLOR: Color = Color::white();
+pub static mut CANDI_HIGHLIGHTED_COLOR: Color = Color::white();
+pub static mut INDEX_COLOR: Color = Color::white();
+pub static mut CLIP_COLOR: Color = Color::white();
+pub static mut PANEL_COLOR: Color = Color::white();
+pub static mut HIGHTLIGHT_COLOR: Color = Color::white();
 
-static mut TABLE: Option<Table> = None;
-
-unsafe fn _reload() -> Option<()>{
-    let appdata = env::var("APPDATA").ok()?;
-    let path = PathBuf::from(appdata).join("Ajemi").join("conf.toml");
-    let text = fs::read_to_string(path).ok()?;
-    TABLE = text.parse::<Table>().ok();
-    None
+pub fn setup() {
+    unsafe {
+        use_default();
+    }
 }
 
-#[allow(unused)]
 pub fn reload() {
-    unsafe { _reload() };
+    unsafe { 
+        // todo check last modified
+        use_default();
+        use_customized();
+     }
 }
 
-#[allow(unused)]
-pub fn get_str(key: &str) -> Option<&str> {
-    unsafe {
-        TABLE.as_ref()?.get(key)?.as_str()
-    }
+unsafe fn use_default() {
+    FONT = "sitelen seli kiwen juniko".to_string();
+    FONT_SIZE = 20;
+    VERTICAL = false;
+    CANDI_COLOR = Color::gray(0);
+    CANDI_HIGHLIGHTED_COLOR = Color::gray(0);
+    INDEX_COLOR = Color::gray(160);
+    CLIP_COLOR = Color::hex(0x0078D7);
+    PANEL_COLOR = Color::gray(250);
+    HIGHTLIGHT_COLOR = Color::rgb(232, 232, 255);
 }
-#[allow(unused)]
-pub fn get_i64(key: &str) -> Option<i64> {
-    unsafe {
-        TABLE.as_ref()?.get(key)?.as_integer()
+
+unsafe fn use_customized() -> Option<()> {
+    let path = PathBuf::from(env::var("APPDATA").ok()?).join("Ajemi").join("conf.toml");
+    let text = fs::read_to_string(path).ok()?;
+    let mut table = text.parse::<Table>().ok()?;
+    if let Some(Value::Table(color)) = table.get_mut("color") {
+        color.give("candidate", &mut CANDI_COLOR);
+        color.give("candidate-highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
+        color.give("index", &mut INDEX_COLOR);
+        color.give("clip", &mut CLIP_COLOR);
+        color.give("panel", &mut PANEL_COLOR);
+        color.give("highlight", &mut HIGHTLIGHT_COLOR);
     }
-}
-#[allow(unused)]
-pub fn get_i32(key: &str) -> Option<i32> {
-    Some(get_i64(key)? as i32)
-} 
-#[allow(unused)]
-pub fn get_u32(key: &str) -> Option<u32> {
-    Some(get_i64(key)? as u32)
-} 
-#[allow(unused)]
-pub fn get_usize(key: &str) -> Option<usize> {
-    Some(get_i64(key)? as usize)
-} 
-#[allow(unused)]
-pub fn get_color(key: &str) -> Option<Color> {
-    Some(Color::hex(get_u32(key)?))
+
+    if let Some(Value::Table(layout)) = table.get_mut("layout") {
+        layout.give("vertical", &mut VERTICAL);
+    }
+
+    if let Some(Value::Table(font)) = table.get_mut("font") {
+        font.give("family", &mut FONT);
+        font.give("size", &mut FONT_SIZE);
+    }
+    None
 }

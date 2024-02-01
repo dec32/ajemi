@@ -2,27 +2,10 @@ use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{self, BeginPaint, CreateFontA, EndPaint, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX, FONT_SIZE};
+use crate::{conf::*, engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX};
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
-// Color scheme
-const CANDI_COLOR: Color = Color::gray(0);
-const CANDI_HIGHLIGHTED_COLOR: Color = Color::gray(0);
-const INDEX_COLOR: Color = Color::gray(160);
-const CLIP_COLOR: Color = Color::hex(0x0078D7);
-const WND_COLOR: Color = Color::gray(250);
-const HIGHTLIGHT_COLOR: Color = Color::rgb(232, 232, 255);
-
-// Dark Mode Color scheme
-// const CANDI_COLOR: Color = Color::gray(255);
-// const CANDI_HIGHLIGHTED_COLOR: Color = Color::gray(255);
-// const INDEX_COLOR: Color = Color::gray(96);
-// const CLIP_COLOR: Color =  Color::rgb(200, 0, 0);
-// const WND_COLOR: Color = Color::gray(16);
-// const HIGHTLIGHT_COLOR: Color = Color::rgb(128, 0, 0);
-
 // Layout
-const HORIZONTAL: bool = true;
 const CLIP_WIDTH: i32 = 3;
 const LABEL_PADDING_TOP: i32 = 2;
 const LABEL_PADDING_BOTTOM: i32 = 2;
@@ -105,7 +88,7 @@ impl CandidateList {
             let dc: HDC = GetDC(window);
             let pixel_per_inch = GetDeviceCaps(dc, LOGPIXELSY);
             let font_size = FONT_SIZE * pixel_per_inch / 72;
-            let font_name = CString::new(global::FONT).unwrap();
+            let font_name = CString::new(FONT.as_str()).unwrap();
             let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
             let font = CreateFontA (
                 font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
@@ -163,7 +146,12 @@ impl CandidateList {
             let label_height = LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM;
             let mut wnd_height = 0;
             let mut wnd_width = 0;
-            if HORIZONTAL {
+            if VERTICAL {
+                let candi_num: i32 = suggs.len().try_into().unwrap();
+                wnd_height += candi_num * label_height;
+                wnd_width += CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT;
+                wnd_width = max(wnd_width, wnd_height * 4 / 5)
+            } else {
                 wnd_height += label_height;
                 wnd_width += CLIP_WIDTH;
                 for candi_width in candi_widths.iter() {
@@ -171,19 +159,14 @@ impl CandidateList {
                     wnd_width += index_width;
                     wnd_width += candi_width;
                 }
-            } else {
-                let candi_num: i32 = suggs.len().try_into().unwrap();
-                wnd_height += candi_num * label_height;
-                wnd_width += CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT;
-                wnd_width = max(wnd_width, wnd_height * 4 / 5)
             }
             wnd_height += BORDER_WIDTH * 2;
             wnd_width += BORDER_WIDTH * 2;
 
-            let highlight_width = if HORIZONTAL {
-                LABEL_PADDING_LEFT + index_width + candi_widths[0] + LABEL_PADDING_RIGHT
-            } else {
+            let highlight_width = if VERTICAL {
                 wnd_width - CLIP_WIDTH - BORDER_WIDTH * 2
+            } else {
+                LABEL_PADDING_LEFT + index_width + candi_widths[0] + LABEL_PADDING_RIGHT   
             };
 
             // passing extra args to WndProc
@@ -253,7 +236,7 @@ unsafe fn paint(window: HWND) -> LRESULT{
         return LRESULT::default();
     }
     // window
-    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, WND_COLOR);
+    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, PANEL_COLOR);
     // clip
     FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, CLIP_COLOR);
     // highlight
@@ -268,11 +251,11 @@ unsafe fn paint(window: HWND) -> LRESULT{
     TextOut(dc, candi_x, y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR);
     // normal text
     for i in 1..arg.candis.len() {
-        if HORIZONTAL {
+        if VERTICAL {
+            y += arg.label_height;
+        } else {
             index_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
             candi_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
-        } else {
-            y += arg.label_height;
         }
         TextOut(dc, index_x, y, &arg.indice[i], INDEX_COLOR);
         TextOut(dc, candi_x, y, &arg.candis[i], CANDI_COLOR);

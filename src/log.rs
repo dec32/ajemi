@@ -7,7 +7,11 @@ const RELEASE: bool = false;
 #[cfg(not(debug_assertions))]
 const RELEASE: bool = true;
 
-pub fn setup() -> Result<(), fern::InitError>{
+pub fn setup() {
+    let _= _setup();
+}
+
+pub fn _setup() -> Result<(), fern::InitError>{
     let path = if let Ok(appdata) = env::var("APPDATA") {
         PathBuf::from(appdata).join("Ajemi")
     } else {
@@ -25,7 +29,7 @@ pub fn setup() -> Result<(), fern::InitError>{
                 message
             ))
         })
-        .level(if RELEASE { Warn } else { Trace })
+        .level(if RELEASE { Warn } else { Debug })
         .chain(fern::log_file(path)?)
         .apply()?;
     Ok(())

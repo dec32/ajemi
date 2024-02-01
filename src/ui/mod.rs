@@ -1,9 +1,13 @@
 pub mod candidate_list;
 
+use toml::Value;
 use windows::Win32::{Foundation::COLORREF, Graphics::Gdi::{CreateSolidBrush, HBRUSH}};
 use windows::core::IntoParam;
 use windows::core::Param;
 
+use crate::extend::LoadValue;
+
+#[derive(Default, Clone, Copy)]
 pub struct Color{
     r:u8, g:u8, b:u8
 }
@@ -26,6 +30,27 @@ impl Color {
         Color::rgb(gray, gray, gray)
     }
 
+    pub const fn white() -> Color {
+        Color::hex(0xFFFFFF)
+    }
+}
+
+impl LoadValue for Color {
+    fn load(&mut self, value: Value) {
+        if let Value::Integer(value) = value {
+            *self = Color::hex(value as u32);
+        }
+    }
+}
+impl TryFrom<Value> for Color {
+    type Error = ();
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        if let Value::Integer(value) = value {
+            Ok(Color::hex(value as u32))
+        } else {
+            Err(())
+        }
+    }
 }
 
 impl From<Color> for COLORREF {
@@ -51,3 +76,4 @@ impl IntoParam<HBRUSH> for Color {
         Param::Owned(self.into())
     }
 }
+

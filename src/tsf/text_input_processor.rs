@@ -2,6 +2,7 @@ use log::{trace, debug, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ ITfThreadMgr, ITfTextInputProcessor_Impl, ITfKeystrokeMgr, ITfKeyEventSink, ITfTextInputProcessorEx_Impl, ITfSource, ITfThreadMgrEventSink};
 use windows::core::{Result, ComInterface};
+use crate::conf;
 use crate::ui::candidate_list::CandidateList;
 
 use super::TextService;
@@ -10,6 +11,7 @@ use super::TextService;
 impl ITfTextInputProcessor_Impl for TextService {
     fn Activate(&self, thread_mgr: Option<&ITfThreadMgr>, tid: u32) -> Result<()> {
         trace!("Activate({tid})");
+        conf::reload();
         let mut inner = self.write()?;
         let thread_mgr = thread_mgr.ok_or(E_FAIL)?;
         inner.tid = tid;

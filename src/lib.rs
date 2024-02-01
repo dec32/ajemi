@@ -8,7 +8,6 @@ mod engine;
 mod ui;
 
 use std::{ffi::c_void, ptr, mem};
-use extend::ResultExt;
 use ui::candidate_list;
 use ::log::{debug, error, trace};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
@@ -29,8 +28,9 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
     if call_reason != DLL_PROCESS_ATTACH {
         return true;
     }
-    log::setup().ignore();
+    log::setup();
     global::setup(dll_module);
+    conf::setup();
     engine::setup();
     candidate_list::setup().is_ok()
 }
