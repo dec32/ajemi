@@ -6,17 +6,17 @@ use crate::{engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDE
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 // Color scheme
-const TEXT_COLOR: Color = Color::gray(0);
-const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(0);
-const TEXT_INDEX_COLOR: Color = Color::gray(160);
-const CLIP_COLOR: Color =  Color::hex(0x0078D7);
+const CANDI_COLOR: Color = Color::gray(0);
+const CANDI_HIGHLIGHTED_COLOR: Color = Color::gray(0);
+const INDEX_COLOR: Color = Color::gray(160);
+const CLIP_COLOR: Color = Color::hex(0x0078D7);
 const WND_COLOR: Color = Color::gray(250);
 const HIGHTLIGHT_COLOR: Color = Color::rgb(232, 232, 255);
 
 // Dark Mode Color scheme
-// const TEXT_COLOR: Color = Color::gray(255);
-// const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(255);
-// const TEXT_INDEX_COLOR: Color = Color::gray(96);
+// const CANDI_COLOR: Color = Color::gray(255);
+// const CANDI_HIGHLIGHTED_COLOR: Color = Color::gray(255);
+// const INDEX_COLOR: Color = Color::gray(96);
 // const CLIP_COLOR: Color =  Color::rgb(200, 0, 0);
 // const WND_COLOR: Color = Color::gray(16);
 // const HIGHTLIGHT_COLOR: Color = Color::rgb(128, 0, 0);
@@ -264,8 +264,8 @@ unsafe fn paint(window: HWND) -> LRESULT{
     let mut y = BORDER_WIDTH + LABEL_PADDING_TOP;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
-    TextOut(dc, index_x, y, &arg.indice[0], TEXT_INDEX_COLOR);
-    TextOut(dc, candi_x, y, &arg.candis[0], TEXT_HIGHLIGHT_COLOR);
+    TextOut(dc, index_x, y, &arg.indice[0], INDEX_COLOR);
+    TextOut(dc, candi_x, y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR);
     // normal text
     for i in 1..arg.candis.len() {
         if HORIZONTAL {
@@ -274,8 +274,8 @@ unsafe fn paint(window: HWND) -> LRESULT{
         } else {
             y += arg.label_height;
         }
-        TextOut(dc, index_x, y, &arg.indice[i], TEXT_INDEX_COLOR);
-        TextOut(dc, candi_x, y, &arg.candis[i], TEXT_COLOR);
+        TextOut(dc, index_x, y, &arg.indice[i], INDEX_COLOR);
+        TextOut(dc, candi_x, y, &arg.candis[i], CANDI_COLOR);
     }
     ReleaseDC(window, dc);
     EndPaint(window, &mut ps);

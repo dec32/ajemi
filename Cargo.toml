@@ -9,6 +9,7 @@ fern = "0.6"
 chrono = "0.4"
 winreg = "0.52"
 parking_lot = "0.12"
+toml = "0.8.9"
 
 [dependencies.windows]
 version = "0.52.0"

@@ -1,6 +1,7 @@
 mod register;
 mod global;
 mod log;
+mod conf;
 mod extend;
 mod tsf;
 mod engine;
