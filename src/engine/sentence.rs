@@ -13,22 +13,21 @@ impl Engine {
     pub(super) fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion>{
         let mut sents = self.suggest_sentences(spelling);
         let mut best_sent = None;
-        let mut max_weight = 0.0;
+        let mut highest_score = 0;
         while !sents.is_empty() {
             let sent = sents.pop().unwrap();
-            if sent.unique_len == 0 {
-                best_sent = Some(sent);
-                break;
+            if sent.output.chars().skip(1).next().is_none() {
+                continue;
             }
-            let weight = sent.exact_len as f64 / sent.unique_len as f64;
-            if weight > max_weight {
-                max_weight = weight;
+            // the idea here is 
+            // to favor a unique prefix of length 3 over an exact spelling of length 2  
+            let score = 29 * sent.exact_len + 20 * sent.unique_len;
+            if score > highest_score {
+                highest_score = score;
                 best_sent = Some(sent);
             }
         }
-        best_sent
-            .filter(|s|!s.output.is_empty())
-            .map(|s|Suggestion{output:s.output, groupping: s.groupping})
+        best_sent.map(|s|Suggestion{output:s.output, groupping: s.groupping})
     }
     
     fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {
@@ -48,7 +47,7 @@ impl Engine {
     ) 
     {
         // find the longest exact match and the longest unique match
-        // however if the exact one is longer than the unique one, neglect latter.
+        // however if the exact one is longer than the unique one, ignore the unique one.
         let mut exact = None;
         let mut exact_to = 0;
         let mut unique = None;

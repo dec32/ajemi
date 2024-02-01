@@ -86,10 +86,7 @@ impl Engine {
         }
         // suggest single words
         let mut remains = CANDI_NUM - suggs.len();
-        let mut exclude: HashSet<String> = suggs.iter()
-            .filter(|it|it.output.chars().count() == 1)
-            .map(|it|it.output.clone())
-            .collect();
+        let mut exclude: HashSet<String> = HashSet::new();
         'outer_loop:
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
