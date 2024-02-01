@@ -123,11 +123,11 @@ impl CandidateList {
     pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
         unsafe{ 
             let mut index_list = Vec::with_capacity(suggs.len());
-            let mut text_list = Vec::with_capacity(suggs.len());
+            let mut candi_list = Vec::with_capacity(suggs.len());
 
+            let mut row_height: i32 = 0;
             let mut index_width: i32 = 0;
-            let mut text_width: i32 = 0;
-            let mut text_height: i32 = 0;
+            let mut candi_width: i32 = 0;
             
             let dc: HDC = GetDC(self.window);
             SelectObject(dc, self.font);
@@ -136,29 +136,28 @@ impl CandidateList {
 
                 let index = OsString::from(format!("{}. ", index + 1)).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
+                row_height = max(row_height, size.cy);
                 index_width = max(index_width, size.cx);
                 index_list.push(index);
 
-                let text = OsString::from(&sugg.output).wchars();
-                GetTextExtentPoint32W(dc, &text, &mut size);
-                text_width = max(text_width, size.cx);
-                text_height = size.cy;
-                text_list.push(text);
+                let candi = OsString::from(&sugg.output).wchars();
+                GetTextExtentPoint32W(dc, &candi, &mut size);
+                row_height = max(row_height, size.cy);
+                candi_width = max(candi_width, size.cx);
+                candi_list.push(candi);
             }
             ReleaseDC(self.window, dc);
-
-            let candidates: i32 = suggs.len().try_into().unwrap();
-            let wnd_size = SIZE {
-                cx: CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + text_width + LABEL_PADDING_RIGHT,
-                cy: candidates * (LABEL_PADDING_TOP + text_height + LABEL_PADDING_BOTTOM)
-            };
+            let candidate_num: i32 = suggs.len().try_into().unwrap();
+            let wnd_height = candidate_num * (LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM);
+            let wnd_width = CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT;
+            let wnd_width = max(wnd_width, wnd_height * 618/1000);
             // passing extra args to WndProc
             let arg = PaintArg {
-                wnd_size, text_list, index_list, index_width, text_height, font: self.font}.to_long_ptr();
+                wnd_width, wnd_height, candi_list, index_list, index_width, row_height, font: self.font}.to_long_ptr();
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), arg);
             // resize and show
             SetWindowPos(
-                self.window, HWND_TOPMOST, 0, 0, wnd_size.cx, wnd_size.cy, SWP_NOACTIVATE | SWP_NOMOVE)?;
+                self.window, HWND_TOPMOST, 0, 0, wnd_width, wnd_height, SWP_NOACTIVATE | SWP_NOMOVE)?;
             ShowWindow(self.window, SW_SHOWNOACTIVATE);
             // force repaint
             InvalidateRect(self.window, None, BOOL::from(true));
@@ -178,12 +177,13 @@ impl CandidateList {
 }
 
 struct PaintArg {
-    wnd_size: SIZE,
-    index_list: Vec<Vec<u16>>,
-    text_list: Vec<Vec<u16>>,
+    wnd_width: i32,
+    wnd_height: i32,
     index_width: i32,
-    text_height: i32,
-    font: HFONT
+    row_height: i32,
+    font: HFONT,
+    index_list: Vec<Vec<u16>>,
+    candi_list: Vec<Vec<u16>>,
 }
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
@@ -214,26 +214,26 @@ unsafe fn paint(window: HWND) -> LRESULT{
         return LRESULT::default();
     }
     // paint labels
-    let label_height = LABEL_PADDING_TOP + arg.text_height + LABEL_PADDING_BOTTOM;
-    let wnd = RECT{ left: 0, top: 0, right: arg.wnd_size.cx, bottom: arg.wnd_size.cy};
+    let label_height = LABEL_PADDING_TOP + arg.row_height + LABEL_PADDING_BOTTOM;
+    let wnd = RECT{ left: 0, top: 0, right: arg.wnd_width, bottom: arg.wnd_height};
     let clip = RECT{ left: 0, top: 0, right: CLIP_WIDTH, bottom: label_height };
-    let label_highlight = RECT{ left: 0, top: 0, right: arg.wnd_size.cx, bottom: label_height};
+    let label_highlight = RECT{ left: 0, top: 0, right: arg.wnd_width, bottom: label_height};
     FillRect(dc, &wnd, LABEL_COLOR);
     FillRect(dc, &label_highlight, LABEL_HIGHTLIGHT_COLOR);
     FillRect(dc, &clip, CLIP_COLOR);
 
     // pain text
     let index_x = CLIP_WIDTH + LABEL_PADDING_LEFT;
-    let text_x = index_x + arg.index_width;
+    let candi_x = index_x + arg.index_width;
     let mut y = LABEL_PADDING_TOP;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
     TextOut(dc, index_x, y, &arg.index_list[0], TEXT_INDEX_COLOR);
-    TextOut(dc, text_x, y, &arg.text_list[0], TEXT_HIGHLIGHT_COLOR);
-    for i in 1..arg.text_list.len() {
+    TextOut(dc, candi_x, y, &arg.candi_list[0], TEXT_HIGHLIGHT_COLOR);
+    for i in 1..arg.candi_list.len() {
         y += label_height;
         TextOut(dc, index_x, y, &arg.index_list[i], TEXT_INDEX_COLOR);
-        TextOut(dc, text_x, y, &arg.text_list[i], TEXT_COLOR);
+        TextOut(dc, candi_x, y, &arg.candi_list[i], TEXT_COLOR);
     }
     ReleaseDC(window, dc);
     EndPaint(window, &mut ps);
