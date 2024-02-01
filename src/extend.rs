@@ -55,8 +55,6 @@ impl StringExt for String {
         }
     }
 }
-
-// todo use crate: log_derive
 pub trait ResultExt {
     fn ignore(self);
 }

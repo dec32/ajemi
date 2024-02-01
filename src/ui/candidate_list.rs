@@ -187,7 +187,6 @@ struct PaintArg {
 }
 impl PaintArg {
     unsafe fn to_long_ptr(self) -> isize{
-        // TODO make sure there's no memory leak
         mem::transmute(ManuallyDrop::new(Box::new(self)))
     }
     unsafe fn from_long_ptr(long_ptr: isize) -> Option<Box<PaintArg>>{

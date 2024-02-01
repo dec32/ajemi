@@ -314,20 +314,8 @@ impl TextServiceInner {
         } else {
             match input {
                 Letter(letter) => self.push(letter)?,
-                Number(number) => {
-                    // todo numbers can be used to select from candidate list
-                    self.select(number - 1)?;
-                },
-                Punct(punct) => {
-                    self.force_commit(engine().remap_punct(punct))?;
-
-                    // the more proper way is:
-                    //  
-                    // self.composition.force_commit(context)?;
-                    // self.insert_char(context, &engine::remap_punct(punct))?;
-                    //
-                    // however by doing so the suggestion will be eaten and print 2 puncts. no sure why.
-                },
+                Number(number) => self.select(number - 1)?,
+                Punct(punct) => self.force_commit(engine().remap_punct(punct))?,
                 Space => self.commit()?,
                 Enter => self.release()?,
                 Backspace => self.pop()?,

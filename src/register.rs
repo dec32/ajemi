@@ -106,7 +106,6 @@ pub unsafe fn register_ime() -> Result<()> {
 
     input_processor_profiles.Register(&IME_ID)?;
     debug!("Registered the input method.");
-    // todo the icon cannot be registered
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = find_dll_path()?.null_terminated_wchars();
     input_processor_profiles.AddLanguageProfile(
