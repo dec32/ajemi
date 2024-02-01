@@ -11,8 +11,16 @@ const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(0);
 const TEXT_INDEX_COLOR: Color = Color::gray(160);
 const CLIP_COLOR: Color =  Color::hex(0x0078D7);
 const LABEL_COLOR: Color = Color::gray(250);
-// const LABEL_HIGHTLIGHT_COLOR: Color = Color::gray(230);
 const LABEL_HIGHTLIGHT_COLOR: Color = Color::rgb(232, 232, 255);
+
+// Dark Mode Color scheme
+// const TEXT_COLOR: Color = Color::gray(255);
+// const TEXT_HIGHLIGHT_COLOR: Color = Color::gray(255);
+// const TEXT_INDEX_COLOR: Color = Color::gray(96);
+// const CLIP_COLOR: Color =  Color::rgb(200, 0, 0);
+// const LABEL_COLOR: Color = Color::gray(16);
+// const LABEL_HIGHTLIGHT_COLOR: Color = Color::rgb(128, 0, 0);
+
 // Layout
 const CLIP_WIDTH: i32 = 3;
 const LABEL_PADDING_TOP: i32 = 2;

@@ -19,8 +19,8 @@ impl Engine {
             if sent.output.chars().skip(1).next().is_none() {
                 continue;
             }
-            // the idea here is 
-            // to favor a unique prefix of length 3 over an exact spelling of length 2  
+            // the intention of this quirky ratio here is to
+            // favor a unique prefix of length 3 over an exact spelling of length 2
             let score = 29 * sent.exact_len + 20 * sent.unique_len;
             if score > highest_score {
                 highest_score = score;
