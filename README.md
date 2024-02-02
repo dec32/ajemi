@@ -14,7 +14,7 @@ Click link below to download the latest version.
 
 ## Usage
 
-Press <kbd>Win</kbd> + <kbd>Space</kbd> or <kbd>Ctr</kbd> + <kbd>Shift</kbd> to switch to the input method.
+Press <kbd>Win</kbd> + <kbd>Space</kbd> to switch to the input method.
 
 To type a glyph, simply type its spelling, and press <kbd>Space</kbd> to confirm. 
 
@@ -32,7 +32,6 @@ The candidate list can help you type faster. Press <kbd>Space</kbd> to select th
 You can also type multiple glyphs in a row. Long glyphs will be automatically inserted for you.
 
 ![](./doc/soweli-lon-ma-kasi.gif)
-
 
 To type punctuators, type: 
 
@@ -66,6 +65,7 @@ Here's a rough demonstration of the behavior of the control characters:
 ## Customize
 
 You can customize the appearance of the input method by editing the content of `%APPDATA%/Ajemi/conf.toml`.
+
 ```Toml
 [font]
 name = "sitelen seli kiwen juniko"
