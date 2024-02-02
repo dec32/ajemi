@@ -1,6 +1,5 @@
 use windows::Win32::UI::TextServices::{ITfThreadMgrEventSink_Impl, ITfDocumentMgr, ITfContext};
 use windows::core::Result;
-
 use super::TextService;
 
 #[allow(non_snake_case, unused)]

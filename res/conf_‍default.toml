@@ -1,5 +1,5 @@
 [font]
-family = "sitelen seli kiwen juniko"
+name = "sitelen seli kiwen juniko"
 size = 20
 
 [layout]
@@ -12,4 +12,3 @@ background = 0xFAFAFA
 clip = 0x0078D7
 highlight = 0xE8E8FF
 highlighted = 0x000000
-

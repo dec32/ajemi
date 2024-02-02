@@ -218,10 +218,6 @@ impl CandidateList {
         }
     }
 
-    pub fn window(&self) -> HWND{
-        self.window
-    }
-
     pub fn destroy(&self) -> Result<()> {
         unsafe { DestroyWindow(self.window) }
     }
@@ -269,7 +265,7 @@ unsafe fn paint(window: HWND) -> LRESULT{
         return LRESULT::default();
     }
     // window
-    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, PANEL_COLOR);
+    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, BKG_COLOR);
     // clip
     FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, CLIP_COLOR);
     // highlight
