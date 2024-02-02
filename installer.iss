@@ -1,5 +1,5 @@
-#define MyAppName "Ajemi"
-#define MyAppVersion "0.1"
+﻿#define MyAppName "Ajemi"
+#define MyAppVersion "0.2"
 #define MyAppPublisher "Dec_32"
 #define MyAppURL "https://github.com/dec32/Ajemi"
 
@@ -31,6 +31,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: ".\target\release\ajemi.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".\res\conf_‍default.toml"; DestDir: "{userappdata}"; DestName: "conf.toml"; Flags: ignoreversion
 Source: ".\res\sitelenselikiwenjuniko.ttf"; DestDir: "{autofonts}"; FontInstall: "sitelen seli kiwen juniko"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
