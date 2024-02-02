@@ -96,6 +96,9 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
         fn DoEditSession(&self, ec:u32) -> Result<()> {
             unsafe {
                 self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
+                if self.text.is_empty() {
+                    return Ok(())
+                }
                 let category_mgr: ITfCategoryMgr = CoCreateInstance(
                     &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
