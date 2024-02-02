@@ -2,7 +2,7 @@ use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{self, BeginPaint, CreateFontA, EndPaint, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{conf::*, engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX};
+use crate::{conf::*, engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO};
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 // Layout
@@ -61,6 +61,7 @@ unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lpar
 pub struct CandidateList {
     window: HWND,
     font: HFONT,
+    index_suffix: &'static str,
 }
 
 impl CandidateList {
@@ -99,8 +100,16 @@ impl CandidateList {
                     Err(e) => Err(e)
                 };
             }
+            let index_suffix;
+            let lowercase_font_name = FONT.to_ascii_lowercase();
+            // TODO this is no reliable at all
+            if lowercase_font_name.contains("mono") || lowercase_font_name.contains("fairfax") {
+                index_suffix = CANDI_INDEX_SUFFIX_MONO;
+            } else {
+                index_suffix = CANDI_INDEX_SUFFIX;
+            }
             ReleaseDC(window, dc);
-            Ok(CandidateList{ window, font })
+            Ok(CandidateList{ window, font, index_suffix})
         }
     }
 
@@ -128,7 +137,7 @@ impl CandidateList {
             SelectObject(dc, self.font);
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
-                let index = format!("{}{}", CANDI_INDEXES[index], CANDI_INDEX_SUFFIX);
+                let index = format!("{}{}", CANDI_INDEXES[index], self.index_suffix);
                 let index = OsString::from(index).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 row_height = max(row_height, size.cy);
@@ -191,6 +200,10 @@ impl CandidateList {
         unsafe { 
             ShowWindow(self.window, SW_HIDE); 
         }
+    }
+
+    pub fn window(&self) -> HWND{
+        self.window
     }
 
     pub fn destroy(&self) -> Result<()> {
