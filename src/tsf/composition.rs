@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use log::{trace, warn};
+use log::{debug, trace};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::Result;
@@ -50,7 +50,7 @@ impl TextServiceInner {
         let range = unsafe{ self.composition().ok()?.GetRange().ok()? };
         let pos = edit_session::get_pos(self.tid, self.context().ok()?, &range).ok()?;
         if pos.0 <= 0 && pos.1 <= 0 {
-            warn!("Abnormal position: ({}, {})", pos.0, pos.1);
+            debug!("Abnormal position: ({}, {})", pos.0, pos.1);
             None
         } else {
             Some(pos)
