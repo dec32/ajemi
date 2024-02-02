@@ -20,54 +20,52 @@ To type a glyph, simply type its spelling, and press <kbd>Space</kbd> to confirm
 
 ![](./doc/soweli.gif)
 
-Suggestions from he candidate list can help you type faster. Press <kbd>Space</kbd> to the commit the highlighted candidate. Press <kbd>1</kbd> ~ <kbd>5</kbd> to pick any of them.
+Pressing <kbd>Enter</kbd> releases the raw ASCII text instead.
+
+![](./doc/soweli-ascii.gif)
+
+
+The candidate list can help you type faster. Press <kbd>Space</kbd> to select the highlighted candidate or press <kbd>1</kbd> ~ <kbd>5</kbd> to pick any of them.
 
 ![](./doc/sow.gif)
 
-You can also type multiple glyphs in a row. Long glyphs will be automatically injected.
+You can also type multiple glyphs in a row. Long glyphs will be automatically inserted for you.
 
 ![](./doc/soweli-lon-ma-kasi.gif)
 
 
-Pressing <kbd>Enter</kbd> releases the raw ASCII text.
-
-![](./doc/soweli-ascii.gif)
-
 To type punctuators, type: 
 
-- `.` for MIDDLE DOT (U+F199C)
-- `:` for COLON (U+F199D)
-- `<` for LEFT CORNER BRACKET (U+300C)
-- `>` for RIGHT CORNER BRACKET (U+300D)
+- `.` for middle dot
+- `:` for colon
+- `<>` for CJK corner brackets
+- `[]` for proper name cartouche
 
-To type control characters, type:
+Joiners compose adjacent glyphs into compound glyphs. Type:
 
-- `-` for ZERO WIDTH JOINER (U+200D)
-- `^` for STACKING JOINER (U+F1995)
-- `*` for SCALING JOINER (U+F1996)
-- `(` for START OF LONG GLYPH (U+F1997)
-- `)` for END OF LONG GLYPH (U+F1998)
-- `{` for START OF REVERSE LONG GLYPH (U+F199A)
-- `}` for END OF REVERSE LONG GLYPH (U+F199B)
-- `[` for START OF CARTOUCHE (U+F1990)
-- `]` for END OF CARTOUCHE (U+F1991)
+- `-` for zero-width joiner
+- `^` for stack joiner
+- `*` for scale joiner
 
+Long glyphs are created by extending certain glyphs with special control characters. In most cases you don't need to worry about them because the input method inserts them for you. But if you want more precise control over long glyphs, you can type: 
 
-JOINERs combine adjacent glyphs into a single glyph. LONG GLYPH control characters provide underscores that work well with certain glyphs (especially pi). CARTOUCHE control characters provide cartouches for proper names. Here's a rough demonstration of their behavior:
+- `()` to extend glyphs forward
+- `{}` to extend glyphs backward
+
+Here's a rough demonstration of the behavior of the control characters:
 
 |Spelling          |Glyph                                    |
 |------------------|-----------------------------------------|
-|`toki^pona`       |![](./doc/control-stacking.png)          |
+|`toki-pona`       |![](./doc/control-scaling.png)           |
 |`toki*pona`       |![](./doc/control-scaling.png)           |
+|`toki^pona`       |![](./doc/control-stacking.png)          |
 |`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
 |`{toki-pona} kama`|![](./doc/control-reverse-long-glyph.png)|
-|`[toki pona]`     |![](./doc/control-cartoche.png)          |
 
 
 ## Customize
 
-You can customize the appearance of the input method by editing the content of `%APPDATA%/Ajemi/conf.toml`. It looks like this:
-
+You can customize the appearance of the input method by editing the content of `%APPDATA%/Ajemi/conf.toml`.
 ```Toml
 [font]
 name = "sitelen seli kiwen juniko"
@@ -84,5 +82,3 @@ clip = 0x0078D7
 highlight = 0xE8E8FF
 highlighted = 0x000000
 ```
-
-Notice that Ameji relies on UCSUR-compliant fonts to function. To find and install such fonts, please visit [this spreadsheet](https://docs.google.com/spreadsheets/d/1xwgTAxwgn4ZAc4DBnHte0cqta1aaxe112Wh1rv9w5Yk/htmlview?gid=1195574771).
