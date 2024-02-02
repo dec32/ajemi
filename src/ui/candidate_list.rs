@@ -128,7 +128,8 @@ impl CandidateList {
             let mut indice = Vec::with_capacity(suggs.len());
             let mut candis = Vec::with_capacity(suggs.len());
 
-            let mut row_height: i32 = 0;
+            let mut candi_height: i32 = 0;
+            let mut index_height: i32 = 0;
             let mut index_width: i32 = 0;
             let mut candi_width: i32 = 0;
             let mut candi_widths = Vec::with_capacity(suggs.len());
@@ -140,18 +141,19 @@ impl CandidateList {
                 let index = format!("{}{}", CANDI_INDEXES[index], self.index_suffix);
                 let index = OsString::from(index).wchars();
                 GetTextExtentPoint32W(dc, &index, &mut size);
-                row_height = max(row_height, size.cy);
+                index_height = max(index_height, size.cy);
                 index_width = max(index_width, size.cx);
                 indice.push(index);
 
                 let candi = OsString::from(&sugg.output).wchars();
                 GetTextExtentPoint32W(dc, &candi, &mut size);
-                row_height = max(row_height, size.cy);
+                candi_height = max(candi_height, size.cy);
                 candi_width = max(candi_width, size.cx);
                 candi_widths.push(size.cx);
                 candis.push(candi);
             }
             ReleaseDC(self.window, dc);
+            let row_height = max(candi_height, index_height);
             let label_height = LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM;
             let mut wnd_height = 0;
             let mut wnd_width = 0;
@@ -180,8 +182,10 @@ impl CandidateList {
 
             // passing extra args to WndProc
             let arg = PaintArg {
-                wnd_width, wnd_height, highlight_width, label_height,
-                index_width,  candi_widths: candi_widths.clone(),
+                wnd_width, wnd_height, highlight_width, 
+                label_height, row_height,
+                index_width, index_height, 
+                candi_widths: candi_widths.clone(), candi_height,
                 candis, indice, font: self.font,
             };
             let long_ptr = arg.to_long_ptr();
@@ -216,8 +220,11 @@ struct PaintArg {
     wnd_height: i32,
     highlight_width: i32,
     label_height: i32,
+    row_height: i32,
     index_width: i32,
+    index_height: i32,
     candi_widths: Vec<i32>,
+    candi_height: i32,
     font: HFONT,
     indice: Vec<Vec<u16>>,
     candis: Vec<Vec<u16>>,
@@ -257,21 +264,23 @@ unsafe fn paint(window: HWND) -> LRESULT{
     // highlighted text
     let mut index_x = BORDER_WIDTH + CLIP_WIDTH + LABEL_PADDING_LEFT;
     let mut candi_x = BORDER_WIDTH + index_x + arg.index_width;
-    let mut y = BORDER_WIDTH + LABEL_PADDING_TOP;
+    let mut index_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.index_height) / 2;
+    let mut candi_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.candi_height) / 2;
     SelectObject(dc, arg.font);
     SetBkMode(dc, TRANSPARENT);
-    TextOut(dc, index_x, y, &arg.indice[0], INDEX_COLOR);
-    TextOut(dc, candi_x, y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR);
+    TextOut(dc, index_x, index_y, &arg.indice[0], INDEX_COLOR);
+    TextOut(dc, candi_x, candi_y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR);
     // normal text
     for i in 1..arg.candis.len() {
         if VERTICAL {
-            y += arg.label_height;
+            index_y += arg.label_height;
+            candi_y += arg.label_height;
         } else {
             index_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
             candi_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
         }
-        TextOut(dc, index_x, y, &arg.indice[i], INDEX_COLOR);
-        TextOut(dc, candi_x, y, &arg.candis[i], CANDI_COLOR);
+        TextOut(dc, index_x, index_y, &arg.indice[i], INDEX_COLOR);
+        TextOut(dc, candi_x, candi_y, &arg.candis[i], CANDI_COLOR);
     }
     ReleaseDC(window, dc);
     EndPaint(window, &mut ps);
