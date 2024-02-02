@@ -60,7 +60,8 @@ unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lpar
 #[derive(Default)]
 pub struct CandidateList {
     window: HWND,
-    font: HFONT,
+    candi_font: HFONT,
+    index_font: HFONT,
     index_suffix: &'static str,
 }
 
@@ -91,15 +92,23 @@ impl CandidateList {
             let font_size = FONT_SIZE * pixel_per_inch / 72;
             let font_name = CString::new(FONT.as_str()).unwrap();
             let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
-            let font = CreateFontA (
+            let candi_font = CreateFontA (
                 font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
-            if font.is_invalid() {
+            if candi_font.is_invalid() {
                 error!("CreateFontA failed.");
                 return match GetLastError() {
                     Ok(_) => Err(E_FAIL.into()),
                     Err(e) => Err(e)
                 };
             }
+
+            let font_size = font_size * 70 / 100;
+            let mut index_font = CreateFontA (
+                font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
+            if index_font.is_invalid() {
+                index_font = candi_font;
+            }
+    
             let index_suffix;
             let lowercase_font_name = FONT.to_ascii_lowercase();
             // TODO this is no reliable at all
@@ -109,7 +118,7 @@ impl CandidateList {
                 index_suffix = CANDI_INDEX_SUFFIX;
             }
             ReleaseDC(window, dc);
-            Ok(CandidateList{ window, font, index_suffix})
+            Ok(CandidateList{ window, candi_font, index_font, index_suffix})
         }
     }
 
@@ -134,18 +143,19 @@ impl CandidateList {
             let mut candi_width: i32 = 0;
             let mut candi_widths = Vec::with_capacity(suggs.len());
                 
-            let dc: HDC = GetDC(self.window);
-            SelectObject(dc, self.font);
+            let dc: HDC = GetDC(self.window);   
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
                 let index = format!("{}{}", CANDI_INDEXES[index], self.index_suffix);
                 let index = OsString::from(index).wchars();
+                SelectObject(dc, self.index_font);
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 index_height = max(index_height, size.cy);
                 index_width = max(index_width, size.cx);
                 indice.push(index);
 
                 let candi = OsString::from(&sugg.output).wchars();
+                SelectObject(dc, self.candi_font);
                 GetTextExtentPoint32W(dc, &candi, &mut size);
                 candi_height = max(candi_height, size.cy);
                 candi_width = max(candi_width, size.cx);
@@ -186,7 +196,9 @@ impl CandidateList {
                 label_height, row_height,
                 index_width, index_height, 
                 candi_widths: candi_widths.clone(), candi_height,
-                candis, indice, font: self.font,
+                candis, indice, 
+                index_font: self.index_font,
+                candi_font: self.candi_font,
             };
             let long_ptr = arg.to_long_ptr();
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), long_ptr);
@@ -225,7 +237,8 @@ struct PaintArg {
     index_height: i32,
     candi_widths: Vec<i32>,
     candi_height: i32,
-    font: HFONT,
+    index_font: HFONT,
+    candi_font: HFONT,
     indice: Vec<Vec<u16>>,
     candis: Vec<Vec<u16>>,
 }
@@ -266,10 +279,10 @@ unsafe fn paint(window: HWND) -> LRESULT{
     let mut candi_x = BORDER_WIDTH + index_x + arg.index_width;
     let mut index_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.index_height) / 2;
     let mut candi_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.candi_height) / 2;
-    SelectObject(dc, arg.font);
+    
     SetBkMode(dc, TRANSPARENT);
-    TextOut(dc, index_x, index_y, &arg.indice[0], INDEX_COLOR);
-    TextOut(dc, candi_x, candi_y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR);
+    TextOut(dc, index_x, index_y, &arg.indice[0], INDEX_COLOR, arg.index_font);
+    TextOut(dc, candi_x, candi_y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR, arg.candi_font);
     // normal text
     for i in 1..arg.candis.len() {
         if VERTICAL {
@@ -279,8 +292,8 @@ unsafe fn paint(window: HWND) -> LRESULT{
             index_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
             candi_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
         }
-        TextOut(dc, index_x, index_y, &arg.indice[i], INDEX_COLOR);
-        TextOut(dc, candi_x, candi_y, &arg.candis[i], CANDI_COLOR);
+        TextOut(dc, index_x, index_y, &arg.indice[i], INDEX_COLOR, arg.index_font);
+        TextOut(dc, candi_x, candi_y, &arg.candis[i], CANDI_COLOR, arg.candi_font);
     }
     ReleaseDC(window, dc);
     EndPaint(window, &mut ps);
@@ -288,7 +301,8 @@ unsafe fn paint(window: HWND) -> LRESULT{
 }
 
 #[allow(non_snake_case)]
-unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: Color) {
+unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: Color, font: HFONT) {
+    SelectObject(hdc, font);
     SetTextColor(hdc, color);
     TextOutW(hdc, x, y, wchars);
 }
