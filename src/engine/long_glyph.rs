@@ -43,16 +43,11 @@ pub(super) fn insert_long_glyph(text: &mut String) {
                 output.push(ch);
             } 
         // to see if ch is being asked. if so, insert long glyph
-        } else if let Some(gp) = general_question {
+        } else if general_question.is_some() && ch == general_question.unwrap() {
             general_question = None;
-            if ch == gp {
-                output.push(START_OF_LONG_GLYGH);
-                output.push(ch);
-                output.push(END_OF_LONG_GLYPH);
-            } else {
-                // in this case ala is used for denying but not questioning
-                output.push(ch);
-            }
+            output.push(START_OF_LONG_GLYGH);
+            output.push(ch);
+            output.push(END_OF_LONG_GLYPH);
         // no question, insert ch then open long glyph if needed
         } else if matches!(ch, AWEN|KEN|KEPEKEN|LON|PI|TAWA) {
             // close previous long glyph if needed
