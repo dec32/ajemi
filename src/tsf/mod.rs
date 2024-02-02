@@ -132,7 +132,8 @@ impl TextServiceInner {
 
     fn candidate_list(&self) -> Result<&CandidateList> {
         self.candidate_list.as_ref().ok_or_else(||{
-            error!("Candidate list is None.");
+            // FIXME this very frequent
+            // error!("Candidate list is None.");
             E_FAIL.into()
         })
     }
