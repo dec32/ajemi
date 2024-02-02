@@ -130,6 +130,16 @@ impl TextServiceInner {
         })
     }
 
+    fn assure_create_candidate_list(&mut self) -> Result<()>{
+        if self.candidate_list.is_some() {
+            return Ok(());
+        }
+        unsafe {
+            let parent_window = self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()?;
+            self.candidate_list = Some(CandidateList::create(parent_window)?);
+            Ok(())
+        }
+    }
     fn candidate_list(&self) -> Result<&CandidateList> {
         self.candidate_list.as_ref().ok_or_else(||{
             // FIXME this very frequent

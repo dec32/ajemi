@@ -84,6 +84,7 @@ impl TextServiceInner {
     }
 
     fn update_candidate_list(&mut self) -> Result<()> {
+        self.assure_create_candidate_list()?;
         let candidate_list = self.candidate_list()?;
         if self.suggestions.is_empty() {
             candidate_list.hide();
