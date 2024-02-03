@@ -97,16 +97,10 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
         fn DoEditSession(&self, ec:u32) -> Result<()> {
             unsafe {
                 self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
-                // move the cursor to the end
-                self.range.Collapse(ec, TF_ANCHOR_END)?;
-                let mut selection = TF_SELECTION::default();
-                selection.range = ManuallyDrop::new(Some(self.range.clone()));
-                selection.style.ase = TF_AE_NONE;
-	            selection.style.fInterimChar = FALSE;
-                self.context.SetSelection(ec, &[selection])?;
                 if self.text.is_empty() {
                     return Ok(())
                 }
+                // apply underscore
                 let category_mgr: ITfCategoryMgr = CoCreateInstance(
                     &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
@@ -115,6 +109,13 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
                 if let Err(e) = prop.SetValue(ec, &self.range, &variant) {
                     error!("Failed to set display attribute. {}", e);
                 }
+                // move the cursor to the end
+                self.range.Collapse(ec, TF_ANCHOR_END)?;
+                let mut selection = TF_SELECTION::default();
+                selection.range = ManuallyDrop::new(Some(self.range.clone()));
+                selection.style.ase = TF_AE_NONE;
+                selection.style.fInterimChar = FALSE;
+                self.context.SetSelection(ec, &[selection])?;
                 Ok(())
             }
         }
