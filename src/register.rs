@@ -72,8 +72,10 @@ pub unsafe fn unregister_server() -> Result<()> {
 //----------------------------------------------------------------------------
 
 
-// features supported by the IME
-const SUPPORTED_CATEGORIES: [GUID; 13] = [
+// features supported by the IME. there'are 18 of them in total. 
+// register all of them expect the speech one and the handwriting one, or 
+// your input method won't work in certain applications (for example, MS Word)
+const SUPPORTED_CATEGORIES: [GUID; 16] = [
     TextServices::GUID_TFCAT_CATEGORY_OF_TIP,
     TextServices::GUID_TFCAT_TIP_KEYBOARD,
     // TextServices::GUID_TFCAT_TIP_SPEECH,
@@ -85,11 +87,11 @@ const SUPPORTED_CATEGORIES: [GUID; 13] = [
     TextServices::GUID_TFCAT_TIPCAP_WOW16,
     TextServices::GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
     TextServices::GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
-    // TextServices::GUID_TFCAT_PROP_AUDIODATA,
+    TextServices::GUID_TFCAT_PROP_AUDIODATA,
     TextServices:: GUID_TFCAT_PROP_INKDATA,
-    // TextServices::GUID_TFCAT_PROSTYLE_CUSTOM,
     TextServices::GUID_TFCAT_PROPSTYLE_STATIC,
-    // TextServices::GUID_TFCAT_PROPSTYLE_STATICCOMPSCT,
+    GUID::from_u128(0x85F9794B_4D19_40D8_8864_4E747371A66D), // TextServices::GUID_TFCAT_PROPSTYLE_STATICCOMPSCT,
+    GUID::from_u128(0x24AF3031_852D_40A2_BC09_8992898CE722), // TextServices::GUID_TFCAT_PROSTYLE_CUSTOM
     TextServices::GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
     TextServices::GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY
 ];
