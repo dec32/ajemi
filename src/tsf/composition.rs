@@ -40,10 +40,17 @@ impl TextServiceInner {
         Ok(())
     }
 
-    fn set_text(&self, text: &str) -> Result<()> {
+    /// update the content of the composition
+    fn update_composition(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
         let range = unsafe { self.composition()?.GetRange()? };
         edit_session::set_text(self.tid, self.context()?, range, &text, self.display_attribute.as_ref())
+    }
+
+    fn set_text(&self, text: &str) -> Result<()> {
+        let text = OsString::from(text).wchars();
+        let range = unsafe { self.composition()?.GetRange()? };
+        edit_session::set_text(self.tid, self.context()?, range, &text, None)
     }
 
     fn get_pos(&self) -> Option<(i32, i32)> {
@@ -66,7 +73,7 @@ impl TextServiceInner {
         self.preedit.push_str(&self.selected);
         if self.suggestions.is_empty() {
             self.preedit.push_str(&self.spelling);
-            self.set_text(&self.preedit)
+            self.update_composition(&self.preedit)
         } else {
             let mut from = 0;
             for to in &self.suggestions[0].groupping {
@@ -79,7 +86,7 @@ impl TextServiceInner {
             } else {
                 self.preedit.pop();
             }
-            self.set_text(&self.preedit)
+            self.update_composition(&self.preedit)
         }
     }
 

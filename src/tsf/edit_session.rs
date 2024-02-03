@@ -93,16 +93,18 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], di
         #[allow(non_snake_case)]
         fn DoEditSession(&self, ec:u32) -> Result<()> {
             unsafe {
-                self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
-                if self.text.is_empty() {
-                    return Ok(())
-                }
                 // apply underscore
                 if let Some(display_attribute) = self.dispaly_attribute {
+                    self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
                     let prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
                     if let Err(e) = prop.SetValue(ec, &self.range, display_attribute) {
                         error!("Failed to set display attribute. {}", e);
                     }
+                } else {
+                    self.range.SetText(ec, 0, self.text)?;
+                }
+                if self.text.is_empty() {
+                    return Ok(())
                 }
                 // move the cursor to the end
                 self.range.Collapse(ec, TF_ANCHOR_END)?;
