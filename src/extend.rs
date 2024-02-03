@@ -8,7 +8,7 @@ pub trait GUIDExt {
 impl GUIDExt for GUID {
     fn to_rfc4122(&self) -> String {
         let mut buf = String::new();
-        let hex = format!("{:X}", self.to_u128());
+        let hex = format!("{:032X}", self.to_u128());
         buf.push_str(&hex[0..8]);
         buf.push('-');
         buf.push_str(&hex[8..12]);
