@@ -1,5 +1,5 @@
 ﻿#define MyAppName "Ajemi"
-#define MyAppVersion "0.2"
+#define MyAppVersion "0.1"
 #define MyAppPublisher "Dec_32"
 #define MyAppURL "https://github.com/dec32/Ajemi"
 
@@ -22,7 +22,7 @@ UninstallIconFile=.\res\icon.ico
 AllowNoIcons=yes
 ;; compile
 OutputDir=.\target\release
-OutputBaseFilename={#MyAppName}-{#MyAppVersion}-Setup
+OutputBaseFilename=ajemi-installer_x64
 Compression=lzma
 SolidCompression=yes
 
