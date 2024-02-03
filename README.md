@@ -25,7 +25,7 @@ Pressing <kbd>Enter</kbd> releases the raw ASCII text instead.
 ![](./doc/soweli-ascii.gif)
 
 
-The candidate list can help you type faster. Press <kbd>Space</kbd> to select the highlighted candidate or press <kbd>1</kbd> ~ <kbd>5</kbd> to pick any of them.
+The candidate list can help you type faster. Press <kbd>Space</kbd> to select the highlighted candidate or press <kbd>1</kbd> ~ <kbd>5</kbd> to pick any one of them.
 
 ![](./doc/sow.gif)
 
