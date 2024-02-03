@@ -1,10 +1,11 @@
 use std::cell::Cell;
+use std::mem::ManuallyDrop;
 use log::{error, trace};
-use windows::Win32::Foundation::{S_OK, RECT, BOOL};
+use windows::Win32::Foundation::{BOOL, FALSE, RECT, S_OK};
 use windows::core::{implement, Result, ComInterface, AsImpl};
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
 use windows::Win32::System::Variant::VARIANT;
-use windows::Win32::UI::TextServices::{CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_ST_CORRECTION};
+use windows::Win32::UI::TextServices::{CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION, TF_ST_CORRECTION};
 
 use crate::extend::VARANTExt;
 use crate::DISPLAY_ATTR_ID;
@@ -96,6 +97,13 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
         fn DoEditSession(&self, ec:u32) -> Result<()> {
             unsafe {
                 self.range.SetText(ec, TF_ST_CORRECTION, self.text)?;
+                // move the cursor to the end
+                self.range.Collapse(ec, TF_ANCHOR_END)?;
+                let mut selection = TF_SELECTION::default();
+                selection.range = ManuallyDrop::new(Some(self.range.clone()));
+                selection.style.ase = TF_AE_NONE;
+	            selection.style.fInterimChar = FALSE;
+                self.context.SetSelection(ec, &[selection])?;
                 if self.text.is_empty() {
                     return Ok(())
                 }
@@ -138,7 +146,13 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
                 // insert text via InsertTextAtSelection directly would crash the client
                 // what's wrong with these magical APIs
-                range.SetText(ec, TF_ST_CORRECTION, self.text)
+                range.SetText(ec, TF_ST_CORRECTION, self.text)?;
+                range.Collapse(ec, TF_ANCHOR_END)?;
+                let mut selection = TF_SELECTION::default();
+                selection.range = ManuallyDrop::new(Some(range.clone()));
+                selection.style.ase = TF_AE_NONE;
+	            selection.style.fInterimChar = FALSE;
+                self.context.SetSelection(ec, &[selection])
             }
         }
     }

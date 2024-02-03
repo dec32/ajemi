@@ -28,8 +28,8 @@ use self::key_event_sink::Modifiers;
 #[implement(
     ITfTextInputProcessor,
     ITfTextInputProcessorEx,
-    ITfKeyEventSink,
     ITfThreadMgrEventSink,
+    ITfKeyEventSink,
     ITfCompositionSink,
     ITfLangBarItem,
     ITfDisplayAttributeProvider

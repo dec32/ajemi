@@ -1,6 +1,6 @@
 use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
 use toml::{Table, Value};
-use crate::{extend::TableExt, ui::Color};
+use crate::{extend::TableExt, ui::Color, IME_NAME};
 // font
 pub static mut FONT: String = String::new(); 
 pub static mut FONT_SIZE: i32 = 0;
@@ -37,7 +37,7 @@ unsafe fn use_default() {
 }
 
 unsafe fn use_customized() -> Option<()> {
-    let path = PathBuf::from(env::var("APPDATA").ok()?).join("Ajemi").join("conf.toml");
+    let path = PathBuf::from(env::var("APPDATA").ok()?).join(IME_NAME).join("conf.toml");
     let last_modified = fs::metadata(&path).ok()?.last_write_time();
     if last_modified == LAST_MODIFIED {
         return Some(());
