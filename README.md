@@ -7,9 +7,9 @@ Ajemi is an IME (input method) for Toki Pona. With proper font support, it allow
 ## Install
 
 
-Click link below to download the latest version.
+Click link below to download the installer.
 
-[![[DOWNLOAD]](https://img.shields.io/badge/DOWNLOAD-Ajemi--0.2--Setup.exe-blue)](https://github.com/dec32/Ajemi/releases/download/v0.2/Ajemi-0.2-Setup.exe)
+[![[DOWNLOAD]](https://img.shields.io/badge/DOWNLOAD-ajemi--installer__x64.exe-blue)](https://github.com/dec32/Ajemi/releases/download/nightly/ajemi-installer_x64.exe)
 
 
 ## Usage
