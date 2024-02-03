@@ -40,12 +40,43 @@ impl TextServiceInner {
         Ok(())
     }
 
-    /// update the content of the composition
-    fn update_composition(&self, text: &str) -> Result<()> {
-        let text = OsString::from(text).wchars();
+    fn udpate_preedit(&mut self) -> Result<()> {
+        self.preedit.clear();
+        self.preedit.push_str(&self.selected);
+        if self.suggestions.is_empty() {
+            self.preedit.push_str(&self.spelling);
+        } else {
+            let mut from = 0;
+            for to in &self.suggestions[0].groupping {
+                self.preedit.push_str(&self.spelling[from..*to]);
+                self.preedit.push_str(PREEDIT_DELIMITER);
+                from = *to;
+            }
+            if from != self.spelling.len() {
+                self.preedit.push_str(&self.spelling[from..])
+            } else {
+                self.preedit.pop();
+            }
+        }
         let range = unsafe { self.composition()?.GetRange()? };
+        let text = OsString::from(&self.preedit).wchars();
         edit_session::set_text(self.tid, self.context()?, range, &text, self.display_attribute.as_ref())
     }
+
+    fn update_candidate_list(&mut self) -> Result<()> {
+        self.assure_candidate_list()?;
+        let candidate_list = self.candidate_list()?;
+        if self.suggestions.is_empty() {
+            candidate_list.hide();
+        } else {
+            candidate_list.show(&self.suggestions)?;
+            if let Some((x, y)) = self.get_pos() {
+                candidate_list.locate(x, y)?;
+            }
+        }
+        Ok(())
+    }
+
 
     fn set_text(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
@@ -66,42 +97,6 @@ impl TextServiceInner {
 
     fn composition(&self) -> Result<&ITfComposition> {
         self.composition.as_ref().ok_or(E_FAIL.into())
-    }
-
-    fn udpate_preedit(&mut self) -> Result<()> {
-        self.preedit.clear();
-        self.preedit.push_str(&self.selected);
-        if self.suggestions.is_empty() {
-            self.preedit.push_str(&self.spelling);
-            self.update_composition(&self.preedit)
-        } else {
-            let mut from = 0;
-            for to in &self.suggestions[0].groupping {
-                self.preedit.push_str(&self.spelling[from..*to]);
-                self.preedit.push_str(PREEDIT_DELIMITER);
-                from = *to;
-            }
-            if from != self.spelling.len() {
-                self.preedit.push_str(&self.spelling[from..])
-            } else {
-                self.preedit.pop();
-            }
-            self.update_composition(&self.preedit)
-        }
-    }
-
-    fn update_candidate_list(&mut self) -> Result<()> {
-        self.assure_candidate_list()?;
-        let candidate_list = self.candidate_list()?;
-        if self.suggestions.is_empty() {
-            candidate_list.hide();
-        } else {
-            candidate_list.show(&self.suggestions)?;
-            if let Some((x, y)) = self.get_pos() {
-                candidate_list.locate(x, y)?;
-            }
-        }
-        Ok(())
     }
 }
 
