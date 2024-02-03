@@ -9,7 +9,7 @@ mod langbar_item;
 
 use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
-use log::{error, warn};
+use log::{debug, error, warn};
 
 use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext, ITfDisplayAttributeProvider}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
 use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
@@ -130,23 +130,22 @@ impl TextServiceInner {
         })
     }
 
-    fn assure_create_candidate_list(&mut self) -> Result<()>{
+    fn candidate_list(&self) -> Result<&CandidateList> {
+        self.candidate_list.as_ref().ok_or(E_FAIL.into())
+    }
+
+    fn assure_candidate_list(&mut self) -> Result<()>{
         if self.candidate_list.is_some() {
             return Ok(());
         }
         unsafe {
+            debug!("Previous creation of candidate list failed. Recreating now.");
             let parent_window = self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()?;
             self.candidate_list = Some(CandidateList::create(parent_window)?);
             Ok(())
         }
     }
-    fn candidate_list(&self) -> Result<&CandidateList> {
-        self.candidate_list.as_ref().ok_or_else(||{
-            // FIXME this very frequent
-            // error!("Candidate list is None.");
-            E_FAIL.into()
-        })
-    }
+
 }
 
 //----------------------------------------------------------------------------

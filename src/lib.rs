@@ -9,7 +9,7 @@ mod ui;
 
 use std::{ffi::c_void, ptr, mem};
 use ui::candidate_list;
-use ::log::{debug, error, trace};
+use ::log::{debug, error};
 use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
 use global::*;
 use register::*;
@@ -83,12 +83,13 @@ extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, p
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
     unsafe {
+        debug!("DllGetClassObject({})", (*riid).to_rfc4122());
         let mut result = S_OK;
         *ppv = match *riid {
             IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
             IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
             guid => {
-                error!("The required interface {} is not available.", guid.to_rfc4122());
+                error!("The required class object {} is not available.", guid.to_rfc4122());
                 result = CLASS_E_CLASSNOTAVAILABLE;
                 ptr::null_mut()
             }
@@ -122,7 +123,7 @@ impl ClassFactory {
 #[allow(non_snake_case)]
 impl IClassFactory_Impl for ClassFactory {
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> Result<()> {
-        trace!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
+        debug!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
         let mut result = Ok(());
         unsafe {
             *ppvobject = match *riid {
@@ -130,7 +131,8 @@ impl IClassFactory_Impl for ClassFactory {
                     TextService::create::<ITfTextInputProcessor>()?),
                 ITfTextInputProcessorEx::IID => mem::transmute(
                     TextService::create::<ITfTextInputProcessorEx>()?),
-                _ => {
+                guid => {
+                    error!("The required instance {} is not available.", guid.to_rfc4122());
                     result = Err(E_NOINTERFACE.into());
                     ptr::null_mut()
                 }
@@ -140,7 +142,7 @@ impl IClassFactory_Impl for ClassFactory {
     }
 
     fn LockServer(&self, flock: BOOL) -> Result<()> {
-        trace!("LockServer({})", flock.as_bool());
+        debug!("LockServer({})", flock.as_bool());
         Ok(())
     }
 }
