@@ -3,12 +3,8 @@ use std::mem::ManuallyDrop;
 use log::{error, trace};
 use windows::Win32::Foundation::{BOOL, FALSE, RECT, S_OK};
 use windows::core::{implement, Result, ComInterface, AsImpl};
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
 use windows::Win32::System::Variant::VARIANT;
-use windows::Win32::UI::TextServices::{CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION, TF_ST_CORRECTION};
-
-use crate::extend::VARANTExt;
-use crate::DISPLAY_ATTR_ID;
+use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------
 //
@@ -84,12 +80,13 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
     }
 }
 
-pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) -> Result<()> {
+pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], dispaly_attribute: Option<&VARIANT>) -> Result<()> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
         range: ITfRange,
         text: &'a [u16],
+        dispaly_attribute: Option<&'a VARIANT>
     }
 
     impl ITfEditSession_Impl for Session<'_> {
@@ -101,13 +98,11 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
                     return Ok(())
                 }
                 // apply underscore
-                let category_mgr: ITfCategoryMgr = CoCreateInstance(
-                    &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-                let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
-                let prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
-                let variant = VARIANT::i4(guid_atom as i32);
-                if let Err(e) = prop.SetValue(ec, &self.range, &variant) {
-                    error!("Failed to set display attribute. {}", e);
+                if let Some(display_attribute) = self.dispaly_attribute {
+                    let prop = self.context.GetProperty(&GUID_PROP_ATTRIBUTE)?;
+                    if let Err(e) = prop.SetValue(ec, &self.range, display_attribute) {
+                        error!("Failed to set display attribute. {}", e);
+                    }
                 }
                 // move the cursor to the end
                 self.range.Collapse(ec, TF_ANCHOR_END)?;
@@ -121,7 +116,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16]) ->
         }
     }
 
-    let session = ITfEditSession::from(Session{context, range, text});
+    let session = ITfEditSession::from(Session{context, range, text, dispaly_attribute});
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {

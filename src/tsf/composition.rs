@@ -43,7 +43,7 @@ impl TextServiceInner {
     fn set_text(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
         let range = unsafe { self.composition()?.GetRange()? };
-        edit_session::set_text(self.tid, self.context()?, range, &text)
+        edit_session::set_text(self.tid, self.context()?, range, &text, self.display_attribute.as_ref())
     }
 
     fn get_pos(&self) -> Option<(i32, i32)> {

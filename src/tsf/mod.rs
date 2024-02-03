@@ -11,7 +11,7 @@ use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
-use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext, ITfDisplayAttributeProvider}, WindowsAndMessaging::HICON}, Foundation::E_FAIL}};
+use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{Foundation::E_FAIL, System::Variant::VARIANT, UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext, ITfDisplayAttributeProvider}, WindowsAndMessaging::HICON}}};
 use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
 
 use self::key_event_sink::Modifiers;
@@ -57,6 +57,8 @@ struct TextServiceInner {
     selected: String,
     suggestions: Vec<Suggestion>,
     preedit: String,
+    // display attribute provider
+    display_attribute: Option<VARIANT>,
     // UI
     candidate_list: Option<CandidateList>,
     icon: HICON,
@@ -80,6 +82,7 @@ impl TextService {
             preedit: String::with_capacity(32),
             icon: HICON::default(),
             candidate_list: None,
+            display_attribute: None,
             interface: None,
         };
         let text_service = TextService{
