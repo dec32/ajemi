@@ -99,6 +99,73 @@ impl Engine {
             sents.push(extra_sent);
         }
     }
+
+    /// This one is not used
+    pub(super) fn suggest_sentence2(&self, spelling: &str) -> Option<Suggestion> {
+        let mut sugg = Suggestion::default();
+        let mut from = 0;
+        while from < spelling.len() {
+            // find the longest exact match and the longest unique match
+            // however if the exact one is longer than the unique one, ignore the unique one.
+            let mut exact = None;
+            let mut exact_to = 0;
+            let mut unique = None;
+            let mut unique_to = 0;
+            let mut found_unique = false;
+            
+            for to in (from + 1..=spelling.len()).rev() {
+                match self.candidates.get(&spelling[from..to]) {
+                    Some(Exact(word, _)) => {
+                        exact = Some(word);
+                        exact_to = to;
+                        break;
+                    }
+                    Some(Unique(word)) => {
+                        if found_unique {
+                            continue;
+                        }
+                        found_unique = true;
+                        unique = Some(word);
+                        unique_to = to;
+                    }
+                    _ => ()
+                }
+            }
+
+            match (exact, unique)  {
+                (None, None) => {
+                    break;
+                }
+                (Some(exact), None) => {
+                    sugg.output.push_str(&exact);
+                    sugg.groupping.push(exact_to);
+                    from = exact_to;
+                }
+                (None, Some(unique)) => {
+                    sugg.output.push_str(&unique);
+                    sugg.groupping.push(unique_to);
+                    from = unique_to;
+                }
+                (Some(exact), Some(unique)) => {
+                    if self.candidates.get(&spelling[exact_to..unique_to]).is_some() {
+                        sugg.output.push_str(&exact);
+                        sugg.groupping.push(exact_to);
+                        from = exact_to;
+                    } else {
+                        sugg.output.push_str(&unique);
+                        sugg.groupping.push(unique_to);
+                        from = unique_to;
+                    }
+                }
+            }
+        }
+
+        if sugg.output.chars().skip(1).next().is_none() {
+            None
+        } else {
+            Some(sugg)
+        }
+    }
 }
 
 #[test]
@@ -110,9 +177,11 @@ fn repl() {
     loop {
         buf.clear();
         stdin().read_line(&mut buf).unwrap();
-        let sents = engine().suggest_sentence(&buf);
-        for sent in sents.iter() {
-            println!("{}", sent.output)
+        let sugg = engine().suggest_sentence2(&buf);
+        if let Some(sugg) = sugg {
+            println!("{}", sugg.output)
+        } else {
+            println!("No sentence")
         }
     }
 }
