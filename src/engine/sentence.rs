@@ -8,16 +8,6 @@ struct Sentence {
 }
 
 impl Sentence {
-    fn push_exact(&mut self, exact: &str, to: usize) {
-        let len = to - self.groupping.last().unwrap_or(&0);
-        self.output.push_str(exact);
-        self.groupping.push(to);
-        self.score += len * match len {
-            1 => 10, // 'a' is very annoying
-            2 => 29, // turn down a bit so that a unique prefix of length 3 is favored over an exact match of length 2
-            _ => 30,
-        }
-    }
     fn push_unique(&mut self, unique: &str, to: usize) {
         let len = to - self.groupping.last().unwrap_or(&0);
         self.output.push_str(unique);
@@ -25,6 +15,16 @@ impl Sentence {
         self.score += len * 20;
     }
 
+    fn push_exact(&mut self, exact: &str, to: usize) {
+        let len = to - self.groupping.last().unwrap_or(&0);
+        self.output.push_str(exact);
+        self.groupping.push(to);
+        self.score += len * match len {
+            1 => 10, // a, e and n can be very annoying
+            2 => 29, // a unique prefix of length 3 is favored over an exact match of length 2 (so pim > pi'm)
+            _ => 30, // use a 3 : 2 ratio by default
+        }
+    }
 }
 
 #[allow(unused)]
