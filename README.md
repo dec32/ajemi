@@ -11,10 +11,16 @@ Click link below to download the installer.
 
 [![[DOWNLOAD]](https://img.shields.io/badge/DOWNLOAD-ajemi--installer__x64.exe-blue)](https://github.com/dec32/Ajemi/releases/download/nightly/ajemi-installer_x64.exe)
 
+## Setup
 
-## Usage
+To type and see the Sitelen Pona characters, you need to:
 
-Press <kbd>Win</kbd> + <kbd>Space</kbd> to switch to the input method.
+1. Press <kbd>Win</kbd> + <kbd>Space</kbd> to switch to the input method.
+2. Set the font of your editor to ***sitelen seli kiwen juniko*** that comes with the input method.
+
+You can also use any other UCSUR-compliant font listed on [this page](http://antetokipona.infinityfreeapp.com/font/?i=2)
+
+## Use
 
 To type a glyph, simply type its spelling, and press <kbd>Space</kbd> to confirm. 
 
