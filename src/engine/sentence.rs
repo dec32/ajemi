@@ -4,8 +4,27 @@ use super::{Engine, Suggestion, Candidate::*};
 struct Sentence {
     output: String,
     groupping: Vec<usize>,
-    exact_len: usize,
-    unique_len: usize,
+    score: usize,
+}
+
+impl Sentence {
+    fn push_exact(&mut self, exact: &str, to: usize) {
+        let len = to - self.groupping.last().unwrap_or(&0);
+        self.output.push_str(exact);
+        self.groupping.push(to);
+        self.score += len * match len {
+            1 => 10, // 'a' is very annoying
+            2 => 29, // turn down a bit so that a unique prefix of length 3 is favored over an exact match of length 2
+            _ => 30,
+        }
+    }
+    fn push_unique(&mut self, unique: &str, to: usize) {
+        let len = to - self.groupping.last().unwrap_or(&0);
+        self.output.push_str(unique);
+        self.groupping.push(to);
+        self.score += len * 20;
+    }
+
 }
 
 #[allow(unused)]
@@ -19,11 +38,8 @@ impl Engine {
             if sent.output.chars().skip(1).next().is_none() {
                 continue;
             }
-            // the intention of this quirky ratio here is to
-            // favor a unique prefix of length 3 over an exact spelling of length 2
-            let score = 29 * sent.exact_len + 20 * sent.unique_len;
-            if score > highest_score {
-                highest_score = score;
+            if sent.score > highest_score {
+                highest_score = sent.score;
                 best_sent = Some(sent);
             }
         }
@@ -79,9 +95,7 @@ impl Engine {
             None
         };
         if let Some(exact) = exact {
-            sent.output.push_str(&exact);
-            sent.groupping.push(exact_to);
-            sent.exact_len += exact_to - from;
+            sent.push_exact(exact, exact_to);
             self.suggest_sentences_recursive(spelling, exact_to, sent, sents)
         }
         if let Some(unique) = unique {
@@ -90,9 +104,7 @@ impl Engine {
             } else {
                 sent
             };
-            sent.output.push_str(&unique);
-            sent.groupping.push(unique_to);
-            sent.unique_len += unique_to - from;
+            sent.push_unique(unique, unique_to);
             self.suggest_sentences_recursive(spelling, unique_to, sent, sents)
         }
         if let Some(extra_sent) = extra_sent {
