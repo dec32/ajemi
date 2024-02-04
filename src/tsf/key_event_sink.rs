@@ -314,7 +314,13 @@ impl TextServiceInner {
         } else {
             match input {
                 Letter(letter) => self.push(letter)?,
-                Number(number) => self.select(number - 1)?,
+                Number(number) => {
+                    if number == 0 {
+                        ()
+                    } else {
+                        self.select(number - 1)?
+                    }
+                }
                 Punct(punct) => self.force_commit(engine().remap_punct(punct))?,
                 Space => self.commit()?,
                 Enter => self.release()?,

@@ -101,6 +101,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], di
                         error!("Failed to set display attribute. {}", e);
                     }
                 } else {
+                    // using 0 for dwflag will remove the propety
                     self.range.SetText(ec, 0, self.text)?;
                 }
                 if self.text.is_empty() {
