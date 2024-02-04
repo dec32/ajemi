@@ -18,7 +18,7 @@ To type and see the Sitelen Pona characters, you need to:
 1. Press <kbd>Win</kbd> + <kbd>Space</kbd> to switch to the input method.
 2. Set the font of your editor to ***sitelen seli kiwen juniko*** that comes with the input method.
 
-You can also use [***Fairfax HD***](https://www.kreativekorp.com/software/fonts/fairfaxhd/), [***Nishiki-Teki***](https://umihotaru.work/) or other UCSUR-compliant font listed on [this page](http://antetokipona.infinityfreeapp.com/font/?i=2).
+You can also use [***Fairfax HD***](https://www.kreativekorp.com/software/fonts/fairfaxhd/), [***Nishiki-Teki***](https://umihotaru.work/) or any other UCSUR-compliant font listed on [this page](http://antetokipona.infinityfreeapp.com/font).
 
 ## Use
 
