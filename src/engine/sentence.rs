@@ -130,3 +130,19 @@ fn repl() {
         }
     }
 }
+#[test]
+fn test() {
+    use super::{setup, engine};
+    fn assert_sent(spelling: &str, expected: &str) {
+        let sent = engine().suggest_sentence(spelling).unwrap().output;
+        let mut buf =  String::new();
+        for word in expected.split(' ') {
+            buf.push_str(&engine().suggest(word)[0].output)
+        }
+        assert_eq!(sent, buf)
+    }
+    setup();
+    assert_sent("lilonsewi", "li lon sewi");
+    assert_sent("pimaka", "pi ma");
+    assert_sent("pimkule", "pimeja kule");
+}

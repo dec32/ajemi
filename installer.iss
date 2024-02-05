@@ -31,6 +31,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: ".\target\release\ajemi.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".\target\i686-pc-windows-msvc\release\ajemi.dll"; DestDir: "{app}"; DestName: "ajemi32.dll"; Flags: ignoreversion
 Source: ".\res\conf_‍default.toml"; DestDir: "{userappdata}"; DestName: "conf.toml"; Flags: ignoreversion
 Source: ".\res\sitelenselikiwenjuniko.ttf"; DestDir: "{autofonts}"; FontInstall: "sitelen seli kiwen juniko"; Flags: onlyifdoesntexist uninsneveruninstall
 
@@ -39,7 +40,9 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s .\ajemi.dll"
+Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s .\ajemi32.dll"
 
 [UninstallRun]
 Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi.dll"
+Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi32.dll"
 

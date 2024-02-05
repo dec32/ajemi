@@ -19,6 +19,12 @@ use crate::{global::*, extend::OsStrExt2};
 //----------------------------------------------------------------------------
 
 
+#[cfg(target_pointer_width = "64")]
+const POSSIBLE_DLL_PATHS: [&str; 2] = [".\\target\\debug\\ajemi.dll", ".\\ajemi.dll"];
+#[cfg(target_pointer_width = "32")]
+const POSSIBLE_DLL_PATHS: [&str; 2] = [".\\target\\i686-pc-windows-msvc\\debug\\ajemi.dll", ".\\ajemi32.dll"];
+
+
 // FIXME these unwrappings...
 pub unsafe fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
@@ -48,7 +54,7 @@ unsafe fn find_dll_path() -> Result<OsString> {
     }
     // GetModuleFileNameA tends to fail so try a few more options
     warn!("GetModuleFileNameA did not provide the path of the DLL file.");
-    for path in [".\\target\\debug\\ajemi.dll", ".\\ajemi.dll"] {
+    for path in POSSIBLE_DLL_PATHS {
         if let Ok(canonical_path) = fs::canonicalize(path) {
             debug!("Found dll in {path}");
             return Ok(canonical_path.into_os_string())

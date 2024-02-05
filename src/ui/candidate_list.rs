@@ -16,6 +16,12 @@ const BORDER_WIDTH: i32 = 0;
 const POS_OFFSETX: i32 = 2;
 const POS_OFFSETY: i32 = 2;
 
+#[cfg(target_pointer_width = "64")]
+type LongPointer = isize;
+#[cfg(target_pointer_width = "32")]
+type LongPointer = i32;
+
+
 /// To create a window you need to register the window class beforehand.
 pub fn setup() -> Result<()> {
     let wcex = WNDCLASSEXA {
@@ -239,10 +245,10 @@ struct PaintArg {
     candis: Vec<Vec<u16>>,
 }
 impl PaintArg {
-    unsafe fn to_long_ptr(self) -> isize{
+    unsafe fn to_long_ptr(self) -> LongPointer{
         mem::transmute(ManuallyDrop::new(Box::new(self)))
     }
-    unsafe fn from_long_ptr(long_ptr: isize) -> Option<Box<PaintArg>>{
+    unsafe fn from_long_ptr(long_ptr: LongPointer) -> Option<Box<PaintArg>>{
         if long_ptr == 0 {
             None
         } else {
