@@ -65,7 +65,7 @@ Here's a rough demonstration of the behavior of the control characters:
 |`toki*pona`       |![](./doc/control-scaling.png)           |
 |`toki^pona`       |![](./doc/control-stacking.png)          |
 |`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
-|`{toki-pona} kama`|![](./doc/control-reverse-long-glyph.png)|
+|`{toki pona} kama`|![](./doc/control-reverse-long-glyph.png)|
 
 
 ## Customize
