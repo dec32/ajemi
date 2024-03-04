@@ -61,11 +61,11 @@ Here's a rough demonstration of the behavior of the control characters:
 
 |Spelling          |Glyph                                    |
 |------------------|-----------------------------------------|
-|`toki-pona`       |![](./doc/control-scaling.png)           |
-|`toki*pona`       |![](./doc/control-scaling.png)           |
-|`toki^pona`       |![](./doc/control-stacking.png)          |
-|`pi (toki pona)`  |![](./doc/control-long-glyph.png)        |
-|`{toki pona} kama`|![](./doc/control-reverse-long-glyph.png)|
+|`kala-lili`       |![](./doc/control-scaling.png)           |
+|`kala*lili`       |![](./doc/control-scaling.png)           |
+|`kala^lili`       |![](./doc/control-stacking.png)          |
+|`pi (kala lili)`  |![](./doc/control-long-glyph.png)        |
+|`{kala lili} kama`|![](./doc/control-reverse-long-glyph.png)|
 
 
 ## Customize
