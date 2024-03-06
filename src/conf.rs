@@ -13,6 +13,8 @@ pub static mut INDEX_COLOR: Color = Color::white();
 pub static mut CLIP_COLOR: Color = Color::white();
 pub static mut BKG_COLOR: Color = Color::white();
 pub static mut HIGHTLIGHT_COLOR: Color = Color::white();
+// behavior
+pub static mut AUTO_EXTEND: bool = false;
 
 static mut LAST_MODIFIED: u64 = 0;
 
@@ -34,6 +36,7 @@ unsafe fn use_default() {
     CLIP_COLOR = Color::hex(0x0078D7);
     BKG_COLOR = Color::gray(250);
     HIGHTLIGHT_COLOR = Color::rgb(232, 232, 255);
+    AUTO_EXTEND = true;
 }
 
 unsafe fn use_customized() -> Option<()> {
@@ -61,6 +64,10 @@ unsafe fn use_customized() -> Option<()> {
     if let Some(Value::Table(font)) = table.get_mut("font") {
         font.give("name", &mut FONT);
         font.give("size", &mut FONT_SIZE);
+    }
+
+    if let Some(Value::Table(behavior)) = table.get_mut("behavior") {
+        behavior.give("auto_extend", &mut AUTO_EXTEND);
     }
     Some(())
 }

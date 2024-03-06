@@ -1,4 +1,6 @@
-use super::{Engine, Suggestion, Candidate::*};
+use crate::conf::AUTO_EXTEND;
+
+use super::{long_glyph::insert_long_glyph, Candidate::*, Engine, Suggestion};
 
 #[derive(Default, Clone)]
 struct Sentence {
@@ -43,7 +45,13 @@ impl Engine {
                 best_sent = Some(sent);
             }
         }
-        best_sent.map(|s|Suggestion{output:s.output, groupping: s.groupping})
+        let Some(mut best_sent) = best_sent else {
+            return None;
+        };
+        if unsafe{ AUTO_EXTEND } {
+            insert_long_glyph(&mut best_sent.output);
+        }
+        Some(Suggestion{output:best_sent.output, groupping: best_sent.groupping})
     }
     
     fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {

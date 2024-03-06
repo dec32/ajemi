@@ -3,7 +3,7 @@ mod sentence;
 use std::{collections::{HashMap, HashSet}, cell::OnceCell};
 use Candidate::*;
 
-use crate::{engine::long_glyph::insert_long_glyph, CANDI_NUM};
+use crate::CANDI_NUM;
 
 /// To expain why a certain spelling is mapped to certain word(s)
 enum Candidate {
@@ -81,7 +81,6 @@ impl Engine {
         let mut suggs = Vec::with_capacity(CANDI_NUM);
         // Suggest a sentence
         if let Some(mut sugg) = self.suggest_sentence(spelling) {
-            insert_long_glyph(&mut sugg.output);
             suggs.push(sugg);
         }
         // suggest single words
