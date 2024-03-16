@@ -80,7 +80,7 @@ impl Engine {
         }
         let mut suggs = Vec::with_capacity(CANDI_NUM);
         // Suggest a sentence
-        if let Some(mut sugg) = self.suggest_sentence(spelling) {
+        if let Some(sugg) = self.suggest_sentence(spelling) {
             suggs.push(sugg);
         }
         // suggest single words
