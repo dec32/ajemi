@@ -7,6 +7,6 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
     WindowsResource::new()
-        .set_icon("res/icon.ico")
+        .set_icon("res/tray_icon.ico")
         .compile()
 }
