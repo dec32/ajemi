@@ -5,7 +5,7 @@ use windows::Win32::Foundation::E_FAIL;
 use windows::core::{Result, GUID};
 use windows::Win32::UI::TextServices;
 use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr}};
-use winreg::enums::HKEY_LOCAL_MACHINE;
+use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
@@ -122,9 +122,17 @@ pub unsafe fn register_ime() -> Result<()> {
     debug!("Registered the input method.");
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = find_dll_path()?.null_terminated_wchars();
+    let icon_index = {
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+        hkcu.open_subkey(path)
+            .and_then(|subkey| subkey.get_value("SystemUsesLightTheme"))
+            .map(|light_theme: u32| if light_theme == 1 { LITE_TRAY_ICON_INDEX } else { DARK_TRAY_ICON_INDEX })
+            .unwrap_or(LITE_TRAY_ICON_INDEX)
+    };
     input_processor_profiles.AddLanguageProfile(
         &IME_ID, LANG_ID, &LANG_PROFILE_ID, &ime_name, 
-        &icon_file, 0)?;
+        &icon_file, icon_index)?;
     debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
         category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
