@@ -32,7 +32,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: ".\target\release\ajemi.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: ".\target\i686-pc-windows-msvc\release\ajemi.dll"; DestDir: "{app}"; DestName: "ajemi32.dll"; Flags: ignoreversion
-Source: ".\res\conf_default.toml"; DestDir: "{userappdata}"; DestName: "conf.toml"; Flags: ignoreversion
+Source: ".\res\conf.toml"; DestDir: "{userappdata}"; Flags: ignoreversion
 Source: ".\res\sitelenselikiwenjuniko.ttf"; DestDir: "{autofonts}"; FontInstall: "sitelen seli kiwen juniko"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
