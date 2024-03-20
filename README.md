@@ -70,7 +70,7 @@ Here's a rough demonstration of the behavior of the control characters:
 
 ## Customize
 
-You can customize the appearance and behavior of the input method by editing the content of `%APPDATA%/Ajemi/conf.toml`. Here's a template for the configuration file:
+You can customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. Here's a template for the configuration file:
 
 ```Toml
 [font]
