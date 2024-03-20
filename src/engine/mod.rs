@@ -136,6 +136,7 @@ pub fn setup() {
         ENGINE.get_or_init(Engine::new);
         ENGINE.get_mut().unwrap()
     };
+    // UCSUR punctuators and control characters
     engine.insert_punt('[', '󱦐');
     engine.insert_punt(']', '󱦑');
     engine.insert_punt('^', '󱦕');
@@ -146,9 +147,11 @@ pub fn setup() {
     engine.insert_punt('}', '󱦛');
     engine.insert_punt('.', '󱦜');
     engine.insert_punt(':', '󱦝');
+    // non-UCSUR ones
     engine.insert_punt('<', '「');
     engine.insert_punt('>', '」');
     engine.insert_punt('-', '\u{200D}'); // zero-width joiner
+    engine.insert_punt(' ', '\u{3000}'); // full shape space
 
     engine.load_dict(vec![
         ("a", "󱤀"),      

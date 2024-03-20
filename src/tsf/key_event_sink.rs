@@ -284,7 +284,7 @@ impl TextServiceInner {
         trace!("test_input({:?})", input);
         if self.composition.is_none() {
             match input {
-                Letter(_) | Punct(_) => Ok(TRUE),
+                Letter(_) | Punct(_) | Space => Ok(TRUE),
                 _ => Ok(FALSE),
             }
         } else {
@@ -309,6 +309,9 @@ impl TextServiceInner {
                 Punct(punct) => {
                     self.insert_char(engine().remap_punct(punct))?
                 },
+                Space => {
+                    self.insert_char(engine().remap_punct(' '))?
+                }
                 _ => {return Ok(FALSE)}
             }
         } else {
