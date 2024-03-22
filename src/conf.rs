@@ -14,7 +14,9 @@ pub static mut CLIP_COLOR: Color = Color::white();
 pub static mut BKG_COLOR: Color = Color::white();
 pub static mut HIGHTLIGHT_COLOR: Color = Color::white();
 // behavior
-pub static mut AUTO_EXTEND: bool = false;
+pub static mut LONG_PI: bool = false;
+pub static mut LONG_GLYPH: bool = false;
+pub static mut CJK_SPACE: bool = false;
 
 static mut LAST_MODIFIED: u64 = 0;
 
@@ -36,7 +38,9 @@ unsafe fn use_default() {
     CLIP_COLOR = Color::hex(0x0078D7);
     BKG_COLOR = Color::gray(250);
     HIGHTLIGHT_COLOR = Color::rgb(232, 232, 255);
-    AUTO_EXTEND = true;
+    LONG_PI = true;
+    LONG_GLYPH = true;
+    CJK_SPACE = true;
 }
 
 unsafe fn use_customized() -> Option<()> {
@@ -67,7 +71,10 @@ unsafe fn use_customized() -> Option<()> {
     }
 
     if let Some(Value::Table(behavior)) = table.get_mut("behavior") {
-        behavior.give("auto_extend", &mut AUTO_EXTEND);
+        behavior.give("long_pi", &mut LONG_PI);
+        behavior.give("long_glyph", &mut LONG_GLYPH);
+        behavior.give("cjk_space", &mut CJK_SPACE);
+        
     }
     Some(())
 }

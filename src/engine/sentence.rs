@@ -1,5 +1,3 @@
-use crate::conf::AUTO_EXTEND;
-
 use super::{long_glyph::insert_long_glyph, Candidate::*, Engine, Suggestion};
 
 #[derive(Default, Clone)]
@@ -48,9 +46,7 @@ impl Engine {
         let Some(mut best_sent) = best_sent else {
             return None;
         };
-        if unsafe{ AUTO_EXTEND } {
-            insert_long_glyph(&mut best_sent.output);
-        }
+        insert_long_glyph(&mut best_sent.output);
         Some(Suggestion{output:best_sent.output, groupping: best_sent.groupping})
     }
     

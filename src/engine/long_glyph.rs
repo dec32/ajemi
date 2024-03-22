@@ -1,3 +1,5 @@
+use crate::conf::{LONG_GLYPH, LONG_PI};
+
 const ALA: char = '󱤂';
 const AWEN: char = '󱤈';
 const KEN: char = '󱤘';
@@ -5,6 +7,9 @@ const KEPEKEN: char = '󱤙';
 const LON: char =  '󱤬';
 const PI: char = '󱥍';
 const TAWA: char = '󱥩';
+const LA: char = '󱤡';
+const KAMA: char = '󱤖';
+
 
 const START_OF_LONG_GLYGH: char = '󱦗';
 const END_OF_LONG_GLYPH: char = '󱦘';
@@ -17,7 +22,7 @@ pub(super) fn insert_long_glyph(text: &mut String) {
     let mut general_question = None;
     for ch in text.chars() {
         // insert reverse long glyph for ala and remember the question
-        if ch == ALA {
+        if ext_as_ala(ch) {
             let Some(mut prev) = output.pop() else {
                 output.push(ch);
                 continue;
@@ -49,7 +54,7 @@ pub(super) fn insert_long_glyph(text: &mut String) {
             output.push(ch);
             output.push(END_OF_LONG_GLYPH);
         // no question, insert ch then open long glyph if needed
-        } else if matches!(ch, AWEN|KEN|KEPEKEN|LON|PI|TAWA) {
+        } else if ext_left(ch) {
             // close previous long glyph if needed
             if open {
                 let prev = output.pop().unwrap();
@@ -77,3 +82,33 @@ pub(super) fn insert_long_glyph(text: &mut String) {
         text.push_str(&output);
     }
 }
+
+
+fn ext_as_ala(ch: char) -> bool {
+    unsafe {
+        ch == ALA && LONG_GLYPH
+    }
+}
+
+
+fn ext_left(ch: char) -> bool {
+    unsafe {
+        match ch {
+            PI => LONG_PI,
+            AWEN|KEN|KEPEKEN|LON|TAWA => LONG_GLYPH,
+            _ => false
+        }
+    }
+}
+
+#[allow(unused)]
+fn ext_right(ch: char) -> bool {
+    unsafe {
+        match ch {
+            LA | KAMA => LONG_GLYPH,
+            _ => false
+        }
+    }
+}
+
+

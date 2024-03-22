@@ -3,7 +3,7 @@ mod sentence;
 use std::{collections::{HashMap, HashSet}, cell::OnceCell};
 use Candidate::*;
 
-use crate::CANDI_NUM;
+use crate::{conf::CJK_SPACE, CANDI_NUM};
 
 /// To expain why a certain spelling is mapped to certain word(s)
 enum Candidate {
@@ -71,7 +71,11 @@ impl Engine {
     }
 
     pub fn remap_punct(&self, punct: char) -> char {
-        self.puncts.get(&punct).cloned().unwrap_or(punct)
+        if punct == ' ' && unsafe { !CJK_SPACE } {
+            ' ' 
+        } else {
+            self.puncts.get(&punct).cloned().unwrap_or(punct)
+        }
     }
 
     pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
@@ -150,8 +154,8 @@ pub fn setup() {
     // non-UCSUR ones
     engine.insert_punt('<', '「');
     engine.insert_punt('>', '」');
-    engine.insert_punt('-', '\u{200D}'); // zero-width joiner
-    engine.insert_punt(' ', '\u{3000}'); // full shape space
+    engine.insert_punt('-', '\u{200D}'); // ZWJ
+    engine.insert_punt(' ', '\u{3000}'); // CJK space
 
     engine.load_dict(vec![
         ("a", "󱤀"),      
