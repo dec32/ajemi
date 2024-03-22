@@ -89,5 +89,7 @@ highlight = 0xE8E8FF
 highlighted = 0x000000
 
 [behavior]
-auto_extend = true
+long_pi = true
+long_glyph = true
+cjk_space = true
 ```
