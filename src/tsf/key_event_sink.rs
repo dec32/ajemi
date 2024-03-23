@@ -411,7 +411,7 @@ impl TextServiceInner {
         if self.composition.is_none() {
             match shortcut {
                 Switch(1) => {    
-                    engine().next_mode();
+                    engine().next_schema();
                     Ok(TRUE)
                 }
                 _ => Ok(FALSE),

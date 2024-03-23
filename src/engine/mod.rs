@@ -1,9 +1,12 @@
 mod long_glyph;
 mod sentence;
-use std::{collections::{HashMap, HashSet}, cell::OnceCell};
+mod schema;
+use std::{cell::OnceCell, collections::HashSet};
 use Candidate::*;
 
 use crate::{conf::CJK_SPACE, CANDI_NUM};
+
+use self::schema::Schema;
 
 /// To expain why a certain spelling is mapped to certain word(s)
 enum Candidate {
@@ -26,65 +29,34 @@ pub struct Suggestion {
     pub groupping: Vec<usize>,
 }
 
-#[derive(Default)]
-pub enum Mode { 
-    #[default]
-    Sitelen, 
-    Emoji,
-}
-
 /// Engine. A struct to store and query words and punctuators
-#[derive(Default)]
 pub struct Engine {
-    mode: Mode,
-    // todo use SmallString
-    candidates: HashMap<String, Candidate>,
-    puncts: HashMap<char, char>,
-    
+    schemas: [Schema;2],
+    index: usize,
 }
 
 impl Engine {
     fn new() -> Engine {
-        Engine::default()
-    }
-
-    fn load_dict(&mut self, entries: Vec<(&str, &str)>) {
-        let mut candidates = HashMap::new();
-        for (spelling, word) in entries {
-            // store exact spellings -> words
-            candidates.insert(spelling.to_string(), Exact(word.to_string(), Vec::new()));
-            // store prefixes -> words
-            for len in 1..spelling.len() {
-                let prefix = &spelling[0..len];
-                match candidates.get_mut(prefix) {
-                    None => {
-                        candidates.insert(prefix.to_string(), Unique(word.to_string()));
-                    },
-                    Some(Unique(unique)) => {
-                        let mut duplicates = Vec::new();
-                        duplicates.push(unique.clone());
-                        duplicates.push(word.to_string());
-                        candidates.insert(prefix.to_string(), Duplicates(duplicates));
-                    },
-                    Some(Duplicates(duplicates)) | Some(Exact(_, duplicates)) => {
-                        duplicates.push(word.to_string());
-                    }
-                }
-            }
+        Engine {
+            schemas: [schema::sitelen(), schema::emoji()],
+            index: 0
         }
-        self.candidates = candidates;
     }
 
-    fn insert_punt(&mut self, punct: char, remapped: char) {
-        self.puncts.insert(punct, remapped);
+    fn schema(&self) -> &Schema {
+        &self.schemas[self.index]
+    }
+
+    pub fn next_schema(&mut self) {
+        self.index = (self.index + 1) % self.schemas.len()
     }
 
     pub fn remap_punct(&self, punct: char) -> char {
-        if punct == ' ' && unsafe { !CJK_SPACE } {
-            ' ' 
-        } else {
-            self.puncts.get(&punct).cloned().unwrap_or(punct)
-        }
+        self.schema().puncts
+            .get(&punct)
+            .cloned()
+            .filter(|it| *it != '\u{3000}' || unsafe { !CJK_SPACE } )
+            .unwrap_or(punct)
     }
 
     pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
@@ -103,7 +75,7 @@ impl Engine {
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
             let empty_vec = Vec::new();
-            let (word, words) = match self.candidates.get(slice) {
+            let (word, words) = match self.schema().candis.get(slice) {
                 Some(Exact(word, words)) => 
                     (Some(word), words),
                 Some(Unique(word)) => 
@@ -128,13 +100,6 @@ impl Engine {
         }
         suggs
     }
-
-    pub fn next_mode(&mut self) {
-        self.mode = match self.mode {
-            Mode::Sitelen => Mode::Emoji,
-            Mode::Emoji => Mode::Sitelen,
-        }
-    }
 }
 
 
@@ -151,184 +116,9 @@ pub fn engine() -> &'static mut Engine {
 }
 
 pub fn setup() {
-    let engine = unsafe { 
+    unsafe { 
         ENGINE.get_or_init(Engine::new);
-        ENGINE.get_mut().unwrap()
     };
-    // UCSUR punctuators and control characters
-    engine.insert_punt('[', '󱦐');
-    engine.insert_punt(']', '󱦑');
-    engine.insert_punt('^', '󱦕');
-    engine.insert_punt('*', '󱦖');
-    engine.insert_punt('(', '󱦗');
-    engine.insert_punt(')', '󱦘');
-    engine.insert_punt('{', '󱦚');
-    engine.insert_punt('}', '󱦛');
-    engine.insert_punt('.', '󱦜');
-    engine.insert_punt(':', '󱦝');
-    // non-UCSUR ones
-    engine.insert_punt('<', '「');
-    engine.insert_punt('>', '」');
-    engine.insert_punt('-', '\u{200D}'); // ZWJ
-    engine.insert_punt(' ', '\u{3000}'); // CJK space
-
-    engine.load_dict(vec![
-        ("a", "󱤀"),      
-        ("akesi", "󱤁"),  
-        ("ala", "󱤂"),    
-        ("alasa", "󱤃"),  
-        ("ale", "󱤄"),    
-        ("anpa", "󱤅"),   
-        ("ante", "󱤆"),   
-        ("anu", "󱤇"),    
-        ("awen", "󱤈"),   
-        ("e", "󱤉"),      
-        ("en", "󱤊"),     
-        ("esun", "󱤋"),   
-        ("ijo", "󱤌"),    
-        ("ike", "󱤍"),    
-        ("ilo", "󱤎"),    
-        ("insa", "󱤏"),   
-        ("jaki", "󱤐"),   
-        ("jan", "󱤑"),    
-        ("jelo", "󱤒"),   
-        ("jo", "󱤓"),     
-        ("kala", "󱤔"),   
-        ("kalama", "󱤕"), 
-        ("kama", "󱤖"),   
-        ("kasi", "󱤗"),   
-        ("ken", "󱤘"),    
-        ("kepeken", "󱤙"),
-        ("kili", "󱤚"),   
-        ("kiwen", "󱤛"),  
-        ("ko", "󱤜"),
-        ("kon", "󱤝"),
-        ("kule", "󱤞"),
-        ("kulupu", "󱤟"),
-        ("kute", "󱤠"),
-        ("la", "󱤡"),
-        ("lape", "󱤢"),
-        ("laso", "󱤣"),
-        ("lawa", "󱤤"),
-        ("len", "󱤥"),
-        ("lete", "󱤦"),
-        ("li", "󱤧"),
-        ("lili", "󱤨"),
-        ("linja", "󱤩"),
-        ("lipu", "󱤪"),
-        ("loje", "󱤫"),
-        ("lon", "󱤬"),
-        ("luka", "󱤭"),
-        ("lukin", "󱤮"),
-        ("lupa", "󱤯"),
-        ("ma", "󱤰"),
-        ("mama", "󱤱"),
-        ("mani", "󱤲"),
-        ("meli", "󱤳"),
-        ("mi", "󱤴"),
-        ("mije", "󱤵"),
-        ("moku", "󱤶"),
-        ("moli", "󱤷"),
-        ("monsi", "󱤸"),
-        ("mu", "󱤹"),
-        ("mun", "󱤺"),
-        ("musi", "󱤻"),
-        ("mute", "󱤼"),
-        ("nanpa", "󱤽"),
-        ("nasa", "󱤾"),
-        ("nasin", "󱤿"),
-        ("nena", "󱥀"),
-        ("ni", "󱥁"),
-        ("nimi", "󱥂"),
-        ("noka", "󱥃"),
-        ("o", "󱥄"),
-        ("olin", "󱥅"),
-        ("ona", "󱥆"),
-        ("open", "󱥇"),
-        ("pakala", "󱥈"),
-        ("pali", "󱥉"),
-        ("palisa", "󱥊"),
-        ("pan", "󱥋"),
-        ("pana", "󱥌"),
-        ("pi", "󱥍"),
-        ("pilin", "󱥎"),
-        ("pimeja", "󱥏"),
-        ("pini", "󱥐"),
-        ("pipi", "󱥑"),
-        ("poka", "󱥒"),
-        ("poki", "󱥓"),
-        ("pona", "󱥔"),
-        ("pu", "󱥕"),
-        ("sama", "󱥖"),
-        ("seli", "󱥗"),
-        ("selo", "󱥘"),
-        ("seme", "󱥙"),
-        ("sewi", "󱥚"),
-        ("sijelo", "󱥛"),
-        ("sike", "󱥜"),
-        ("sin", "󱥝"),
-        ("sina", "󱥞"),
-        ("sinpin", "󱥟"),
-        ("sitelen", "󱥠"),
-        ("sona", "󱥡"),
-        ("soweli", "󱥢"),
-        ("suli", "󱥣"),
-        ("suno", "󱥤"),
-        ("supa", "󱥥"),
-        ("suwi", "󱥦"),
-        ("tan", "󱥧"),
-        ("taso", "󱥨"),
-        ("tawa", "󱥩"),
-        ("telo", "󱥪"),
-        ("tenpo", "󱥫"),
-        ("toki", "󱥬"),
-        ("tomo", "󱥭"),
-        ("tu", "󱥮"),
-        ("unpa", "󱥯"),
-        ("uta", "󱥰"),
-        ("utala", "󱥱"),
-        ("walo", "󱥲"),
-        ("wan", "󱥳"),
-        ("waso", "󱥴"),
-        ("wawa", "󱥵"),
-        ("weka", "󱥶"),
-        ("wile", "󱥷"),
-        ("namako", "󱥸"),
-        ("kin", "󱥹"),
-        ("oko", "󱥺"),
-        ("kipisi", "󱥻"),
-        ("leko", "󱥼"),
-        ("monsuta", "󱥽"),
-        ("tonsi", "󱥾"),
-        ("jasima", "󱥿"),
-        ("kijetesantakalu", "󱦀"),
-        ("soko", "󱦁"),
-        ("meso", "󱦂"),
-        ("epiku", "󱦃"),
-        ("kokosila", "󱦄"),
-        ("lanpan", "󱦅"),
-        ("n", "󱦆"),
-        ("misikeke", "󱦇"),
-        ("ku", "󱦈"),
-        ("pake", "󱦠"),
-        ("apeja", "󱦡"),
-        ("majuna", "󱦢"),
-        ("powe", "󱦣"),
-    ]);
-}
-
-#[test]
-fn i_dont_know_now_to_write_macros() {
-    use std::fs::File;
-    use std::path::Path;
-    use std::io::Read;
-    let mut file = File::open(Path::new("C:\\ajemi.dict.yaml")).unwrap();
-    let mut text = String::with_capacity(2048);
-    file.read_to_string(&mut text).unwrap();
-    for line in text.lines() {
-        let split: Vec<&str> = line.split('\t').collect();
-        println!("(\"{}\", \"{}\"),", split[1], split[0]);
-    }
 }
 
 #[test]

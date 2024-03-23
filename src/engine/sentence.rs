@@ -75,7 +75,7 @@ impl Engine {
 
         let mut found_unique = false;
         for to in (from+1..=spelling.len()).rev() {
-            match self.candidates.get(&spelling[from..to]) {
+            match self.schema().candis.get(&spelling[from..to]) {
                 Some(Exact(word, _)) => {
                     exact = Some(word);
                     exact_to = to;
