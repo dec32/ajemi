@@ -96,6 +96,22 @@ impl Engine {
                 if remains <= 0 {
                     break 'outer_loop;
                 }
+
+
+                // alternative glyphs. this iteration part is like hell
+                if let Some(alters) = self.schema().alters.get(w) {
+                    for w in alters {
+                        if exclude.contains(w) {
+                            continue;
+                        }
+                        suggs.push(Suggestion{ output: w.clone(), groupping: vec![to] });
+                        exclude.insert(w.clone());
+                        remains -= 1;
+                        if remains <= 0 {
+                            break 'outer_loop;
+                        }
+                    }
+                }
             }
         }
         suggs

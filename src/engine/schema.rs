@@ -4,26 +4,40 @@ use super::Candidate::*;
 
 pub struct Schema {
     pub candis: HashMap<String, Candidate>,
-    pub puncts: HashMap<char, char>
+    pub alters: HashMap<String, Vec<String>>,
+    pub puncts: HashMap<char, char>,
 }
 
-fn build_candis(entries: Vec<(&str, &str)>) -> HashMap<String, Candidate> {
-    let mut candi = HashMap::new();
-    for (spelling, word) in entries {
+fn build_schmea<const D:usize, const P:usize>(dict: [(&str, &str);D], punctuators: [(char, char);P]) -> Schema {
+    let mut candis = HashMap::new();
+    let mut alters = HashMap::new();
+    for (spelling, word) in dict {
         // store exact spellings -> words
-        candi.insert(spelling.to_string(), Exact(word.to_string(), Vec::new()));
+        if let Some(Exact(exact, _)) = candis.get(spelling) {
+            match alters.get_mut(exact) {
+                None => { 
+                    alters.insert(exact.to_string(), vec![word.to_string()]); 
+                }
+                Some(alters) => { 
+                    alters.push(word.to_string()); 
+                }
+            }
+            continue;
+        } else {
+            candis.insert(spelling.to_string(), Exact(word.to_string(), Vec::new()));
+        }
         // store prefixes -> words
         for len in 1..spelling.len() {
             let prefix = &spelling[0..len];
-            match candi.get_mut(prefix) {
+            match candis.get_mut(prefix) {
                 None => {
-                    candi.insert(prefix.to_string(), Unique(word.to_string()));
+                    candis.insert(prefix.to_string(), Unique(word.to_string()));
                 },
                 Some(Unique(unique)) => {
                     let mut duplicates = Vec::new();
                     duplicates.push(unique.clone());
                     duplicates.push(word.to_string());
-                    candi.insert(prefix.to_string(), Duplicates(duplicates));
+                    candis.insert(prefix.to_string(), Duplicates(duplicates));
                 },
                 Some(Duplicates(duplicates)) | Some(Exact(_, duplicates)) => {
                     duplicates.push(word.to_string());
@@ -31,12 +45,18 @@ fn build_candis(entries: Vec<(&str, &str)>) -> HashMap<String, Candidate> {
             }
         }
     }
-    candi
+
+    let mut puncts = HashMap::new();
+    for (punct, remapped) in punctuators {
+        puncts.insert(punct, remapped);
+    }
+
+    Schema {candis, alters, puncts}
 }
 
 
 pub fn sitelen() -> Schema {
-    let candis = build_candis(vec![
+    build_schmea([
         ("a", "󱤀"),      
         ("akesi", "󱤁"),  
         ("ala", "󱤂"),    
@@ -178,36 +198,170 @@ pub fn sitelen() -> Schema {
         ("apeja", "󱦡"),
         ("majuna", "󱦢"),
         ("powe", "󱦣"),
-    ]);
-
-    let mut puncts = HashMap::new();
-    puncts.insert('[', '󱦐');
-    puncts.insert(']', '󱦑');
-    puncts.insert('^', '󱦕');
-    puncts.insert('*', '󱦖');
-    puncts.insert('(', '󱦗');
-    puncts.insert(')', '󱦘');
-    puncts.insert('{', '󱦚');
-    puncts.insert('}', '󱦛');
-    puncts.insert('.', '󱦜');
-    puncts.insert(':', '󱦝');
-    // non-UCSUR ones
-    puncts.insert('<', '「');
-    puncts.insert('>', '」');
-    puncts.insert('-', '\u{200D}'); // ZWJ
-    puncts.insert(' ', '\u{3000}'); // CJK space
-
-    Schema {candis, puncts}
+    ],[
+        ('[', '󱦐'),
+        (']', '󱦑'),
+        ('^', '󱦕'),
+        ('*', '󱦖'),
+        ('(', '󱦗'),
+        (')', '󱦘'),
+        ('{', '󱦚'),
+        ('}', '󱦛'),
+        ('.', '󱦜'),
+        (':', '󱦝'),
+        ('<', '「'),
+        ('>', '」'),
+        ('-', '\u{200D}'), // ZWJ
+        (' ', '\u{3000}'), // CJK space
+    ])
 }
-
 
 pub fn emoji() -> Schema {
-    let candis = build_candis(vec![
-        ("pona", "😀")
-    ]);
-    let puncts = HashMap::new();
-    Schema {candis, puncts}
+    build_schmea([
+        ("a", "🅰️"),
+        ("akesi", "🦎"),
+        ("akesi", "🐸"),
+        ("ala", "❌"),
+        ("alasa", "🏹"),
+        ("ale", "🌌"),
+        ("anpa", "🧎"),
+        ("ante", "🔀"),
+        ("anu", "🤷"),
+        ("awen", "⚓"),
+        ("e", "⏩"),
+        ("en", "🤝"),
+        ("esun", "🛒"),
+        ("ijo", "🐚"),
+        ("ike", "😔"),
+        ("ilo", "🔦"),
+        ("insa", "🗳️"),
+        ("jaki", "💩"),
+        ("jan", "🧑"),
+        ("jelo", "🍋"),
+        ("jo", "👜"),
+        ("kala", "🐟"),
+        ("kalama", "👏"),
+        ("kama", "🛬"),
+        ("kasi", "🌱"),
+        ("ken", "💪"),
+        ("kepeken", "✍️"),
+        ("kili", "🍎"),
+        ("kiwen", "💎"),
+        ("ko", "🍦"),
+        ("kon", "💨"),
+        ("kule", "🌈"),
+        ("kulupu", "👥"),
+        ("kute", "👂"),
+        ("la", "ℹ️"),
+        ("lape", "😴"),
+        ("laso", "☘️"),
+        ("lawa", "👑"),
+        ("len", "🧣"),
+        ("lete", "❄️"),
+        ("li", "▶️"),
+        ("lili", "🐁"),
+        ("linja", "🧶"),
+        ("lipu", "🍁"),
+        ("loje", "👅"),
+        ("lon", "⏺️"),
+        ("luka", "🖐️"),
+        ("lukin", "👀"),
+        ("lupa", "🚪"),
+        ("ma", "🏝️"),
+        ("mama", "🍼"),
+        ("mani", "🐮"),
+        ("meli", "👩"),
+        ("mi", "👇"),
+        ("mije", "👨"),
+        ("moku", "🍜"),
+        ("moli", "😵"),
+        ("monsi", "🍑"),
+        ("mu", "🐽"),
+        ("mun", "🌙"),
+        ("musi", "🎭"),
+        ("mute", "👐"),
+        ("nanpa", "#️⃣"),
+        ("nasa", "🌀"),
+        ("nasin", "🛤️"),
+        ("nena", "🗻"),
+        ("ni", "⬇️"),
+        ("nimi", "📛"),
+        ("noka", "🦵"),
+        ("o", "🅾️"),
+        ("olin", "💕"),
+        ("ona", "👈"),
+        ("open", "🎬"),
+        ("pakala", "💥"),
+        ("pali", "🏗️"),
+        ("palisa", "📏"),
+        ("pan", "🍞"),
+        ("pana", "🙌"),
+        ("pi", "📎"),
+        ("pilin", "❤️"),
+        ("pimeja", "🎱"),
+        ("pini", "🏁"),
+        ("pipi", "🐛"),
+        ("poka", "👯"),
+        ("poki", "📦"),
+        ("pona", "😌"),
+        ("pu", "🧘"),
+        ("sama", "⚖️"),
+        ("seli", "🔥"),
+        ("selo", "🍌"),
+        ("seme", "❓"),
+        ("sewi", "☁️"),
+        ("sijelo", "🧍"),
+        ("sike", "⭕"),
+        ("sin", "✨"),
+        ("sina", "👆"),
+        ("sinpin", "🗿"),
+        ("sitelen", "🎨"),
+        ("sona", "🧠"),
+        ("soweli", "🦔"),
+        ("suli", "🐘"),
+        ("suno", "☀️"),
+        ("supa", "🛏️"),
+        ("suwi", "🍬"),
+        ("tan", "↩️"),
+        ("taso", "🚦"),
+        ("tawa", "🛫"),
+        ("telo", "💧"),
+        ("tenpo", "🕒"),
+        ("toki", "💬"),
+        ("tomo", "🏠"),
+        ("tu", "⏸️"),
+        ("unpa", "🍆"),
+        ("uta", "👄"),
+        ("utala", "⚔️"),
+        ("walo", "🐑"),
+        ("wan", "1️⃣"),
+        ("waso", "🐦"),
+        ("wawa", "⚡"),
+        ("weka", "🆑"),
+        ("wile", "🙏"),
+        ("epiku", "😁"),
+        ("jasima", "🪞"),
+        ("kijetesantakalu", "🦡"),
+        ("kin", "*️⃣"),
+        ("kipisi", "✂️"),
+        ("kokosila", "🐊"),
+        ("ku", "🔬"),
+        ("lanpan", "🤳"),
+        ("leko", "🧱"),
+        ("meso", "😑"),
+        ("misikeke", "💊"),
+        ("monsuta", "👻"),
+        ("n", "🆖"),
+        ("namako", "🌶️"),
+        ("oko", "👁️"),
+        ("soko", "🍄"),
+        ("tonsi", "⚧️"),
+        ("majuna", "🪷"),
+        ("su", "🧙"),
+    ], [
+        ('[', '\u{1F58C}'),
+        (']', '\u{1F58C}'),
+    ])
 }
-
 
 

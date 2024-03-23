@@ -35,7 +35,7 @@ impl Engine {
         let mut highest_score = 0;
         while !sents.is_empty() {
             let sent = sents.pop().unwrap();
-            if sent.output.chars().skip(1).next().is_none() {
+            if sent.groupping.len() <= 1 {
                 continue;
             }
             if sent.score > highest_score {
