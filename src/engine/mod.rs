@@ -74,42 +74,32 @@ impl Engine {
         'outer_loop:
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
-            let empty_vec = Vec::new();
-            let (word, words) = match self.schema().candis.get(slice) {
+            let words: Box<dyn Iterator<Item = &String>> = match self.schema().candis.get(slice) {
                 Some(Exact(word, words)) => 
-                    (Some(word), words),
+                    Box::new(Some(word).into_iter().chain(words.iter())),
                 Some(Unique(word)) => 
-                    (Some(word), &empty_vec),
+                    Box::new(Some(word).into_iter()),
                 Some(Duplicates(words)) => 
-                    (None, words),
+                    Box::new(words.iter()),
                 None => {
                     continue;
                 }
             };
-            for w in word.into_iter().chain(words) {
-                if exclude.contains(w) {
-                    continue;
-                }
-                suggs.push(Suggestion{ output: w.clone(), groupping: vec![to] });
-                exclude.insert(w.clone());
-                remains -= 1;
-                if remains <= 0 {
-                    break 'outer_loop;
-                }
-
-
-                // alternative glyphs. this iteration part is like hell
-                if let Some(alters) = self.schema().alters.get(w) {
-                    for w in alters {
-                        if exclude.contains(w) {
-                            continue;
-                        }
-                        suggs.push(Suggestion{ output: w.clone(), groupping: vec![to] });
-                        exclude.insert(w.clone());
-                        remains -= 1;
-                        if remains <= 0 {
-                            break 'outer_loop;
-                        }
+            for word in words {
+                let words: Box<dyn Iterator<Item = &String>> = if let Some(alters) = self.schema().alters.get(word) {
+                    Box::new(Some(word).into_iter().chain(alters.iter()))
+                } else {
+                    Box::new(Some(word).into_iter())
+                };
+                for word in words {
+                    if exclude.contains(word) {
+                        continue;
+                    }
+                    suggs.push(Suggestion{ output: word.clone(), groupping: vec![to] });
+                    exclude.insert(word.clone());
+                    remains -= 1;
+                    if remains <= 0 {
+                        break 'outer_loop;
                     }
                 }
             }
