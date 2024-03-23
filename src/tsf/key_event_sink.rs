@@ -6,6 +6,7 @@ use windows::core::Result;
 use crate::{extend::{GUIDExt, OsStrExt2}, engine::engine};
 use super::{edit_session, TextService, TextServiceInner};
 use self::Input::*;
+use self::Shortcut::*;
 
 //----------------------------------------------------------------------------
 //
@@ -29,7 +30,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// `wparam` indicates the key that is pressed.
     /// The 0-15 bits of `_lparam` indicates the repeat count (ignored here because it's actually always 1). 
     /// (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
-    fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         // remember the "hold" of the modifiers but not eat the event since 
@@ -38,37 +39,45 @@ impl ITfKeyEventSink_Impl for TextService {
             return Ok(FALSE);
         }
         if inner.modifiers.preparing_shortcut() {
-            return Ok(FALSE);
+            let shorcut = Shortcut::from(wparam.0, inner.modifiers.ctrl(), inner.modifiers.alt(), inner.modifiers.shift());
+            inner.test_shortcut(shorcut)
+        } else {
+            let input = Input::from(wparam.0, inner.modifiers.shift());
+            inner.test_input(input)
         }
-        let input = Input::from(wparam.0, inner.modifiers.shift());
-        inner.test_input(input)
     }
 
     /// The return value suggests if the key event **is** eaten or not.
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
     /// The client might call `OnKeyDown` even if `OnTestKeyDown` returned `false`.
     /// The client can be an asshole. Remember that.
-    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         if inner.modifiers.try_insert(wparam) {
             return Ok(FALSE);
         }
         if inner.modifiers.preparing_shortcut() {
-            return Ok(FALSE);
+            let shorcut = Shortcut::from(wparam.0, inner.modifiers.ctrl(), inner.modifiers.alt(), inner.modifiers.shift());
+            let res = inner.handle_shortcut(shorcut);
+            if matches!(res, Ok(TRUE)) {
+                inner.modifiers.clear()
+            }
+            res
+        } else {
+            let input = Input::from(wparam.0, inner.modifiers.shift());
+            inner.handle_input(input, context)
         }
-        let input = Input::from(wparam.0, inner.modifiers.shift());
-        inner.handle_input(input, context)
     }
 
     /// Flip the modifiers back
-    fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
         self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
     }
 
-    fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam:WPARAM, _lparam:LPARAM) -> Result<BOOL> {
+    fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
         self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
@@ -80,7 +89,7 @@ impl ITfKeyEventSink_Impl for TextService {
         Ok(FALSE)
     }
 
-    fn OnSetFocus(&self, foreground:BOOL) ->  Result<()> {
+    fn OnSetFocus(&self, foreground:BOOL) -> Result<()> {
         trace!("OnSetFocus({})", foreground.as_bool());
         if !foreground.as_bool() {
             self.write()?.abort()
@@ -93,16 +102,23 @@ impl ITfKeyEventSink_Impl for TextService {
 /// Keep track of if the modifiers(CTRL, ALT and SHIFT).
 /// WIN is ignored since Windows already captures all shortcuts containing WIN for us.
 /// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
+#[derive(Default)]
 pub struct Modifiers {
     pressed: [bool;9],
     shift_count: u8,
-    other_count: u8,
+    ctrl_count: u8,
+    alt_count: u8,
 }
 
 impl Modifiers {
     pub fn new() -> Modifiers {
-        Modifiers{ pressed: Default::default(), shift_count: 0, other_count: 0}
+        Modifiers::default()
     }
+
+    fn clear(&mut self) {
+        *self = Modifiers::new()
+    }
+
     fn try_insert(&mut self, wparam: WPARAM) -> bool {
         let Some(index) = Self::index(wparam) else {
             return false;
@@ -111,13 +127,16 @@ impl Modifiers {
             self.pressed[index] = true;
             if Self::is_shift(wparam) {
                 self.shift_count += 1;
+            } if Self::is_ctrl(wparam) {
+                self.ctrl_count += 1;
             } else {
-                self.other_count += 1;
+                self.alt_count += 1;
             }
         } 
         debug!("{:?}", self);
         true
     }
+
     fn try_remove(&mut self, wparam: WPARAM) -> bool { 
         let Some(index) = Self::index(wparam) else {
             return false;
@@ -126,36 +145,30 @@ impl Modifiers {
             self.pressed[index] = false;
             if Self::is_shift(wparam) {
                 self.shift_count -= 1;
+            } if Self::is_ctrl(wparam) {
+                self.ctrl_count -= 1;
             } else {
-                self.other_count -= 1;
+                self.alt_count -= 1;
             }
         }
         debug!("{:?}", self);
         true
     }
+
     fn preparing_shortcut(&self) -> bool {
-        self.other_count > 0
+        self.ctrl() || self.alt()
     }
+
     fn shift(&self) -> bool {
         self.shift_count > 0
     }
-}
 
-impl fmt::Debug for Modifiers {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Modifiers: [")?;
-        let mut comma = false;
-        for (index, pressed) in self.pressed.iter().enumerate() {
-            if *pressed {
-                if comma == false {
-                    comma = true
-                } else {
-                    f.write_str(", ")?;
-                }
-                f.write_str(Self::NAMES[index])?;
-            }
-        }
-        f.write_str("]")
+    fn ctrl(&self) -> bool {
+        self.ctrl_count > 0
+    }
+
+    fn alt(&self) -> bool {
+        self.alt_count > 0
     }
 }
 
@@ -187,13 +200,53 @@ impl Modifiers {
         wparam.0 == Self::LSHIFT ||
         wparam.0 == Self::RSHIFT
     }
+
+    const fn is_ctrl(wparam: WPARAM) -> bool {
+        wparam.0 == Self::CTRL ||
+        wparam.0 == Self::LCTRL ||
+        wparam.0 == Self::RCTRL
+    }
+}
+
+impl fmt::Debug for Modifiers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Modifiers: [")?;
+        let mut comma = false;
+        for (index, pressed) in self.pressed.iter().enumerate() {
+            if *pressed {
+                if comma == false {
+                    comma = true
+                } else {
+                    f.write_str(", ")?;
+                }
+                f.write_str(Self::NAMES[index])?;
+            }
+        }
+        f.write_str("]")
+    }
+}
+
+enum Shortcut {
+    Alt(usize),
+    Undefine,
+}
+
+impl Shortcut {
+    fn from(key_code: usize, ctrl: bool, alt: bool, shift: bool) -> Shortcut {
+        use Shortcut::*;
+        let input = Input::from(key_code, shift);
+        match (ctrl, alt, input)  {
+            (false, true, Number(num)) => Alt(num),
+            _ => Undefine
+        }
+    }
 }
 
 
 /// Inputs that are easier to understand and handle.
 /// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
 #[derive(Debug)]
-enum Input{
+enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
@@ -201,7 +254,7 @@ enum Input{
 }
 
 impl Input {
-    fn from (key_code: usize, shift: bool) -> Input {
+    fn from(key_code: usize, shift: bool) -> Input {
         use Input::*;
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
@@ -347,6 +400,31 @@ impl TextServiceInner {
         self.char_buf.push(ch);
         let text = OsString::from(&self.char_buf).wchars();
         edit_session::insert_text(self.tid, self.context()?, &text)
+    }
+
+    fn test_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
+        if self.composition.is_none() {
+            match shortcut {
+                Alt(1) => Ok(TRUE),
+                _ => Ok(FALSE),
+            }
+        } else {
+            Ok(FALSE)
+        }
+    }
+
+    fn handle_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
+        if self.composition.is_none() {
+            match shortcut {
+                Alt(1) => {    
+                    engine().next_mode();
+                    Ok(TRUE)
+                }
+                _ => Ok(FALSE),
+            }
+        } else {
+            Ok(FALSE)
+        }
     }
 }
 

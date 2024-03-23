@@ -26,19 +26,28 @@ pub struct Suggestion {
     pub groupping: Vec<usize>,
 }
 
+#[derive(Default)]
+pub enum Mode { 
+    #[default]
+    Sitelen, 
+    Emoji,
+}
 
 /// Engine. A struct to store and query words and punctuators
 #[derive(Default)]
 pub struct Engine {
+    mode: Mode,
     // todo use SmallString
     candidates: HashMap<String, Candidate>,
     puncts: HashMap<char, char>,
+    
 }
 
 impl Engine {
-    fn new() -> Engine{
-        Default::default()
+    fn new() -> Engine {
+        Engine::default()
     }
+
     fn load_dict(&mut self, entries: Vec<(&str, &str)>) {
         let mut candidates = HashMap::new();
         for (spelling, word) in entries {
@@ -119,6 +128,13 @@ impl Engine {
         }
         suggs
     }
+
+    pub fn next_mode(&mut self) {
+        self.mode = match self.mode {
+            Mode::Sitelen => Mode::Emoji,
+            Mode::Emoji => Mode::Sitelen,
+        }
+    }
 }
 
 
@@ -130,9 +146,8 @@ impl Engine {
 
 static mut ENGINE: OnceCell<Engine> = OnceCell::new();
 
-pub fn engine() -> &'static Engine {
-    // todo the returned reference is mutable one
-    unsafe {ENGINE.get().unwrap()}
+pub fn engine() -> &'static mut Engine {
+    unsafe {ENGINE.get_mut().unwrap()}
 }
 
 pub fn setup() {
