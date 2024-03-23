@@ -59,11 +59,7 @@ impl ITfKeyEventSink_Impl for TextService {
         }
         if inner.modifiers.preparing_shortcut() {
             let shorcut = Shortcut::from(wparam.0, inner.modifiers.ctrl(), inner.modifiers.alt(), inner.modifiers.shift());
-            let res = inner.handle_shortcut(shorcut);
-            if matches!(res, Ok(TRUE)) {
-                inner.modifiers.clear()
-            }
-            res
+            inner.handle_shortcut(shorcut)
         } else {
             let input = Input::from(wparam.0, inner.modifiers.shift());
             inner.handle_input(input, context)
@@ -115,10 +111,6 @@ impl Modifiers {
         Modifiers::default()
     }
 
-    fn clear(&mut self) {
-        *self = Modifiers::new()
-    }
-
     fn try_insert(&mut self, wparam: WPARAM) -> bool {
         let Some(index) = Self::index(wparam) else {
             return false;
@@ -127,7 +119,7 @@ impl Modifiers {
             self.pressed[index] = true;
             if Self::is_shift(wparam) {
                 self.shift_count += 1;
-            } if Self::is_ctrl(wparam) {
+            } else if Self::is_ctrl(wparam) {
                 self.ctrl_count += 1;
             } else {
                 self.alt_count += 1;
@@ -145,7 +137,7 @@ impl Modifiers {
             self.pressed[index] = false;
             if Self::is_shift(wparam) {
                 self.shift_count -= 1;
-            } if Self::is_ctrl(wparam) {
+            } else if Self::is_ctrl(wparam) {
                 self.ctrl_count -= 1;
             } else {
                 self.alt_count -= 1;
@@ -159,16 +151,16 @@ impl Modifiers {
         self.ctrl() || self.alt()
     }
 
-    fn shift(&self) -> bool {
-        self.shift_count > 0
-    }
-
     fn ctrl(&self) -> bool {
         self.ctrl_count > 0
     }
 
     fn alt(&self) -> bool {
         self.alt_count > 0
+    }
+
+    fn shift(&self) -> bool {
+        self.shift_count > 0
     }
 }
 
@@ -226,17 +218,19 @@ impl fmt::Debug for Modifiers {
     }
 }
 
+#[derive(Debug)]
 enum Shortcut {
-    Alt(usize),
+    Switch(usize),
     Undefine,
 }
 
 impl Shortcut {
     fn from(key_code: usize, ctrl: bool, alt: bool, shift: bool) -> Shortcut {
+        trace!("Shortcut::from({}, {}, {}, {})", key_code, ctrl, alt, shift);
         use Shortcut::*;
-        let input = Input::from(key_code, shift);
-        match (ctrl, alt, input)  {
-            (false, true, Number(num)) => Alt(num),
+        let input = Input::from(key_code, false);
+        match (ctrl, alt, shift, input)  {
+            (true, false, true, Number(num)) => Switch(num),
             _ => Undefine
         }
     }
@@ -405,7 +399,7 @@ impl TextServiceInner {
     fn test_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
-                Alt(1) => Ok(TRUE),
+                Switch(1) => Ok(TRUE),
                 _ => Ok(FALSE),
             }
         } else {
@@ -416,7 +410,7 @@ impl TextServiceInner {
     fn handle_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
-                Alt(1) => {    
+                Switch(1) => {    
                     engine().next_mode();
                     Ok(TRUE)
                 }
