@@ -85,29 +85,28 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 // Returns the required object. For a COM dll like an IME, the required object is always a class factory.
 #[allow(non_snake_case, dead_code)]
 #[no_mangle]
-extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+unsafe extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
     // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
-    unsafe {
-        debug!("DllGetClassObject({})", (*riid).to_rfc4122());
-        let mut result = S_OK;
-        *ppv = match *riid {
-            IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
-            IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
-            guid => {
-                error!("The required class object {} is not available.", guid.to_rfc4122());
-                result = CLASS_E_CLASSNOTAVAILABLE;
-                ptr::null_mut()
-            }
-        };
-        result
-    }
+    debug!("DllGetClassObject({})", (*riid).to_rfc4122());
+    let mut result = S_OK;
+    *ppv = match *riid {
+        IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
+        IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
+        guid => {
+            error!("The required class object {} is not available.", guid.to_rfc4122());
+            result = CLASS_E_CLASSNOTAVAILABLE;
+            ptr::null_mut()
+        }
+    };
+    result
+    
 }
 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
-extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
+unsafe extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
     // it seems not that of a important thing to do according to 
     // https://github.com/microsoft/windows-rs/issues/2472 tho
