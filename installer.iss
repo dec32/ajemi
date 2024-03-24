@@ -16,8 +16,8 @@ DefaultGroupName={#MyAppName}
 DefaultDirName={autopf}\{#MyAppName}
 ;; icon and style
 WizardStyle=classic
-SetupIconFile=.\res\installer_icon.ico
-UninstallIconFile=.\res\installer_icon.ico
+SetupIconFile=.\res\installer.ico
+UninstallIconFile=.\res\installer.ico
 ;; allow user to disable start menu shorcuts
 AllowNoIcons=yes
 ;; compile
