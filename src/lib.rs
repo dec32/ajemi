@@ -10,7 +10,7 @@ mod ui;
 use std::{ffi::c_void, ptr, mem};
 use ui::candidate_list;
 use ::log::{debug, error};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface, Error}};
+use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
 use global::*;
 use register::*;
 
@@ -46,14 +46,19 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
-    if register_server().is_ok() && register_ime().is_ok(){
-        debug!("Registered server successfully.");
-        S_OK
-    } else {
-        // TODO print the error
-        error!("Failed to register server. Trying to unregister now.");
-        let _ = DllUnregisterServer();
-        E_FAIL
+    unsafe fn reg() -> Result<()> {
+        register_server()?;
+        register_ime()
+    }
+    match reg() {
+        Ok(()) => {
+            debug!("Registered server successfully.");
+            S_OK
+        },
+        Err(err) => {
+            error!("Failed to register server. {:?}", err);
+            err.into()
+        }
     }
 }
 
@@ -61,17 +66,19 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case, dead_code)]
 unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    let errors: Vec<Error> = [unregister_ime(), unregister_server()].into_iter()
-        .filter(Result::is_err)
-        .map(Result::unwrap_err)
-        .collect();
-    if errors.is_empty() {
-        debug!("Unegistered server successfully.");
-        S_OK
-    } else {
-        error!("Failed to unregister server. {:?}", errors);
-        // FIXME should've been E_FAIL but I don't want to bother the user.
-        E_FAIL
+    unsafe fn unreg() -> Result<()> {
+        unregister_ime()?;
+        unregister_server()
+    }
+    match unreg() {
+        Ok(()) => {
+            debug!("Unegistered server successfully.");
+            S_OK
+        },
+        Err(err) => {
+            error!("Failed to unregister server. {:?}", err);
+            err.into()
+        }
     }
 }
 
