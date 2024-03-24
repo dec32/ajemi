@@ -143,7 +143,6 @@ pub unsafe fn register_ime() -> Result<()> {
 
 // similar process but re-doing everything
 pub unsafe fn unregister_ime() -> Result<()> {
-    // todo: it seems able to unregister the dll but alaways exits with 0x80004005
     let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
         &CLSID_TF_InputProcessorProfiles, // using ::IID would cause unregister to fail
         None, 
@@ -153,14 +152,14 @@ pub unsafe fn unregister_ime() -> Result<()> {
         None, 
         CLSCTX_INPROC_SERVER)?;
 
-    input_processor_profiles.Unregister(&IME_ID)?;
-    debug!("Unregistered the input method.");
-    input_processor_profiles.RemoveLanguageProfile(&IME_ID, LANG_ID, &LANG_PROFILE_ID)?;
-    debug!("Unregistered the language profile.");
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     debug!("Unregistered the categories.");
+    input_processor_profiles.RemoveLanguageProfile(&IME_ID, LANG_ID, &LANG_PROFILE_ID)?;
+    debug!("Unregistered the language profile.");
+    input_processor_profiles.Unregister(&IME_ID)?;
+    debug!("Unregistered the input method.");
     Ok(())
 }
 

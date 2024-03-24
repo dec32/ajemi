@@ -71,7 +71,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
     } else {
         error!("Failed to unregister server. {:?}", errors);
         // FIXME should've been E_FAIL but I don't want to bother the user.
-        S_OK
+        E_FAIL
     }
 }
 
