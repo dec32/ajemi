@@ -2,25 +2,9 @@ mod long_glyph;
 mod sentence;
 mod schema;
 use std::{cell::OnceCell, collections::HashSet};
-use Candidate::*;
-
-use crate::{conf::CJK_SPACE, CANDI_NUM};
-
 use self::schema::Schema;
-
-/// To expain why a certain spelling is mapped to certain word(s)
-enum Candidate {
-    /// The spelling is an exact spelling of a certain word.
-    /// Meanwhile it can also be a prefix of other words.
-    /// For example, `"li"` is `Exact("li", ["lili", "linja", "lipu"])`.
-    Exact(String, Vec<String>),
-    /// The spelling is unique prefix for a certain word. No other words starts with it.
-    /// For example, `"kije"` is `Unique("kijetesantakalu")`.
-    Unique(String),
-    /// The spelling is not an exact spelling or a unique prefix.
-    /// For example, `"an"` is `Duplicates(["anpa", "ante", "anu"])`.
-    Duplicates(Vec<String>)
-}
+use self::schema::Candidate::*;
+use crate::{conf::CJK_SPACE, CANDI_NUM};
 
 /// Suggestions from engine
 #[derive(Default, Clone)]
@@ -32,23 +16,23 @@ pub struct Suggestion {
 /// Engine. A struct to store and query words and punctuators
 pub struct Engine {
     schemas: [Schema;2],
-    index: usize,
+    schema_index: usize,
 }
 
 impl Engine {
     fn new() -> Engine {
         Engine {
             schemas: [schema::sitelen(), schema::emoji()],
-            index: 0
+            schema_index: 0
         }
     }
 
     fn schema(&self) -> &Schema {
-        &self.schemas[self.index]
+        &self.schemas[self.schema_index]
     }
 
     pub fn next_schema(&mut self) {
-        self.index = (self.index + 1) % self.schemas.len()
+        self.schema_index = (self.schema_index + 1) % self.schemas.len()
     }
 
     pub fn remap_punct(&self, punct: char) -> char {
@@ -64,7 +48,7 @@ impl Engine {
             return Vec::new(); 
         }
         let mut suggs = Vec::with_capacity(CANDI_NUM);
-        // Suggest a sentence
+        // suggest a sentence
         if let Some(sugg) = self.suggest_sentence(spelling) {
             suggs.push(sugg);
         }

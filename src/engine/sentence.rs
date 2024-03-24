@@ -1,4 +1,4 @@
-use super::{long_glyph::insert_long_glyph, Candidate::*, Engine, Suggestion};
+use super::{long_glyph::insert_long_glyph, schema::Candidate::*, Engine, Suggestion};
 
 #[derive(Default, Clone)]
 struct Sentence {
