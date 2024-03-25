@@ -21,6 +21,8 @@ pub struct Schema {
     pub candis: HashMap<String, Candidate>,
     pub alters: HashMap<String, Vec<String>>,
     pub puncts: HashMap<char, char>,
+    pub squote: (char, char),
+    pub dquote: (char, char),
 }
 
 impl Schema {
@@ -63,11 +65,13 @@ impl Schema {
         }
     
         let mut puncts = HashMap::new();
+        let squote = ('\'', '\'');
+        let dquote = ('「', '」');
         for (punct, remapped) in punctuators {
             puncts.insert(punct, remapped);
         }
-    
-        Schema {candis, alters, puncts}
+
+        Schema {candis, alters, puncts, squote, dquote}
     }
 }
 

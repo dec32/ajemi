@@ -17,13 +17,17 @@ pub struct Suggestion {
 pub struct Engine {
     schemas: [Schema;2],
     schema_index: usize,
+    squote_open: bool,
+    dquote_open: bool,
 }
 
 impl Engine {
     fn new() -> Engine {
         Engine {
             schemas: [schema::sitelen(), schema::emoji()],
-            schema_index: 0
+            schema_index: 0,
+            squote_open: false,
+            dquote_open: false
         }
     }
 
@@ -35,12 +39,30 @@ impl Engine {
         self.schema_index = (self.schema_index + 1) % self.schemas.len()
     }
 
-    pub fn remap_punct(&self, punct: char) -> char {
-        self.schema().puncts
-            .get(&punct)
-            .cloned()
-            .filter(|it| *it != '\u{3000}' || unsafe { !CJK_SPACE } )
-            .unwrap_or(punct)
+    pub fn remap_punct(&mut self, punct: char) -> char {
+        match punct {
+            '\'' => {
+                let remmaped = match self.squote_open {
+                    false => self.schema().squote.0,
+                    true =>  self.schema().squote.1
+                };
+                self.squote_open = !self.squote_open;
+                remmaped
+            }
+            '"' => {
+                let remmaped = match self.dquote_open {
+                    false => self.schema().dquote.0,
+                    true =>  self.schema().dquote.1
+                };
+                self.dquote_open = !self.dquote_open;
+                remmaped
+            }
+            punct => self.schema().puncts
+                .get(&punct)
+                .cloned()
+                .filter(|it| *it != '\u{3000}' || unsafe { !CJK_SPACE } )
+                .unwrap_or(punct)
+        }
     }
 
     pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
