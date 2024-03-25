@@ -36,7 +36,9 @@ impl Engine {
     }
 
     pub fn next_schema(&mut self) {
-        self.schema_index = (self.schema_index + 1) % self.schemas.len()
+        self.schema_index = (self.schema_index + 1) % self.schemas.len();
+        self.squote_open = false;
+        self.dquote_open = false;
     }
 
     pub fn remap_punct(&mut self, punct: char) -> char {

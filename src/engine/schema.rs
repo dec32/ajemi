@@ -28,7 +28,6 @@ pub struct Schema {
     pub dquote: (char, char),
 }
 
-
 //----------------------------------------------------------------------------
 //
 //  Load schemas from files.
@@ -160,9 +159,18 @@ pub fn emoji() -> Schema {
 }
 
 #[test]
-fn test_schema_parsing() {
-    let sitelen_schema = include_str!("../../res/schema/sitelen.schema");
-    let emoji_schema = include_str!("../../res/schema/emoji.schema");
-    println!("{:?}", Schema::from(sitelen_schema));
-    println!("{:?}", Schema::from(emoji_schema));
+fn test() {
+    test_schema(include_str!("../../res/schema/sitelen.schema"));
+    test_schema(include_str!("../../res/schema/emoji.schema"));
+}
+
+
+#[allow(unused)]
+fn test_schema(str: &str) {
+    let start = std::time::Instant::now();
+    let schema = Schema::from(str);
+    let elapsed = std::time::Instant::now() - start;
+    println!("Elapsed: {:?}", elapsed);
+    println!("{:?}", schema);
+    println!()
 }
