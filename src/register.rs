@@ -1,7 +1,7 @@
 use std::ffi::{OsStr, OsString};
 use std::fs;
-use log::{debug, warn, error};
-use windows::Win32::Foundation::E_FAIL;
+use log::{debug, error, warn};
+use windows::Win32::Foundation::{GetLastError, E_FAIL};
 use windows::core::{Result, GUID};
 use windows::Win32::UI::TextServices;
 use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr}};
@@ -43,20 +43,22 @@ pub unsafe fn register_server() -> Result<()> {
 
 unsafe fn find_dll_path() -> Result<OsString> {
     // FIXME the buf is always empty
-    let mut buf: Vec<u8> = Vec::with_capacity(260);
-    debug!("Handle to the dll module is {:#0X}", dll_module().0);
+    let mut buf: Vec<u8> = vec![0;512];
     GetModuleFileNameA(dll_module(), &mut buf);
-    debug!("Result of GetModuleFileNameA: {:?}", buf);
-    if !buf.is_empty() {
+    let len = buf.iter().position(|byte| *byte == 0).unwrap();
+    if len != 0 {   
+        buf.truncate(buf.iter().position(|byte| *byte == 0).unwrap());
         let path = OsString::from_encoded_bytes_unchecked(buf);
-        debug!("Found dll in {:?}", path);
+        debug!("Found dll in {}", path.to_string_lossy());
         return Ok(path);
     }
-    // GetModuleFileNameA tends to fail so try a few more options
-    warn!("GetModuleFileNameA did not provide the path of the DLL file.");
+    match GetLastError() {
+        Ok(_) => error!("GetModuleFileNameA did not provide the path of the DLL file."),
+        Err(err) => error!("GetModuleFileNameA did not provide the path of the DLL file. {:?}", err)
+    }
     for path in POSSIBLE_DLL_PATHS {
         if let Ok(canonical_path) = fs::canonicalize(path) {
-            debug!("Found dll in {path}");
+            warn!("Use pre-defined dll path {path}");
             return Ok(canonical_path.into_os_string())
         }     
     }
