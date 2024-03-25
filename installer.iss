@@ -25,6 +25,7 @@ OutputDir=.\target\release
 OutputBaseFilename=ajemi-installer_x64
 Compression=lzma
 SolidCompression=yes
+ArchitecturesInstallIn64BitMode=x64
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
