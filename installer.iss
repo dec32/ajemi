@@ -15,7 +15,6 @@ AppUpdatesURL={#MyAppURL}
 DefaultGroupName={#MyAppName}
 DefaultDirName={autopf}\{#MyAppName}
 ;; icon and style
-SetupIconFile=.\res\installer.ico
 WizardStyle=modern
 ;; allow user to disable start menu shorcuts
 AllowNoIcons=yes
