@@ -1,13 +1,12 @@
 use core::fmt;
 use std::ffi::OsString;
 use log::{debug, trace, warn};
-use windows::{Win32::{UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}, Foundation::{WPARAM, LPARAM, BOOL, TRUE, FALSE}}, core::GUID};
+use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}}};
 use windows::core::Result;
 use crate::{extend::{GUIDExt, OsStrExt2}, engine::engine};
 use super::{edit_session, TextService, TextServiceInner};
 use self::Input::*;
 use self::Shortcut::*;
-
 //----------------------------------------------------------------------------
 //
 //  A "sink" for key events. From here on the processing begins.

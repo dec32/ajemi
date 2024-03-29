@@ -10,7 +10,7 @@ mod ui;
 use std::{ffi::c_void, ptr, mem};
 use ui::candidate_list;
 use ::log::{debug, error};
-use windows::{Win32::{Foundation::{HINSTANCE, S_OK, BOOL, CLASS_E_CLASSNOTAVAILABLE, S_FALSE, E_NOINTERFACE}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}, core::{GUID, HRESULT, implement, IUnknown, Result, ComInterface}};
+use windows::{core::{implement, IUnknown, Interface, Result, GUID, HRESULT}, Win32::{Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_NOINTERFACE, HINSTANCE, S_FALSE, S_OK}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}};
 use global::*;
 use register::*;
 

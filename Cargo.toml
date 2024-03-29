@@ -12,7 +12,7 @@ parking_lot = "0.12"
 toml = "0.8.9"
 
 [dependencies.windows]
-version = "0.52.0"
+version = "0.54.0"
 features = [
     "implement",
     "Win32_Foundation",
@@ -20,6 +20,8 @@ features = [
     "Win32_System_SystemServices",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_TextServices",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
     "Win32_Security",
     "Win32_System_Registry",
     "Win32_System_LibraryLoader",

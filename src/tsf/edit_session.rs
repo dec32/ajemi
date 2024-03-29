@@ -2,8 +2,7 @@ use std::cell::Cell;
 use std::mem::ManuallyDrop;
 use log::{error, trace};
 use windows::Win32::Foundation::{BOOL, FALSE, RECT, S_OK};
-use windows::core::{implement, Result, ComInterface, AsImpl};
-use windows::Win32::System::Variant::VARIANT;
+use windows::core::{Interface, implement, AsImpl, Result, VARIANT};
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION, TF_ST_CORRECTION};
 
 //----------------------------------------------------------------------------

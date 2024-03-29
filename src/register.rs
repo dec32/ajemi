@@ -52,10 +52,7 @@ unsafe fn find_dll_path() -> Result<OsString> {
         debug!("Found dll in {}", path.to_string_lossy());
         return Ok(path);
     }
-    match GetLastError() {
-        Ok(_) => error!("GetModuleFileNameA did not provide the path of the DLL file."),
-        Err(err) => error!("GetModuleFileNameA did not provide the path of the DLL file. {:?}", err)
-    }
+    error!("GetModuleFileNameA did not provide the path of the DLL file. {:?}", GetLastError());
     for path in POSSIBLE_DLL_PATHS {
         if let Ok(canonical_path) = fs::canonicalize(path) {
             warn!("Use pre-defined dll path {path}");

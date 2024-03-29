@@ -66,13 +66,13 @@ impl From<Color> for HBRUSH {
 }
 
 impl IntoParam<COLORREF> for Color {
-    fn into_param(self) -> Param<COLORREF> {
+    unsafe fn into_param(self) -> Param<COLORREF> {
         Param::Owned(self.into())
     }
 }
 
 impl IntoParam<HBRUSH> for Color {
-    fn into_param(self) -> Param<HBRUSH> {
+    unsafe fn into_param(self) -> Param<HBRUSH> {
         Param::Owned(self.into())
     }
 }

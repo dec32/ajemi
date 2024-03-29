@@ -1,6 +1,6 @@
 use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}};
 use log::{trace, debug, error};
-use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, E_FAIL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{self, BeginPaint, CreateFontA, EndPaint, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
+use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{self, BeginPaint, CreateFontA, EndPaint, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
 use crate::{conf::*, engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO};
 
@@ -41,7 +41,7 @@ pub fn setup() -> Result<()> {
     unsafe {
         if RegisterClassExA(&wcex) == 0 {
             error!("Failed to register window class for candidate list");
-            return GetLastError();
+            return Err(GetLastError().into());
         }
         debug!("Registered window class for candidate list.");
     }
@@ -88,10 +88,7 @@ impl CandidateList {
                 None);
             if window.0 == 0 {
                 error!("CreateWindowExA returned null.");
-                return match GetLastError() {
-                    Ok(_) => Err(E_FAIL.into()),
-                    Err(e) => Err(e)
-                };
+                return Err(GetLastError().into());
             }
             let dc: HDC = GetDC(window);
             let pixel_per_inch = GetDeviceCaps(dc, LOGPIXELSY);
@@ -102,10 +99,7 @@ impl CandidateList {
                 font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
             if candi_font.is_invalid() {
                 error!("CreateFontA failed.");
-                return match GetLastError() {
-                    Ok(_) => Err(E_FAIL.into()),
-                    Err(e) => Err(e)
-                };
+                return Err(GetLastError().into());
             }
 
             let font_size = font_size * 70 / 100;

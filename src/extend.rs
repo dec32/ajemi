@@ -1,6 +1,6 @@
-use std::{ffi::{OsString, OsStr}, fmt::Debug, mem::ManuallyDrop, os::windows::ffi::OsStrExt};
+use std::{ffi::{OsString, OsStr}, fmt::Debug, os::windows::ffi::OsStrExt};
 use toml::{Table, Value};
-use windows::{core::GUID, Win32::System::Variant::{VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_I4}};
+use windows::core::GUID;
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }
@@ -61,27 +61,6 @@ pub trait ResultExt {
 }
 impl <T, E:Debug> ResultExt for Result<T, E> {
     fn ignore(self) {}
-}
-pub trait VARANTExt {
-    fn i4(value: i32) -> Self;
-}
-// modified from variant.rs in https://github.com/microsoft/windows-rs/pull/2786/files
-impl VARANTExt for VARIANT {
-    fn i4(value: i32) -> Self {
-        VARIANT {
-            Anonymous: VARIANT_0 {
-                Anonymous: ManuallyDrop::new(VARIANT_0_0 {
-                    vt: VT_I4, 
-                    wReserved1: 0, 
-                    wReserved2: 0, 
-                    wReserved3: 0, 
-                    Anonymous: VARIANT_0_0_0 { 
-                        lVal: value
-                    } 
-                })
-            }
-        }
-    }
 }
 
 pub trait LoadValue where Self: Sized {

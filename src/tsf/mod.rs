@@ -11,7 +11,7 @@ use std::time::{Instant, Duration};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
-use windows::{core::{Result, implement, AsImpl, ComInterface}, Win32::{Foundation::E_FAIL, System::Variant::VARIANT, UI::{TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx, ITfComposition, ITfThreadMgr, ITfKeyEventSink, ITfThreadMgrEventSink, ITfCompositionSink, ITfLangBarItem, ITfContext, ITfDisplayAttributeProvider}, WindowsAndMessaging::HICON}}};
+use windows::{core::{Interface, implement, AsImpl, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink}, WindowsAndMessaging::HICON}}};
 use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
 
 use self::key_event_sink::Modifiers;
@@ -67,7 +67,7 @@ struct TextServiceInner {
 }
 
 impl TextService {
-    pub fn create<I: ComInterface>() -> Result<I>{
+    pub fn create<I: Interface>() -> Result<I>{
         let inner = TextServiceInner {
             tid: 0,
             thread_mgr: None,
@@ -114,7 +114,7 @@ impl TextService {
 }
 
 impl TextServiceInner {
-    fn interface<I: ComInterface>(&self) -> Result<I> {
+    fn interface<I: Interface>(&self) -> Result<I> {
         // guarenteed to be Some by TextService::create
         self.interface.as_ref().unwrap().cast()
     }

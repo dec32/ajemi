@@ -1,10 +1,8 @@
 use log::{trace, debug, warn};
 use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
-use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::TextServices::{ CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfKeyEventSink, ITfKeystrokeMgr, ITfSource, ITfTextInputProcessorEx_Impl, ITfTextInputProcessor_Impl, ITfThreadMgr, ITfThreadMgrEventSink};
-use windows::core::{Result, ComInterface};
-use crate::extend::VARANTExt;
+use windows::core::{Interface, Result, VARIANT};
 use crate::{conf, DISPLAY_ATTR_ID};
 
 use super::TextService;
@@ -34,7 +32,7 @@ impl ITfTextInputProcessor_Impl for TextService {
                 let category_mgr: ITfCategoryMgr = CoCreateInstance(
                     &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
-                inner.display_attribute = Some(VARIANT::i4(guid_atom as i32));
+                inner.display_attribute = Some(VARIANT::from(guid_atom));
             }
             Ok(())
         }
