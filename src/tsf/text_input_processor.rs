@@ -32,7 +32,7 @@ impl ITfTextInputProcessor_Impl for TextService {
                 let category_mgr: ITfCategoryMgr = CoCreateInstance(
                     &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
-                inner.display_attribute = Some(VARIANT::from(guid_atom));
+                inner.display_attribute = Some(VARIANT::from(guid_atom as i32));
             }
             Ok(())
         }
