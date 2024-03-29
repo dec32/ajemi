@@ -1,6 +1,6 @@
 use std::{ffi::{OsString, OsStr}, fmt::Debug, os::windows::ffi::OsStrExt};
 use toml::{Table, Value};
-use windows::core::GUID;
+use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }
@@ -103,4 +103,23 @@ impl TableExt for Table {
         }
     }
     
+}
+
+pub trait VKExt {
+    fn is_down(self) -> bool;
+    fn is_toggled(self) -> bool;
+}
+
+impl VKExt for VIRTUAL_KEY {
+    fn is_down(self) -> bool {
+        unsafe {
+            GetKeyState(self.0 as i32) as u16 & 0x8000 != 0
+        }
+    }
+
+    fn is_toggled(self) -> bool {
+        unsafe {
+            GetKeyState(self.0 as i32) as u16 & 1 != 0
+        }
+    }
 }

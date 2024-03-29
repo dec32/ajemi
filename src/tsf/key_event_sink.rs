@@ -155,6 +155,7 @@ impl Modifiers {
     }
 
     fn alt(&self) -> bool {
+        // FIXME: ALT can not be captured at all
         self.alt_count > 0
     }
 
