@@ -1,9 +1,9 @@
 use core::fmt;
 use std::ffi::OsString;
 use log::{debug, trace, warn};
-use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::TextServices::{ITfContext, ITfKeyEventSink_Impl}}};
+use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::VK_CAPITAL, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
-use crate::{extend::{GUIDExt, OsStrExt2}, engine::engine};
+use crate::{engine::engine, extend::{GUIDExt, OsStrExt2, VKExt}};
 use super::{edit_session, TextService, TextServiceInner};
 use self::Input::*;
 use self::Shortcut::*;
@@ -32,6 +32,11 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
+        // disable the IME completly when CapsLock is on
+        if VK_CAPITAL.is_toggled() {
+            inner.abort()?;
+            return Ok(FALSE);
+        }
         // remember the "hold" of the modifiers but not eat the event since 
         // they can be parts of a shortcut
         if inner.modifiers.try_insert(wparam) {
@@ -53,6 +58,10 @@ impl ITfKeyEventSink_Impl for TextService {
     fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
+        if VK_CAPITAL.is_toggled() {
+            inner.abort()?;
+            return Ok(FALSE);
+        }
         if inner.modifiers.try_insert(wparam) {
             return Ok(FALSE);
         }
@@ -244,6 +253,7 @@ enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
+    CapsLock,
     Unknown(usize)
 }
 
@@ -313,7 +323,7 @@ impl Input {
             (0x26, _    ) => Up,
             (0x27, _    ) => Right,
             (0x28, _    ) => Down,
-            
+            (0x14, _    ) => CapsLock,
             _ => Unknown(key_code)
         }
     }
@@ -381,6 +391,9 @@ impl TextServiceInner {
                 } 
                 // disable cursor movement because I am lazy.
                 Left | Up | Right | Down => (),
+                CapsLock => {
+
+                }
                 Unknown(_) => {
                     return Ok(FALSE);
                 }
