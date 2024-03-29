@@ -15,9 +15,8 @@ AppUpdatesURL={#MyAppURL}
 DefaultGroupName={#MyAppName}
 DefaultDirName={autopf}\{#MyAppName}
 ;; icon and style
-WizardStyle=classic
 SetupIconFile=.\res\installer.ico
-UninstallIconFile=.\res\installer.ico
+WizardStyle=modern
 ;; allow user to disable start menu shorcuts
 AllowNoIcons=yes
 ;; compile
@@ -33,7 +32,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: ".\target\release\ajemi.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: ".\target\i686-pc-windows-msvc\release\ajemi.dll"; DestDir: "{app}"; DestName: "ajemi32.dll"; Flags: ignoreversion
-Source: ".\res\conf.toml"; DestDir: "{userappdata}"; Flags: ignoreversion
+Source: ".\res\conf.toml"; DestDir: "{commonappdata}"; Flags: ignoreversion
 Source: ".\res\sitelenselikiwenjuniko.ttf"; DestDir: "{autofonts}"; FontInstall: "sitelen seli kiwen juniko"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
@@ -44,6 +43,7 @@ Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s .\ajemi.dll"
 Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s .\ajemi32.dll"
 
 [UninstallRun]
-Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi.dll"
-Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi32.dll"
+Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi.dll"; RunOnceId: "unreg"
+Filename: "regsvr32"; WorkingDir: "{app}"; Parameters: "/s /u .\ajemi32.dll"; RunOnceId: "unreg_32"
+
 
