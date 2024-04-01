@@ -253,7 +253,6 @@ enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
-    CapsLock,
     Unknown(usize)
 }
 
@@ -323,7 +322,6 @@ impl Input {
             (0x26, _    ) => Up,
             (0x27, _    ) => Right,
             (0x28, _    ) => Down,
-            (0x14, _    ) => CapsLock,
             _ => Unknown(key_code)
         }
     }
@@ -391,9 +389,6 @@ impl TextServiceInner {
                 } 
                 // disable cursor movement because I am lazy.
                 Left | Up | Right | Down => (),
-                CapsLock => {
-
-                }
                 Unknown(_) => {
                     return Ok(FALSE);
                 }
