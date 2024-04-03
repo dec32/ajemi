@@ -40,7 +40,9 @@ unsafe fn use_customized() -> Option<()> {
     }
     let customized = fs::read_to_string(path).ok()?;
     use_conf(DEFAULT_CONF);
-    use_conf(&customized)
+    use_conf(&customized);
+    LAST_MODIFIED = last_modified;
+    Some(())
 }
 
 unsafe fn use_conf(text: &str) -> Option<()>{
