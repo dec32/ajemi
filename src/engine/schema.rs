@@ -142,7 +142,6 @@ impl From<&str> for Schema {
                 }
                 _ => {
                     error!("Unrecogniable pattern: {list}");
-                    // unrecognizable pattern
                 }
             }
         }
@@ -150,18 +149,10 @@ impl From<&str> for Schema {
     }
 }
 
-pub fn sitelen() -> Schema {
-    Schema::from(include_str!("../../res/schema/sitelen.schema"))
-}
-
-pub fn emoji() -> Schema {
-    Schema::from(include_str!("../../res/schema/emoji.schema"))
-}
-
 #[test]
 fn test() {
-    test_schema(include_str!("../../res/schema/sitelen.schema"));
-    test_schema(include_str!("../../res/schema/emoji.schema"));
+    test_schema(crate::SITELEN_SCHEMA);
+    test_schema(crate::EMOJI_SCHEMA);
 }
 
 

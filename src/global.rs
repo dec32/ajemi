@@ -30,4 +30,8 @@ pub const CANDI_INDEXES: [&str; CANDI_NUM] = ["1", "2", "3", "4", "5"];
 pub const CANDI_INDEX_SUFFIX: &str = ". ";
 pub const CANDI_INDEX_SUFFIX_MONO: &str = ".";
 pub const PREEDIT_DELIMITER: &str = "'";
+// included text
+pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
+pub const SITELEN_SCHEMA: &str = include_str!("../res/schema/sitelen.schema");
+pub const EMOJI_SCHEMA: &str = include_str!("../res/schema/emoji.schema");
 

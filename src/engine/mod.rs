@@ -1,9 +1,11 @@
 mod long_glyph;
 mod sentence;
 mod schema;
+use std::collections::VecDeque;
 use std::{cell::OnceCell, collections::HashSet};
 use self::schema::Schema;
 use self::schema::Candidate::*;
+use crate::{EMOJI_SCHEMA, SITELEN_SCHEMA};
 use crate::{conf::CJK_SPACE, CANDI_NUM};
 
 /// Suggestions from engine
@@ -15,8 +17,7 @@ pub struct Suggestion {
 
 /// Engine. A struct to store and query words and punctuators
 pub struct Engine {
-    schemas: [Schema;2],
-    schema_index: usize,
+    schemas: VecDeque<Schema>,
     squote_open: bool,
     dquote_open: bool,
 }
@@ -24,19 +25,18 @@ pub struct Engine {
 impl Engine {
     fn new() -> Engine {
         Engine {
-            schemas: [schema::sitelen(), schema::emoji()],
-            schema_index: 0,
+            schemas: VecDeque::from(vec![SITELEN_SCHEMA.into(), EMOJI_SCHEMA.into()]),
             squote_open: false,
             dquote_open: false
         }
     }
 
     fn schema(&self) -> &Schema {
-        &self.schemas[self.schema_index]
+        self.schemas.front().unwrap()
     }
 
     pub fn next_schema(&mut self) {
-        self.schema_index = (self.schema_index + 1) % self.schemas.len();
+        self.schemas.rotate_left(1);
         self.squote_open = false;
         self.dquote_open = false;
     }

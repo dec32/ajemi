@@ -1,6 +1,6 @@
 use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
 use toml::{Table, Value};
-use crate::{extend::TableExt, ui::Color, IME_NAME};
+use crate::{extend::TableExt, ui::Color, DEFAULT_CONF, IME_NAME};
 // font
 pub static mut FONT: String = String::new(); 
 pub static mut FONT_SIZE: i32 = 0;
@@ -29,18 +29,7 @@ pub fn reload() {
 }
 
 unsafe fn use_default() {
-    FONT = "sitelen seli kiwen juniko".to_string();
-    FONT_SIZE = 20;
-    VERTICAL = false;
-    CANDI_COLOR = Color::gray(0);
-    CANDI_HIGHLIGHTED_COLOR = Color::gray(0);
-    INDEX_COLOR = Color::gray(160);
-    CLIP_COLOR = Color::hex(0x0078D7);
-    BKG_COLOR = Color::gray(250);
-    HIGHTLIGHT_COLOR = Color::rgb(232, 232, 255);
-    LONG_PI = true;
-    LONG_GLYPH = true;
-    CJK_SPACE = true;
+    use_conf(DEFAULT_CONF);
 }
 
 unsafe fn use_customized() -> Option<()> {
@@ -49,8 +38,12 @@ unsafe fn use_customized() -> Option<()> {
     if last_modified == LAST_MODIFIED {
         return Some(());
     }
-    use_default();
-    let text = fs::read_to_string(path).ok()?;
+    let customized = fs::read_to_string(path).ok()?;
+    use_conf(DEFAULT_CONF);
+    use_conf(&customized)
+}
+
+unsafe fn use_conf(text: &str) -> Option<()>{
     let mut table = text.parse::<Table>().ok()?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
         color.give("candidate", &mut CANDI_COLOR);
@@ -74,7 +67,6 @@ unsafe fn use_customized() -> Option<()> {
         behavior.give("long_pi", &mut LONG_PI);
         behavior.give("long_glyph", &mut LONG_GLYPH);
         behavior.give("cjk_space", &mut CJK_SPACE);
-        
     }
     Some(())
 }
