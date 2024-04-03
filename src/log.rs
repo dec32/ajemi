@@ -23,7 +23,7 @@ fn _setup() -> Result<(), fern::InitError>{
         return Ok(());
     };
     fs::create_dir_all(&path)?;
-    let path = path.join(".log");
+    let path = path.join("log.txt");
     if let Ok(meta) = fs::metadata(&path) {
         if meta.file_size() >= 5 * 1024 * 1024 {
             let _ = fs::remove_file(&path);
