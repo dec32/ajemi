@@ -1,4 +1,5 @@
 mod register;
+mod install;
 mod global;
 mod log;
 mod conf;
@@ -14,7 +15,7 @@ use windows::{core::{implement, IUnknown, Interface, Result, GUID, HRESULT}, Win
 use global::*;
 use register::*;
 
-use crate::{extend::GUIDExt, tsf::TextService};
+use crate::{extend::GUIDExt, install::install, tsf::TextService};
 
 //----------------------------------------------------------------------------
 //
@@ -48,7 +49,9 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
     unsafe fn reg() -> Result<()> {
         register_server()?;
-        register_ime()
+        register_ime()?;
+        install();
+        Ok(())
     }
     match reg() {
         Ok(()) => {
