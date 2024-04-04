@@ -1,6 +1,6 @@
-use std::{ffi::{OsString, OsStr}, fmt::Debug, os::windows::ffi::OsStrExt};
+use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt};
 use toml::{Table, Value};
-use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
+use windows::{core::GUID, Win32::{Foundation::E_FAIL, UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}}};
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }
@@ -56,11 +56,14 @@ impl StringExt for String {
         }
     }
 }
-pub trait ResultExt {
-    fn ignore(self);
+pub trait IntoWinResult<T> {
+    fn into_win_result(self) -> windows::core::Result<T>;
 }
-impl <T, E:Debug> ResultExt for Result<T, E> {
-    fn ignore(self) {}
+
+impl<T> IntoWinResult<T> for anyhow::Result<T> {
+    fn into_win_result(self) -> windows::core::Result<T> {
+        self.map_err(|_err|E_FAIL.into())
+    }
 }
 
 pub trait LoadValue where Self: Sized {

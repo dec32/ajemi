@@ -11,11 +11,11 @@ mod ui;
 use std::{ffi::c_void, ptr, mem};
 use ui::candidate_list;
 use ::log::{debug, error};
-use windows::{core::{implement, IUnknown, Interface, Result, GUID, HRESULT}, Win32::{Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, E_NOINTERFACE, HINSTANCE, S_FALSE, S_OK}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}};
+use windows::{core::{implement, IUnknown, Interface, Result, GUID, HRESULT}, Win32::{Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_NOINTERFACE, HINSTANCE, S_FALSE, S_OK}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}};
 use global::*;
 use register::*;
 
-use crate::{extend::GUIDExt, install::install, tsf::TextService};
+use crate::{extend::{IntoWinResult, GUIDExt}, install::install, tsf::TextService};
 
 //----------------------------------------------------------------------------
 //
@@ -50,7 +50,7 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
     unsafe fn reg() -> Result<()> {
         register_server()?;
         register_ime()?;
-        install().map_err(|_|E_FAIL.into())
+        install().into_win_result()
     }
     match reg() {
         Ok(()) => {

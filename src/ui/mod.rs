@@ -44,11 +44,15 @@ impl LoadValue for Color {
 }
 impl TryFrom<Value> for Color {
     type Error = ();
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if let Value::Integer(value) = value {
-            Ok(Color::hex(value as u32))
-        } else {
-            Err(())
+    fn try_from(value: Value) -> Result<Color, ()> {
+        match value {
+            Value::Integer(code) => Ok(Color::hex(code as u32)),
+            Value::String(text) => if text.starts_with("#") {
+                u32::from_str_radix(&text[1..], 16).map(Color::hex).map_err(|_|())
+            } else {
+                Err(())
+            }
+            _ => Err(())
         }
     }
 }

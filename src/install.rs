@@ -1,5 +1,5 @@
 use std::{env, fs, path::PathBuf};
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use crate::{DEFAULT_CONF, IME_NAME};
 
 pub fn install() -> Result<()>{
