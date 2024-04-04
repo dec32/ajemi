@@ -25,7 +25,7 @@ pub struct Engine {
 impl Engine {
     fn new() -> Engine {
         Engine {
-            schemas: VecDeque::from(vec![SITELEN_SCHEMA.into(), EMOJI_SCHEMA.into()]),
+            schemas: VecDeque::from([Schema::from(SITELEN_SCHEMA), Schema::from(EMOJI_SCHEMA)]),
             squote_open: false,
             dquote_open: false
         }

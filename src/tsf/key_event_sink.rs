@@ -1,7 +1,6 @@
-use core::fmt;
 use std::ffi::OsString;
-use log::{debug, trace, warn};
-use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::VK_CAPITAL, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
+use log::{trace, warn};
+use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
 use crate::{engine::engine, extend::{GUIDExt, OsStrExt2, VKExt}};
 use super::{edit_session, TextService, TextServiceInner};
@@ -37,18 +36,12 @@ impl ITfKeyEventSink_Impl for TextService {
             inner.abort()?;
             return Ok(FALSE);
         }
-        // remember the "hold" of the modifiers but not eat the event since 
-        // they can be parts of a shortcut
-        if inner.modifiers.try_insert(wparam) {
-            return Ok(FALSE);
+        // detect shortcut
+        if let Some(shortcut) = Shortcut::try_from(wparam.0) {
+            return inner.test_shortcut(shortcut);
         }
-        if inner.modifiers.preparing_shortcut() {
-            let shorcut = Shortcut::from(wparam.0, inner.modifiers.ctrl(), inner.modifiers.alt(), inner.modifiers.shift());
-            inner.test_shortcut(shorcut)
-        } else {
-            let input = Input::from(wparam.0, inner.modifiers.shift());
-            inner.test_input(input)
-        }
+        let input = Input::from(wparam.0);
+        inner.test_input(input)
     }
 
     /// The return value suggests if the key event **is** eaten or not.
@@ -62,28 +55,21 @@ impl ITfKeyEventSink_Impl for TextService {
             inner.abort()?;
             return Ok(FALSE);
         }
-        if inner.modifiers.try_insert(wparam) {
-            return Ok(FALSE);
+        if let Some(shortcut) = Shortcut::try_from(wparam.0) {
+            return inner.handle_shortcut(shortcut);
         }
-        if inner.modifiers.preparing_shortcut() {
-            let shorcut = Shortcut::from(wparam.0, inner.modifiers.ctrl(), inner.modifiers.alt(), inner.modifiers.shift());
-            inner.handle_shortcut(shorcut)
-        } else {
-            let input = Input::from(wparam.0, inner.modifiers.shift());
-            inner.handle_input(input, context)
-        }
+        let input = Input::from(wparam.0);
+        inner.handle_input(input, context)
     }
 
     /// Flip the modifiers back
     fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
-        self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
     }
 
     fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
-        self.write()?.modifiers.try_remove(wparam);
         Ok(FALSE)
     }
 
@@ -103,144 +89,21 @@ impl ITfKeyEventSink_Impl for TextService {
     }
 }
 
-/// Keep track of if the modifiers(CTRL, ALT and SHIFT).
-/// WIN is ignored since Windows already captures all shortcuts containing WIN for us.
-/// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
-#[derive(Default)]
-pub struct Modifiers {
-    pressed: [bool;9],
-    shift_count: u8,
-    ctrl_count: u8,
-    alt_count: u8,
-}
-
-impl Modifiers {
-    pub fn new() -> Modifiers {
-        Modifiers::default()
-    }
-
-    fn try_insert(&mut self, wparam: WPARAM) -> bool {
-        let Some(index) = Self::index(wparam) else {
-            return false;
-        };
-        if self.pressed[index] == false {
-            self.pressed[index] = true;
-            if Self::is_shift(wparam) {
-                self.shift_count += 1;
-            } else if Self::is_ctrl(wparam) {
-                self.ctrl_count += 1;
-            } else {
-                self.alt_count += 1;
-            }
-        } 
-        debug!("{:?}", self);
-        true
-    }
-
-    fn try_remove(&mut self, wparam: WPARAM) -> bool { 
-        let Some(index) = Self::index(wparam) else {
-            return false;
-        };
-        if self.pressed[index] == true {
-            self.pressed[index] = false;
-            if Self::is_shift(wparam) {
-                self.shift_count -= 1;
-            } else if Self::is_ctrl(wparam) {
-                self.ctrl_count -= 1;
-            } else {
-                self.alt_count -= 1;
-            }
-        }
-        debug!("{:?}", self);
-        true
-    }
-
-    fn preparing_shortcut(&self) -> bool {
-        self.ctrl() || self.alt()
-    }
-
-    fn ctrl(&self) -> bool {
-        self.ctrl_count > 0
-    }
-
-    fn alt(&self) -> bool {
-        // FIXME: ALT can not be captured at all
-        self.alt_count > 0
-    }
-
-    fn shift(&self) -> bool {
-        self.shift_count > 0
-    }
-}
-
-#[allow(unused)]
-impl Modifiers {
-    const SHIFT:  usize = 0x10;
-    const CTRL:   usize = 0x11;
-    const ALT:    usize = 0x12;
-
-    const LSHIFT: usize = 0xA0;
-    const RSHIFT: usize = 0xA1;
-    const LCTRL:  usize = 0xA2;
-    const RCTRL:  usize = 0xA3;
-    const LATL:   usize = 0xA4;
-    const RALT:   usize = 0xA5;
-
-    const fn index(wparam: WPARAM) -> Option<usize> {
-        match wparam.0 {
-            0x10..=0x12 => Some(wparam.0 - 0x10),
-            0xA0..=0xA5 => Some(wparam.0 - 0xA0 + 3),
-            _ => None
-        }
-    }
-    const NAMES: [&'static str;9] = [
-        "SHIFT", "CTRL", "ALT", "LSHIFT", "RSHIFT", "LCTRL", "RCTRL", "LALT", "RALT"];
-
-    const fn is_shift(wparam: WPARAM) -> bool {
-        wparam.0 == Self::SHIFT ||
-        wparam.0 == Self::LSHIFT ||
-        wparam.0 == Self::RSHIFT
-    }
-
-    const fn is_ctrl(wparam: WPARAM) -> bool {
-        wparam.0 == Self::CTRL ||
-        wparam.0 == Self::LCTRL ||
-        wparam.0 == Self::RCTRL
-    }
-}
-
-impl fmt::Debug for Modifiers {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Modifiers: [")?;
-        let mut comma = false;
-        for (index, pressed) in self.pressed.iter().enumerate() {
-            if *pressed {
-                if comma == false {
-                    comma = true
-                } else {
-                    f.write_str(", ")?;
-                }
-                f.write_str(Self::NAMES[index])?;
-            }
-        }
-        f.write_str("]")
-    }
-}
-
 #[derive(Debug)]
 enum Shortcut {
-    Switch(usize),
+    NextSchema,
     Undefine,
 }
 
 impl Shortcut {
-    fn from(key_code: usize, ctrl: bool, alt: bool, shift: bool) -> Shortcut {
-        trace!("Shortcut::from({}, {}, {}, {})", key_code, ctrl, alt, shift);
-        use Shortcut::*;
-        let input = Input::from(key_code, false);
-        match (ctrl, alt, shift, input)  {
-            (true, false, true, Number(num)) => Switch(num),
-            _ => Undefine
+    fn try_from(key_code: usize) -> Option<Shortcut> {
+        let ctrl = VK_CONTROL.is_down() || VK_LCONTROL.is_down() || VK_RCONTROL.is_down();
+        let alt = VK_MENU.is_down();
+        let shift = VK_SHIFT.is_down() || VK_LSHIFT.is_down() || VK_RSHIFT.is_down();
+        match (ctrl, alt, shift, key_code) {
+            (true, false, true, 0x4E) => Some(NextSchema), // Ctrl + Shift + N
+            (true, ..) | (_, true, ..) => Some(Undefine),
+            _ => None,
         }
     }
 }
@@ -257,8 +120,7 @@ enum Input {
 }
 
 impl Input {
-    fn from(key_code: usize, shift: bool) -> Input {
-        use Input::*;
+    fn from(key_code: usize) -> Input {
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
         }
@@ -267,6 +129,7 @@ impl Input {
             let sum: u8 = char + offset;
             sum.try_into().unwrap()
         }
+        let shift = VK_SHIFT.is_down() || VK_LSHIFT.is_down() || VK_RSHIFT.is_down();
         match (key_code, shift) {
             // Letter keys
             (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
@@ -407,7 +270,7 @@ impl TextServiceInner {
     fn test_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
-                Switch(1) => Ok(TRUE),
+                NextSchema => Ok(TRUE),
                 _ => Ok(FALSE),
             }
         } else {
@@ -418,7 +281,7 @@ impl TextServiceInner {
     fn handle_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
-                Switch(1) => {    
+                NextSchema => {    
                     engine().next_schema();
                     Ok(TRUE)
                 }

@@ -14,8 +14,6 @@ use log::{debug, error, warn};
 use windows::{core::{Interface, implement, AsImpl, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink}, WindowsAndMessaging::HICON}}};
 use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
 
-use self::key_event_sink::Modifiers;
-
 //----------------------------------------------------------------------------
 //
 //  A text service is required to implement ITfTextInputProcessor and provide
@@ -49,7 +47,6 @@ struct TextServiceInner {
     // ThreadMrgEventSink
     cookie: Option<u32>,
     // KeyEventSink
-    modifiers: Modifiers, // ctrl, shift, alt
     char_buf: String,
     // Composition
     composition: Option<ITfComposition>,
@@ -72,7 +69,6 @@ impl TextService {
             tid: 0,
             thread_mgr: None,
             context: None,
-            modifiers: Modifiers::new(),
             char_buf: String::with_capacity(4),
             cookie: None,
             composition: None,
