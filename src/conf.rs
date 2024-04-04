@@ -1,4 +1,5 @@
 use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
+use anyhow::Result;
 use toml::{Table, Value};
 use crate::{extend::TableExt, ui::Color, DEFAULT_CONF, IME_NAME};
 // font
@@ -21,32 +22,32 @@ pub static mut CJK_SPACE: bool = false;
 static mut LAST_MODIFIED: u64 = 0;
 
 pub fn setup() {
-    unsafe { use_default(); }
+    unsafe { let _ = use_default(); }
 }
 
 pub fn reload() {
-    unsafe { use_customized(); }
+    unsafe { let _ = use_customized(); }
 }
 
-unsafe fn use_default() {
-    use_conf(DEFAULT_CONF);
+unsafe fn use_default() -> Result<()>{
+    use_conf(DEFAULT_CONF)
 }
 
-unsafe fn use_customized() -> Option<()> {
-    let path = PathBuf::from(env::var("APPDATA").ok()?).join(IME_NAME).join("conf.toml");
-    let last_modified = fs::metadata(&path).ok()?.last_write_time();
+unsafe fn use_customized() -> Result<()> {
+    let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
+    let last_modified = fs::metadata(&path)?.last_write_time();
     if last_modified == LAST_MODIFIED {
-        return Some(());
+        return Ok(());
     }
-    let customized = fs::read_to_string(path).ok()?;
-    use_conf(DEFAULT_CONF);
-    use_conf(&customized);
+    let customized = fs::read_to_string(path)?;
+    use_conf(DEFAULT_CONF)?;
+    use_conf(&customized)?;
     LAST_MODIFIED = last_modified;
-    Some(())
+    Ok(())
 }
 
-unsafe fn use_conf(text: &str) -> Option<()>{
-    let mut table = text.parse::<Table>().ok()?;
+unsafe fn use_conf(text: &str) -> Result<()>{
+    let mut table = text.parse::<Table>()?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
         color.give("candidate", &mut CANDI_COLOR);
         color.give("highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
@@ -70,5 +71,5 @@ unsafe fn use_conf(text: &str) -> Option<()>{
         behavior.give("long_glyph", &mut LONG_GLYPH);
         behavior.give("cjk_space", &mut CJK_SPACE);
     }
-    Some(())
+    Ok(())
 }
