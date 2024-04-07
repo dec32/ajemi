@@ -1,10 +1,8 @@
-use std::ffi::{OsStr, OsString};
-use std::fs;
-use log::{debug, error, warn};
-use windows::Win32::Foundation::{GetLastError, E_FAIL};
+use std::ffi::OsStr;
+use log::debug;
 use windows::core::{Result, GUID};
 use windows::Win32::UI::TextServices;
-use windows::Win32::{System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr}};
+use windows::Win32::{System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr}};
 use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::extend::GUIDExt;
@@ -19,12 +17,6 @@ use crate::{global::*, extend::OsStrExt2};
 //----------------------------------------------------------------------------
 
 
-#[cfg(target_pointer_width = "64")]
-const POSSIBLE_DLL_PATHS: [&str; 2] = [".\\target\\debug\\ajemi.dll", ".\\ajemi.dll"];
-#[cfg(target_pointer_width = "32")]
-const POSSIBLE_DLL_PATHS: [&str; 2] = [".\\target\\i686-pc-windows-msvc\\debug\\ajemi.dll", ".\\ajemi32.dll"];
-
-
 // FIXME these unwrappings...
 pub unsafe fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
@@ -34,33 +26,10 @@ pub unsafe fn register_server() -> Result<()> {
     clsid.set_value("", &IME_NAME_ASCII).unwrap();
     // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
     let (inproc_server_32, _) = clsid.create_subkey("InprocServer32").unwrap();
-    let dll_path = find_dll_path()?;
-    inproc_server_32.set_value("", &dll_path).unwrap();
+    inproc_server_32.set_value("", &dll_path()?).unwrap();
     // Register the threading model under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32
     inproc_server_32.set_value("ThreadingModel", &"Apartment").unwrap();
     Ok(())
-}
-
-unsafe fn find_dll_path() -> Result<OsString> {
-    // FIXME the buf is always empty
-    let mut buf: Vec<u8> = vec![0;512];
-    GetModuleFileNameA(dll_module(), &mut buf);
-    let len = buf.iter().position(|byte| *byte == 0).unwrap();
-    if len != 0 {   
-        buf.truncate(buf.iter().position(|byte| *byte == 0).unwrap());
-        let path = OsString::from_encoded_bytes_unchecked(buf);
-        debug!("Found dll in {}", path.to_string_lossy());
-        return Ok(path);
-    }
-    error!("GetModuleFileNameA did not provide the path of the DLL file. {:?}", GetLastError());
-    for path in POSSIBLE_DLL_PATHS {
-        if let Ok(canonical_path) = fs::canonicalize(path) {
-            warn!("Use pre-defined dll path {path}");
-            return Ok(canonical_path.into_os_string())
-        }     
-    }
-    error!("Failed to find the dll path.");
-    return Err(E_FAIL.into());
 }
 
 pub unsafe fn unregister_server() -> Result<()> {
@@ -120,7 +89,7 @@ pub unsafe fn register_ime() -> Result<()> {
     input_processor_profiles.Register(&IME_ID)?;
     debug!("Registered the input method.");
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
-    let icon_file: Vec<u16> = find_dll_path()?.null_terminated_wchars();
+    let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
     let icon_index = {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";

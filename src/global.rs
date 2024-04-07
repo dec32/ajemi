@@ -1,17 +1,36 @@
-use std::mem;
+use std::ffi::{OsStr, OsString};
 
-use windows::{core::GUID, Win32::Foundation::HINSTANCE};
+use log::{debug, error};
+use windows::{core::{Result, GUID}, Win32::{Foundation::{GetLastError, HINSTANCE}, System::LibraryLoader::GetModuleFileNameA}};
 
-// global variables
-static mut DLL_MODULE: HINSTANCE = unsafe{ mem::zeroed() };
 pub fn setup(dll_module: HINSTANCE) {
-    unsafe {
-        DLL_MODULE = dll_module;
-    }
+    unsafe { DLL_MODULE = Some(dll_module) };
 }
 
+// global variables
+static mut DLL_MODULE: Option<HINSTANCE> = None;
 pub fn dll_module() -> HINSTANCE {
-    unsafe{ DLL_MODULE }
+    unsafe{ DLL_MODULE.unwrap() }
+}
+
+static mut DLL_PATH: Option<OsString> = None;
+pub fn dll_path() -> Result<&'static OsStr> {
+    if unsafe { DLL_PATH.as_ref() }.is_none() {
+        let mut buf: Vec<u8> = vec![0;512];
+        unsafe { GetModuleFileNameA(dll_module(), &mut buf) };
+        let len = buf.iter().position(|byte| *byte == 0).unwrap();
+        if len == 0 {
+            let err = unsafe { GetLastError() };
+            error!("Failed to find the dll path. {:?}", err);
+            return Err(err.into());
+        }
+        buf.truncate(buf.iter().position(|byte| *byte == 0).unwrap());
+        let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
+        debug!("Found dll in {}", path.to_string_lossy());
+        unsafe { DLL_PATH = Some(path) };
+    }
+    let path: &'static OsStr = unsafe{ DLL_PATH.as_ref() }.unwrap();
+    Ok(path)
 }
 
 // registration stuff
