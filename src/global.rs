@@ -18,13 +18,22 @@ pub fn dll_path() -> Result<&'static OsStr> {
     if unsafe { DLL_PATH.as_ref() }.is_none() {
         let mut buf: Vec<u8> = vec![0;512];
         unsafe { GetModuleFileNameA(dll_module(), &mut buf) };
-        let len = buf.iter().position(|byte| *byte == 0).unwrap();
-        if len == 0 {
+        if buf[0] == 0 {
             let err = unsafe { GetLastError() };
             error!("Failed to find the dll path. {:?}", err);
             return Err(err.into());
         }
-        buf.truncate(buf.iter().position(|byte| *byte == 0).unwrap());
+        let mut from = 0;
+        let mut to = buf.len();
+        while to != from + 1 {
+            let i = (to + from) / 2;
+            if buf[i] == 0 {
+                to = i;
+            } else {
+                from = i;
+            }
+        }
+        buf.truncate(to);
         let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
         debug!("Found dll in {}", path.to_string_lossy());
         unsafe { DLL_PATH = Some(path) };
