@@ -56,6 +56,16 @@ impl StringExt for String {
         }
     }
 }
+pub trait CharExt {
+    fn is_joiner(self) -> bool;
+}
+
+impl CharExt for char {
+    fn is_joiner(self) -> bool {
+        matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{F200D}')
+    }
+}
+
 pub trait IntoWinResult<T> {
     fn into_win_result(self) -> windows::core::Result<T>;
 }

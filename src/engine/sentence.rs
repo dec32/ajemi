@@ -5,28 +5,53 @@ struct Sentence {
     output: String,
     groupping: Vec<usize>,
     score: usize,
+    joining: bool,
+    wc: usize,
 }
 
 impl Sentence {
     fn push_unique(&mut self, unique: &str, to: usize) {
         let len = to - self.groupping.last().unwrap_or(&0);
         self.output.push_str(unique);
-        self.groupping.push(to);
+        if self.joining {
+            *self.groupping.last_mut().unwrap() = to;
+            self.joining = false;
+        } else {
+            self.groupping.push(to);
+        }
         self.score += len * 20;
+        self.wc += 1;
     }
 
     fn push_exact(&mut self, exact: &str, to: usize) {
         let len = to - self.groupping.last().unwrap_or(&0);
         self.output.push_str(exact);
-        self.groupping.push(to);
+        if self.joining {
+            *self.groupping.last_mut().unwrap() = to;
+            self.joining = false;
+        } else {
+            self.groupping.push(to);
+        }
         self.score += len * match len {
             1 => 10, // a, e and n can be very annoying
             2 => 29, // a unique prefix of length 3 is favored over an exact match of length 2 (so pim > pi'm)
             _ => 30, // use a 3 : 2 ratio by default
+        };
+        self.wc += 1;
+    }
+
+    fn push_joiner(&mut self, joiner: char) {
+        self.output.push(joiner);
+        self.joining = true;
+        if let Some(last) = self.groupping.last_mut() {
+            *last += 1;
+        } else {
+            self.groupping.push(1)
         }
     }
-}
 
+}
+  
 #[allow(unused)]
 impl Engine {
     pub(super) fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion>{
@@ -35,7 +60,7 @@ impl Engine {
         let mut highest_score = 0;
         while !sents.is_empty() {
             let sent = sents.pop().unwrap();
-            if sent.groupping.len() <= 1 {
+            if sent.wc <= 1 {
                 continue;
             }
             if sent.score > highest_score {
@@ -66,6 +91,14 @@ impl Engine {
         sents: &mut Vec<Sentence>
     ) 
     {
+        if from >= spelling.len() {
+            return;
+        }
+        // if any symbol (to be specific, joiners) appears, simple append it to the sentence
+        if let Some(joiner) = char::try_from(spelling.as_bytes()[from]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
+            sent.push_joiner(joiner);
+            self.suggest_sentences_recursive(spelling, from + 1, sent, sents)
+        }
         // find the longest exact match and the longest unique match
         // however if the exact one is longer than the unique one, ignore the unique one.
         let mut exact = None;
@@ -77,7 +110,7 @@ impl Engine {
         for to in (from+1..=spelling.len()).rev() {
             match self.schema().candis.get(&spelling[from..to]) {
                 Some(Exact(word, _)) => {
-                    exact = Some(word);
+                    exact = Some(word.as_str());
                     exact_to = to;
                     break;
                 }
@@ -86,7 +119,7 @@ impl Engine {
                         continue;
                     }
                     found_unique = true;
-                    unique = Some(word);
+                    unique = Some(word.as_str());
                     unique_to = to;
                 }
                 _ => ()

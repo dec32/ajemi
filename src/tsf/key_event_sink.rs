@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use log::{trace, warn};
 use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
-use crate::{engine::engine, extend::{GUIDExt, OsStrExt2, VKExt}};
+use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}};
 use super::{edit_session, TextService, TextServiceInner};
 use self::Input::*;
 use self::Shortcut::*;
@@ -235,14 +235,16 @@ impl TextServiceInner {
         } else {
             match input {
                 Letter(letter) => self.push(letter)?,
-                Number(number) => {
-                    if number == 0 {
-                        ()
+                Number(0) => (),
+                Number(number) => self.select(number - 1)?,
+                Punct(punct) => {
+                    let remmaped = engine().remap_punct(punct);
+                    if remmaped.is_joiner() {
+                        self.push(punct)?;
                     } else {
-                        self.select(number - 1)?
+                        self.force_commit(remmaped)?;
                     }
-                }
-                Punct(punct) => self.force_commit(engine().remap_punct(punct))?,
+                },
                 Space => self.commit()?,
                 Enter => self.release()?,
                 Backspace => self.pop()?,

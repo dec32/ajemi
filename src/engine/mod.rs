@@ -78,7 +78,7 @@ impl Engine {
         }
         // suggest single words
         let mut remains = CANDI_NUM - suggs.len();
-        let mut exclude: HashSet<String> = HashSet::new();
+        let mut exclude: HashSet<&str> = HashSet::new();
         'outer_loop:
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
@@ -100,11 +100,23 @@ impl Engine {
                     Box::new(Some(word).into_iter())
                 };
                 for word in words {
-                    if exclude.contains(word) {
+                    if exclude.contains(word.as_str()) {
                         continue;
                     }
-                    suggs.push(Suggestion{ output: word.clone(), groupping: vec![to] });
-                    exclude.insert(word.clone());
+                    exclude.insert(word);
+                    // append the trailing joiner(s) to the suggestion
+                    let mut output = word.clone();
+                    let mut to = to;
+                    let bytes = spelling.as_bytes();
+                    for i in to..spelling.len() {
+                        if let Some(joiner) = char::try_from(bytes[i]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
+                            output.push(joiner);
+                            to += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    suggs.push(Suggestion{ output, groupping: vec![to] });
                     remains -= 1;
                     if remains <= 0 {
                         break 'outer_loop;
