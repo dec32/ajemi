@@ -1,55 +1,47 @@
+use crate::extend::CharExt;
 use super::{long_glyph::insert_long_glyph, schema::Candidate::*, Engine, Suggestion};
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 struct Sentence {
     output: String,
     groupping: Vec<usize>,
     score: usize,
-    joining: bool,
-    wc: usize,
+    wc: u8,
 }
 
 impl Sentence {
-    fn push_unique(&mut self, unique: &str, to: usize) {
-        let len = to - self.groupping.last().unwrap_or(&0);
-        self.output.push_str(unique);
-        if self.joining {
-            *self.groupping.last_mut().unwrap() = to;
-            self.joining = false;
-        } else {
-            self.groupping.push(to);
-        }
+    fn push_unique(&mut self, unique: &str, len: usize) {
+        self.push_word(unique, len);
         self.score += len * 20;
-        self.wc += 1;
     }
 
-    fn push_exact(&mut self, exact: &str, to: usize) {
-        let len = to - self.groupping.last().unwrap_or(&0);
-        self.output.push_str(exact);
-        if self.joining {
-            *self.groupping.last_mut().unwrap() = to;
-            self.joining = false;
-        } else {
-            self.groupping.push(to);
-        }
+    fn push_exact(&mut self, exact: &str, len: usize) {
+        self.push_word(exact, len);
         self.score += len * match len {
             1 => 10, // a, e and n can be very annoying
             2 => 29, // a unique prefix of length 3 is favored over an exact match of length 2 (so pim > pi'm)
             _ => 30, // use a 3 : 2 ratio by default
         };
+    }
+
+    fn push_word(&mut self, word: &str, len: usize) {
+        if self.output.chars().last().map(|char|char.is_joiner()).unwrap_or(false) {
+            *self.groupping.last_mut().unwrap() += len;
+        } else {
+            self.groupping.push(self.groupping.last().cloned().unwrap_or(0) + len);
+        }
+        self.output.push_str(word);
         self.wc += 1;
     }
 
     fn push_joiner(&mut self, joiner: char) {
         self.output.push(joiner);
-        self.joining = true;
         if let Some(last) = self.groupping.last_mut() {
             *last += 1;
         } else {
             self.groupping.push(1)
         }
     }
-
 }
   
 #[allow(unused)]
@@ -78,7 +70,7 @@ impl Engine {
     fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {
         let mut sent = Sentence::default();
         let mut sents = Vec::new();
-        self.suggest_sentences_recursive(spelling, 0, &mut sent, &mut sents);
+        self.suggest_sentences_recursive(spelling, &mut sent, &mut sents);
         sents.push(sent);
         sents
     }
@@ -86,32 +78,34 @@ impl Engine {
     fn suggest_sentences_recursive(
         &self, 
         spelling: &str, 
-        from: usize, 
         sent: &mut Sentence, 
         sents: &mut Vec<Sentence>
     ) 
     {
-        if from >= spelling.len() {
-            return;
-        }
-        // if any symbol (to be specific, joiners) appears, simple append it to the sentence
-        if let Some(joiner) = char::try_from(spelling.as_bytes()[from]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
-            sent.push_joiner(joiner);
-            self.suggest_sentences_recursive(spelling, from + 1, sent, sents)
+        // push leading joiners into the sentence directly
+        let mut spelling = spelling;
+        for (i, byte) in spelling.as_bytes().iter().cloned().enumerate() {
+            if let Some(joiner) = char::try_from(spelling.as_bytes()[i]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
+                sent.push_joiner(joiner);
+                continue;
+            } else {
+                spelling = &spelling[i..];
+                break;
+            }
         }
         // find the longest exact match and the longest unique match
         // however if the exact one is longer than the unique one, ignore the unique one.
         let mut exact = None;
-        let mut exact_to = 0;
+        let mut exact_len = 0;
         let mut unique = None;
-        let mut unique_to = 0;
+        let mut unique_len = 0;
 
         let mut found_unique = false;
-        for to in (from+1..=spelling.len()).rev() {
-            match self.schema().candis.get(&spelling[from..to]) {
+        for len in (1..=spelling.len()).rev() {
+            match self.schema().candis.get(&spelling[..len]) {
                 Some(Exact(word, _)) => {
                     exact = Some(word.as_str());
-                    exact_to = to;
+                    exact_len = len;
                     break;
                 }
                 Some(Unique(word)) => {
@@ -120,7 +114,7 @@ impl Engine {
                     }
                     found_unique = true;
                     unique = Some(word.as_str());
-                    unique_to = to;
+                    unique_len = len;
                 }
                 _ => ()
             }
@@ -132,8 +126,8 @@ impl Engine {
             None
         };
         if let Some(exact) = exact {
-            sent.push_exact(exact, exact_to);
-            self.suggest_sentences_recursive(spelling, exact_to, sent, sents)
+            sent.push_exact(exact, exact_len);
+            self.suggest_sentences_recursive(&spelling[exact_len..], sent, sents)
         }
         if let Some(unique) = unique {
             let sent = if extra_sent.is_some() {
@@ -141,8 +135,8 @@ impl Engine {
             } else {
                 sent
             };
-            sent.push_unique(unique, unique_to);
-            self.suggest_sentences_recursive(spelling, unique_to, sent, sents)
+            sent.push_unique(unique, unique_len);
+            self.suggest_sentences_recursive(&spelling[unique_len..], sent, sents)
         }
         if let Some(extra_sent) = extra_sent {
             sents.push(extra_sent);
