@@ -62,7 +62,7 @@ pub trait CharExt {
 
 impl CharExt for char {
     fn is_joiner(self) -> bool {
-        matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{F200D}')
+        matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{200D}')
     }
 }
 
