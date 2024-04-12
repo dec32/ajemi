@@ -1,7 +1,7 @@
 use crate::extend::CharExt;
 use super::{long_glyph::insert_long_glyph, schema::Candidate::*, Engine, Suggestion};
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone)]
 struct Sentence {
     output: String,
     groupping: Vec<usize>,

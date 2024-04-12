@@ -4,8 +4,8 @@ use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM
 use windows::core::Result;
 use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}};
 use super::{edit_session, TextService, TextServiceInner};
-use self::Input::*;
-use self::Shortcut::*;
+use Input::*;
+use Shortcut::*;
 //----------------------------------------------------------------------------
 //
 //  A "sink" for key events. From here on the processing begins.
