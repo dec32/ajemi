@@ -147,6 +147,8 @@ pub unsafe fn unregister_ime() -> Result<()> {
 const US: u16 = 0x0409;
 // DVORAK
 const US_DVORAK: u32 = 0x0001_0409;
+// COLEMAK
+const COLEMAK: u32 = 0xA000_0409;
 // AZERTY
 const FRENCH: u32 = 0x0000_040C;
 const BELGIAN_FRENCH: u32 = 0x0000_080C;
@@ -156,6 +158,7 @@ const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
 const GERMAN: u32 = 0x0000_0407;
 const GERMAN_IBM: u32 = 0x0001_0407;
 const SWISS_FRENCH: u32 = 0x0000_100C;
+
 
 /// Detect the proper language ID and keyboard layout for the input method.
 fn detect_layout() -> (u16, Option<HKL>) {
@@ -177,7 +180,7 @@ fn detect_alt_layout() -> Option<(u16, HKL)> {
             GetKeyboardLayoutNameA(&mut buf).ok()?;
             u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16).ok()?
         };
-        if matches!(id, US_DVORAK | FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD | GERMAN | GERMAN_IBM | SWISS_FRENCH) {
+        if matches!(id, US_DVORAK | COLEMAK | FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD | GERMAN | GERMAN_IBM | SWISS_FRENCH) {
             debug!("Detected non-qwerty layouts: {id:08X?}");
             let lang_id = id as u16;
             return Some((lang_id, layout));
