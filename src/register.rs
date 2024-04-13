@@ -8,7 +8,6 @@ use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
-use Layout::*;
 
 
 //----------------------------------------------------------------------------
@@ -82,6 +81,7 @@ pub unsafe fn register_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
+    let (lang_id, layout) = detect_layout();
 
     // three things to register:
     // 1. the IME itself
@@ -100,10 +100,10 @@ pub unsafe fn register_ime() -> Result<()> {
             .unwrap_or(LITE_TRAY_ICON_INDEX)
     };
     input_processor_profiles.AddLanguageProfile(
-        &IME_ID, LANG_ID, &LANG_PROFILE_ID, &ime_name, 
+        &IME_ID, lang_id, &LANG_PROFILE_ID, &ime_name, 
         &icon_file, icon_index)?;
-    if let Some(hkl) = detect_hkl() {
-        input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, LANG_ID, &LANG_PROFILE_ID, hkl)?;
+    if let Some(layout) = layout {
+        input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, lang_id, &LANG_PROFILE_ID, layout)?;
     }
     debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
@@ -123,69 +123,65 @@ pub unsafe fn unregister_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
+    let (lang_id, _) = detect_layout();
 
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     debug!("Unregistered the categories.");
-    input_processor_profiles.RemoveLanguageProfile(&IME_ID, LANG_ID, &LANG_PROFILE_ID)?;
+    input_processor_profiles.RemoveLanguageProfile(&IME_ID, lang_id, &LANG_PROFILE_ID)?;
     debug!("Unregistered the language profile.");
     input_processor_profiles.Unregister(&IME_ID)?;
     debug!("Unregistered the input method.");
     Ok(())
 }
 
-fn detect_hkl() -> Option<HKL> {
+
+//----------------------------------------------------------------------------
+//
+//  Detection of keyboard layouts
+//
+//----------------------------------------------------------------------------
+
+// QWERTY
+const US: u16 = 0x0409;
+// DVORAK
+const US_DVORAK: u32 = 0x0001_0409;
+// AZERTY
+const FRENCH: u32 = 0x0000_040C;
+const BELGIAN_FRENCH: u32 = 0x0000_080C;
+const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
+const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
+// QWERTZ
+const GERMAN: u32 = 0x0000_0407;
+const GERMAN_IBM: u32 = 0x0001_0407;
+const SWISS_FRENCH: u32 = 0x0000_100C;
+
+/// Detect the proper language ID and keyboard layout for the input method.
+fn detect_layout() -> (u16, Option<HKL>) {
+    match detect_alt_layout() {
+        Some((lang_id, layout)) => (lang_id, Some(layout)),
+        None => (US, None)
+    }
+}
+
+/// Detect if there's any non-qwerty keyboard layout.
+fn detect_alt_layout() -> Option<(u16, HKL)> {
     let mut layouts = [HKL::default(); 16];
     let len = unsafe { GetKeyboardLayoutList(Some(&mut layouts)) } as usize;
-    if len == 0 {
-        None
-    } else {
-        debug!("Detected layouts: {:X?}", &layouts[..len]);
-        Some(layouts[0])
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-#[allow(unused)]
-enum Layout {
-    Qwerty,
-    Dvorak,
-    Azerty,
-    Qwertz
-}
-
-impl TryFrom<HKL> for Layout {
-    type Error = windows::core::Error;
-    fn try_from(hkl: HKL) -> Result<Layout> {
-
-        const US_DVORAK: u32 = 0x0001_0409;
-
-        const FRENCH: u32 = 0x0000_040C;
-        const BELGIAN_FRENCH: u32 = 0x0000_080C;
-        const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
-        const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
-
-        const SWISS_FRENCH: u32 = 0x0000_100C;
-        const GERMAN: u32 = 0x0000_0407;
-        const GERMAN_IBM: u32 = 0x0001_0407;
-        
-
-        unsafe { ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS)?; }
-        let mut id = [0; 9];
-        unsafe { GetKeyboardLayoutNameA(&mut id)? };
-        let id = unsafe {std::str::from_utf8_unchecked(&id[..8]) };
-        let id = format!("0x{id}");
-        let Ok(id) = u32::from_str_radix(&id, 16) else {
-            return Ok(Qwerty)
+    let layouts = &layouts[..len];
+    for layout in layouts.iter().cloned() {
+        let id = unsafe {
+            let mut buf = [0; 9];
+            ActivateKeyboardLayout(layout, KLF_SETFORPROCESS).ok()?;
+            GetKeyboardLayoutNameA(&mut buf).ok()?;
+            u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16).ok()?
         };
-        match id {
-            US_DVORAK => Ok(Dvorak),
-            FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD => Ok(Azerty),
-            GERMAN | GERMAN_IBM| SWISS_FRENCH => Ok(Qwertz),
-            _ => Ok(Qwerty)
+        if matches!(id, US_DVORAK | FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD | GERMAN | GERMAN_IBM | SWISS_FRENCH) {
+            debug!("Detected non-qwerty layouts: {id:08X?}");
+            let lang_id = id as u16;
+            return Some((lang_id, layout));
         }
     }
+    None
 }
-
-
