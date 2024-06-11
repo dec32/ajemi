@@ -1,5 +1,7 @@
+use std::{env, fs};
 use std::ffi::OsStr;
-use log::debug;
+use std::path::PathBuf;
+use log::{debug, error};
 use windows::core::{Result, GUID};
 use windows::Win32::UI::Input::KeyboardAndMouse::{ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA, KLF_SETFORPROCESS};
 use windows::Win32::UI::TextServices::{self, HKL};
@@ -8,7 +10,7 @@ use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
-
+use Layout::*;
 
 //----------------------------------------------------------------------------
 //
@@ -143,6 +145,13 @@ pub unsafe fn unregister_ime() -> Result<()> {
 //
 //----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Layout {
+    Qwerty, Dvorak,
+    Qwertz, Azerty, 
+    Custom
+}
+
 // QWERTY
 const US: u16 = 0x0409;
 // DVORAK
@@ -160,29 +169,64 @@ const SWISS_FRENCH: u32 = 0x0000_100C;
 
 /// Detect the proper language ID and keyboard layout for the input method.
 fn detect_layout() -> (u16, Option<HKL>) {
-    match detect_alt_layout() {
+    match detect_layout_inner() {
         Some((lang_id, layout)) => (lang_id, Some(layout)),
         None => (US, None)
     }
 }
 
-/// Detect if there's any non-qwerty keyboard layout.
-fn detect_alt_layout() -> Option<(u16, HKL)> {
-    let mut layouts = [HKL::default(); 16];
-    let len = unsafe { GetKeyboardLayoutList(Some(&mut layouts)) } as usize;
-    let layouts = &layouts[..len];
-    for layout in layouts.iter().cloned() {
+/// Detect if there's any preferred keyboard layout.
+fn detect_layout_inner() -> Option<(u16, HKL)> {
+    let path = PathBuf::from(env::var("APPDATA").ok()?);
+    let path = path.join(IME_NAME).join(".layout");
+
+    let prefered_layout = fs::read_to_string(path); 
+    let prefered_layout = prefered_layout.as_ref().map(|s|s.as_str());
+    let prefered_layout = match prefered_layout {
+        Err(e) => {
+            error!("Keyboard layout is not specified. {e}");
+            return None;
+        }
+        Ok("QWERTY") => Qwerty,
+        Ok("DVORAK") => Dvorak,
+        Ok("QWERTZ") => Qwertz,
+        Ok("AZERTY") => Azerty,
+        Ok("CUSTOM") => Custom,
+        Ok(unrecognizable) => {
+            error!("Unrecognizable layout: {unrecognizable}. ");
+            return None;
+        }
+    };
+
+
+    let mut hkls = [HKL::default(); 16];
+    let len = unsafe { GetKeyboardLayoutList(Some(&mut hkls)) } as usize;
+    let hkls = &hkls[..len];
+    for hkl in hkls.iter().cloned() {
         let id = unsafe {
             let mut buf = [0; 9];
-            ActivateKeyboardLayout(layout, KLF_SETFORPROCESS).ok()?;
+            ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS).ok()?;
             GetKeyboardLayoutNameA(&mut buf).ok()?;
             u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16).ok()?
         };
-        if matches!(id, US_DVORAK | FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD | GERMAN | GERMAN_IBM | SWISS_FRENCH) || id >> 28 == 0xA {
-            debug!("Detected non-qwerty layouts: {id:08X?}");
+
+        let layout = match id {
+            US_DVORAK => Dvorak,
+            GERMAN | GERMAN_IBM | SWISS_FRENCH => Qwertz,
+            FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD => Azerty,
+            _ => if id >> 28 == 0xA {
+                Custom
+            } else {
+                Qwerty
+            }
+        };
+
+        if layout == prefered_layout {
+            debug!("Detected layouts: {id:08X?}");
             let lang_id = id as u16;
-            return Some((lang_id, layout));
+            return Some((lang_id, hkl));
         }
     }
+    error!("Prefered layout is not found within the layout list of the OS. ");
     None
 }
