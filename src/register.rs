@@ -177,8 +177,13 @@ fn detect_layout() -> (u16, Option<HKL>) {
 
 /// Detect if there's any preferred keyboard layout.
 fn detect_layout_inner() -> Option<(u16, HKL)> {
-    let path = PathBuf::from(env::var("APPDATA").ok()?);
-    let path = path.join(IME_NAME).join(".layout");
+    let mut path = PathBuf::from(dll_path().ok()?);
+    path.pop();
+    path.push(".layout");
+    
+
+    // let path = PathBuf::from(env::var("APPDATA").ok()?);
+    // let path = path.join(IME_NAME).join(".layout");
 
     let prefered_layout = fs::read_to_string(path); 
     let prefered_layout = prefered_layout.as_ref().map(|s|s.as_str());

@@ -92,19 +92,19 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpReady then begin
     if QwertyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\Ajemi\.layout'), 'QWERTY', False);
+      SaveStringToFile(ExpandConstant('{app}\.layout'), 'QWERTY', False);
     end;
     if QwetzyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\Ajemi\.layout'), 'QWERTZ', False);
+      SaveStringToFile(ExpandConstant('{app}\.layout'), 'QWERTZ', False);
     end;
     if AterzyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\Ajemi\.layout'), 'AZERTY', False);
+      SaveStringToFile(ExpandConstant('{app}\.layout'), 'AZERTY', False);
     end;
     if DvorakBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\Ajemi\.layout'), 'DVORAK', False);
+      SaveStringToFile(ExpandConstant('{app}\.layout'), 'DVORAK', False);
     end;
     if CustomBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\Ajemi\.layout'), 'CUSTOM', False);
+      SaveStringToFile(ExpandConstant('{app}\.layout'), 'CUSTOM', False);
     end;
   end;
 end;
