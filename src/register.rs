@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::fs;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use log::{debug, error};
