@@ -91,6 +91,7 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpReady then begin
+    ForceDirectories(ExpandConstant('{app}'));
     if QwertyBtn.Checked then begin
       SaveStringToFile(ExpandConstant('{app}\.layout'), 'QWERTY', False);
     end;
