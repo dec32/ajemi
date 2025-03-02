@@ -1,8 +1,8 @@
 use std::ffi::OsString;
 use log::{trace, warn};
-use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
+use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RMENU, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
-use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}};
+use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}, layout::Layout};
 use super::{edit_session, TextService, TextServiceInner};
 use Input::*;
 use Shortcut::*;
@@ -19,7 +19,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// 
     /// If `true`, the client **may** ignore the actual return value of `OnTestKeyDown` afterwards.
     /// Thus you cannot always return `true` to "capture" every event and expect to "release" them later
-    ///  in `OnKeyDown` by returning `false`.
+    /// in `OnKeyDown` by returning `false`.
     /// 
     /// If `false`, the clinet **may** not call `OnKeyDown` afterwards.
     /// Thus try to gather any needed infomations and states in `OnTestKeyDown` if possible since it
@@ -40,7 +40,7 @@ impl ITfKeyEventSink_Impl for TextService {
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.test_shortcut(shortcut);
         }
-        let input = Input::from(wparam.0);
+        let input = Input::from(wparam.0, inner.layout);
         inner.test_input(input)
     }
 
@@ -58,7 +58,7 @@ impl ITfKeyEventSink_Impl for TextService {
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.handle_shortcut(shortcut);
         }
-        let input = Input::from(wparam.0);
+        let input = Input::from(wparam.0, inner.layout);
         inner.handle_input(input, context)
     }
 
@@ -111,7 +111,7 @@ impl Shortcut {
 
 /// Inputs that are easier to understand and handle.
 /// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
@@ -120,7 +120,7 @@ enum Input {
 }
 
 impl Input {
-    fn from(key_code: usize) -> Input {
+    fn from(key_code: usize, layout: Layout) -> Input {
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
         }
@@ -130,6 +130,7 @@ impl Input {
             sum.try_into().unwrap()
         }
         let shift = VK_SHIFT.is_down() || VK_LSHIFT.is_down() || VK_RSHIFT.is_down();
+        let altgr = VK_RMENU.is_down();
         match (key_code, shift) {
             // Letter keys
             (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),

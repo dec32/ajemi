@@ -6,13 +6,12 @@ mod composition;
 mod edit_session;
 mod langbar_item;
 
-
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
 use windows::{core::{Interface, implement, AsImpl, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink}, WindowsAndMessaging::HICON}}};
-use crate::{engine::Suggestion, ui::candidate_list::CandidateList};
+use crate::{engine::Suggestion, global::prefered_layout, layout::Layout, ui::candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //
@@ -48,6 +47,7 @@ struct TextServiceInner {
     cookie: Option<u32>,
     // KeyEventSink
     char_buf: String,
+    layout: Layout,
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
@@ -70,6 +70,7 @@ impl TextService {
             thread_mgr: None,
             context: None,
             char_buf: String::with_capacity(4),
+            layout: prefered_layout().unwrap_or(Layout::Qwerty),
             cookie: None,
             composition: None,
             spelling: String::with_capacity(32),

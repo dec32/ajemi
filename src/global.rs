@@ -1,7 +1,8 @@
-use std::ffi::{OsStr, OsString};
-
+use std::{ffi::{OsStr, OsString}, fs, path::PathBuf};
 use log::{debug, error};
 use windows::{core::{Result, GUID}, Win32::{Foundation::{GetLastError, HINSTANCE}, System::LibraryLoader::GetModuleFileNameA}};
+
+use crate::layout::Layout;
 
 pub fn setup(dll_module: HINSTANCE) {
     unsafe { DLL_MODULE = Some(dll_module) };
@@ -42,6 +43,18 @@ pub fn dll_path() -> Result<&'static OsStr> {
     Ok(path)
 }
 
+static mut LAYOUT: Option<Layout> = None;
+pub fn prefered_layout() -> Option<Layout>{
+    if unsafe { LAYOUT.as_ref() }.is_none() {
+        // let path = PathBuf::from(env::var("APPDATA").ok()?).join(IME_NAME).join(".layout");
+        let path = PathBuf::from(dll_path().ok()?).parent()?.join(IME_NAME).join(".layout");
+        let layout = fs::read_to_string(path).ok()?;
+        let layout = Layout::try_from(layout.as_str()).ok();
+        unsafe { LAYOUT = layout };
+    }
+    unsafe { LAYOUT.clone() }
+}
+
 // registration stuff
 pub const IME_NAME: &str = "Ajemi";
 pub const IME_NAME_ASCII: &str = "Ajemi";
@@ -61,4 +74,7 @@ pub const PREEDIT_DELIMITER: &str = "'";
 pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
 pub const SITELEN_SCHEMA: &str = include_str!("../res/schema/sitelen.schema");
 pub const EMOJI_SCHEMA: &str = include_str!("../res/schema/emoji.schema");
+
+
+
 

@@ -7,6 +7,7 @@ mod extend;
 mod tsf;
 mod engine;
 mod ui;
+mod layout;
 
 use std::{ffi::c_void, ptr, mem};
 use ui::candidate_list;
