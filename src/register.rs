@@ -171,7 +171,7 @@ fn detect_layout_inner() -> Option<(u16, HKL)> {
         };
         let layout = Layout::from_lang_id(id);
         if layout == prefered_layout {
-            debug!("Detected layouts: {id:08X?}");
+            debug!("Detected language ID: {id:08x}");
             let lang_id = id as u16;
             reg_info.lang_id = Some(lang_id);
             reg_info.save().ok()?;
@@ -212,7 +212,7 @@ impl RegInfo {
         }
         writeln!(info, "")?;
         if let Some(lang_id) = self.lang_id {
-            write!(info, "{lang_id:#}")?;
+            write!(info, "{lang_id:08x}")?;
         }
         writeln!(info, "")?;
         info.flush()

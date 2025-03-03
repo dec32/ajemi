@@ -3,11 +3,11 @@ use toml::{Table, Value};
 use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
 
 pub trait ResultExt{
-    fn inspect_and_log(self) -> Self;
+    fn watch(self) -> Self;
 }
 
 impl<T,E: std::error::Error> ResultExt for std::result::Result<T, E> {
-    fn inspect_and_log(self) -> Self {
+    fn watch(self) -> Self {
         if let Err(e) = self.as_ref() {
             log::error!("{e:#}")
         }

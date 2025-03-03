@@ -91,36 +91,37 @@ impl ITfKeyEventSink_Impl for TextService {
 
 
 impl TextServiceInner {
-    fn parse_input(&self, keycode: u32, scancode: u32) -> Result<Input>{
-        return Ok(Input::from(keycode as usize));
-        // let input = match keycode {
-        //     0x08 => Backspace,
-        //     0x09 => Tab,
-        //     0x0D => Enter,
-        //     0x20 => Space,
-        //     0x25 => Left,
-        //     0x26 => Up,
-        //     0x27 => Right,
-        //     0x28 => Down,
-        //     keycode => unsafe {
-        //         let mut buf = [0;8];
-        //         let mut keyboard_state = [0;256];
-        //         GetKeyboardState(&mut keyboard_state)?;
-        //         let ret = ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, self.hkl);
-        //         if ret == 0 {
-        //             return Ok(Unknown(keycode));
-        //         }
-        //         let Ok(ch) = char::try_from_utf16(buf[0]) else {
-        //             return Ok(Unknown(keycode));
-        //         };
-        //         match ch {
-        //             number @ '0'..='9' => Number(number as usize - '0' as usize),
-        //             letter @ 'a'..='z' | letter @ 'A'..='Z' => Letter(letter),
-        //             punct => Punct(punct)
-        //         }
-        //     }
-        // };
-        // Ok(input)
+    fn parse_input(&self, keycode: u32, scancode: u32) -> Result<Input> {
+        // let hkl = self.hkl.ok_or(Error::HKLMissing)?;
+        let hkl = self.hkl;
+        let input = match keycode {
+            0x08 => Backspace,
+            0x09 => Tab,
+            0x0D => Enter,
+            0x20 => Space,
+            0x25 => Left,
+            0x26 => Up,
+            0x27 => Right,
+            0x28 => Down,
+            keycode => unsafe {
+                let mut buf = [0;8];
+                let mut keyboard_state = [0;256];
+                GetKeyboardState(&mut keyboard_state)?;
+                let ret = ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, hkl);
+                if ret == 0 {
+                    return Ok(Unknown(keycode));
+                }
+                let Ok(ch) = char::try_from_utf16(buf[0]) else {
+                    return Ok(Unknown(keycode));
+                };
+                match ch {
+                    number @ '0'..='9' => Number(number as usize - '0' as usize),
+                    letter @ 'a'..='z' | letter @ 'A'..='Z' => Letter(letter),
+                    punct => Punct(punct)
+                }
+            }
+        };
+        Ok(input)
     }
 }
 
@@ -152,77 +153,6 @@ enum Input {
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
     Unknown(u32)
-}
-
-impl Input {
-    fn from(key_code: usize) -> Input {
-        fn offset(key_code: usize, from: usize ) -> u8 {
-            (key_code - from).try_into().unwrap()
-        }
-        fn add(ch: char, offset: u8) -> char {
-            let char: u8 = ch.try_into().unwrap();
-            let sum: u8 = char + offset;
-            sum.try_into().unwrap()
-        }
-        let shift = VK_SHIFT.is_down() || VK_LSHIFT.is_down() || VK_RSHIFT.is_down();
-        match (key_code, shift) {
-            // Letter keys
-            (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
-            (0x41..=0x5A, true ) => Letter(add('A', offset(key_code, 0x41))),
-            // Numbers
-            (0x30..=0x39, false) => Number(0 + (key_code - 0x30)),
-            (0x60..=0x69, _    ) => Number(0 + (key_code - 0x60)),
-            // Punctuators
-            (0x31, true ) => Punct('!'),
-            (0x32, true ) => Punct('@'),
-            (0x33, true ) => Punct('#'),
-            (0x34, true ) => Punct('$'),
-            (0x35, true ) => Punct('%'),
-            (0x36, true ) => Punct('^'),
-            (0x37, true ) => Punct('&'),
-            (0x38, true ) => Punct('*'),
-            (0x39, true ) => Punct('('),
-            (0x30, true ) => Punct(')'),
-            // Punctuators, the miscellaneous ones as Microsoft calls them
-            (0xBA, false) => Punct(';'),
-            (0xBA, true ) => Punct(':'),
-            (0xBB, false) => Punct('='),
-            (0xBB, true ) => Punct('+'),
-            (0xBC, false) => Punct(','),
-            (0xBC, true ) => Punct('<'),
-            (0xBD, false) => Punct('-'),
-            (0xBD, true ) => Punct('_'),
-            (0xBE, false) => Punct('.'),
-            (0xBE, true ) => Punct('>'),
-            (0xBF, false) => Punct('/'),
-            (0xBF, true ) => Punct('?'),
-            (0xC0, false) => Punct('`'),
-            (0xC0, true ) => Punct('~'),
-            (0xDB, false) => Punct('['),
-            (0xDB, true ) => Punct('{'),
-            (0xDC, false) => Punct('\\'),
-            (0xDC, true ) => Punct('|'),
-            (0xDD, false) => Punct(']'),
-            (0xDD, true ) => Punct('}'),
-            (0xDE, false) => Punct('\''),
-            (0xDE, true ) => Punct('"'),
-            // Punctuators, the numpad ones
-            (0x6A, _    ) => Punct('*'),
-            (0x6B, _    ) => Punct('+'),
-            (0x6C, _    ) => Punct('/'),
-            (0x6D, _    ) => Punct('-'),
-            // The special keys. They are for editing and operations.
-            (0x08, _    ) => Backspace,
-            (0x09, _    ) => Tab,
-            (0x0D, _    ) => Enter,
-            (0x20, _    ) => Space,
-            (0x25, _    ) => Left,
-            (0x26, _    ) => Up,
-            (0x27, _    ) => Right,
-            (0x28, _    ) => Down,
-            _ => Unknown(key_code as u32)
-        }
-    }
 }
 
 //----------------------------------------------------------------------------

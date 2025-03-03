@@ -11,7 +11,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
 use windows::{core::{implement, AsImpl, Interface, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink, HKL}, WindowsAndMessaging::HICON}}};
-use crate::{engine::Suggestion, global::registered_hkl, ui::candidate_list::CandidateList};
+use crate::{engine::Suggestion, extend::ResultExt, global::registered_hkl, ui::candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //
@@ -46,7 +46,7 @@ struct TextServiceInner {
     // ThreadMrgEventSink
     cookie: Option<u32>,
     // KeyEventSink
-    // hkl: HKL,
+    hkl: HKL,
     char_buf: String,
     // Composition
     composition: Option<ITfComposition>,
@@ -69,7 +69,7 @@ impl TextService {
             tid: 0,
             thread_mgr: None,
             context: None,
-            // hkl: registered_hkl()?,
+            hkl: registered_hkl()?,
             char_buf: String::with_capacity(4),
             cookie: None,
             composition: None,

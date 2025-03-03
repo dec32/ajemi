@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types)]
 mod register;
 mod install;
 mod global;
@@ -129,7 +130,7 @@ struct ClassFactory;
 impl ClassFactory {
     fn new() -> ClassFactory {ClassFactory{}.into()}
 }
-#[allow(non_snake_case)]
+
 impl IClassFactory_Impl for ClassFactory {
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> windows::core::Result<()> {
         debug!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
@@ -137,9 +138,9 @@ impl IClassFactory_Impl for ClassFactory {
         unsafe {
             *ppvobject = match *riid {
                 ITfTextInputProcessor::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessor>().inspect_and_log()?),
+                    TextService::create::<ITfTextInputProcessor>().watch()?),
                 ITfTextInputProcessorEx::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessorEx>().inspect_and_log()?),
+                    TextService::create::<ITfTextInputProcessorEx>().watch()?),
                 guid => {
                     error!("The required instance {} is not available.", guid.to_rfc4122());
                     result = Err(E_NOINTERFACE.into());
@@ -173,28 +174,21 @@ pub enum Error {
     #[error("{0}")]
     Io(#[from] std::io::Error),
     #[error("{0}")]
-    Env(#[from] std::env::VarError),
+    Var(#[from] std::env::VarError),
     // custom ones
     #[error("Language ID is not found.")]
     LangIdNotFound,
+    #[error("Handle to keyboard layout is missing.")]
+    HKLMissing,
     #[error("Conf.toml is malformed. {0}")]
     MalformedConfig(toml::de::Error),
 }
 
 // bonus From<E> for alternative windows Error types
-impl From<WIN32_ERROR> for Error {
-    fn from(value: WIN32_ERROR) -> Self {
-        Self::Win(value.into())
-    }
-}
+impl From<WIN32_ERROR> for Error { fn from(value: WIN32_ERROR) -> Self { Self::Win(value.into()) } }
+impl From<HRESULT> for Error { fn from(value: HRESULT) -> Self { Self::Win(value.into()) } }
 
-impl From<HRESULT> for Error {
-    fn from(value: HRESULT) -> Self {
-        Self::Win(value.into())
-    }
-}
-
-// cast windows Error when requied, keeping the original message
+// cast to windows Error when requied, keeping the original error message
 impl From<Error> for windows::core::Error {
     fn from(value: Error) -> Self {
         match value {
