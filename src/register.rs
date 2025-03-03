@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use strum::IntoEnumIterator;
 use windows::core::GUID;
 use windows::Win32::UI::Input::KeyboardAndMouse::{ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA, KLF_SETFORPROCESS};
 use windows::Win32::UI::TextServices::{self, HKL};
@@ -7,7 +8,7 @@ use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::install::{Install, Layout};
 use crate::{Error, Result};
-use crate::extend::GUIDExt;
+use crate::extend::{GUIDExt, ResultExt};
 use crate::{global::*, extend::OsStrExt2};
 
 //----------------------------------------------------------------------------
@@ -121,12 +122,17 @@ pub unsafe fn unregister_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
-    let langid = Install::open()?.langid.ok_or(Error::LangidMissing)?;
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     log::debug!("Unregistered the categories.");
-    input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID)?;
+    if let Some(langid) = Install::open().watch().ok().and_then(|install|install.langid) {
+        input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
+    }
+    for langid in LanguageID::iter() {
+        let langid = langid as u16;
+        input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
+    }
     log::debug!("Unregistered the language profile.");
     input_processor_profiles.Unregister(&IME_ID)?;
     log::debug!("Unregistered the input method.");
