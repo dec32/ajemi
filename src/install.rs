@@ -15,9 +15,9 @@ pub struct Install {
 #[derive(Serialize, Deserialize, EnumString, Display, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Layout {
     Qwerty,
-    Qwertz, 
-    Aterzy,
-    CanadianFrench,
+    QwertyCFR,
+    Azerty,
+    Qwertz,
 }
 
 impl Install {
@@ -44,8 +44,8 @@ impl Layout {
         use crate::global::*;
         match lang_id {
             GERMAN | GERMAN_IBM | SWISS_FRENCH => Qwertz,
-            FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD => Aterzy,
-            CANADIAN_FRENCH => CanadianFrench,
+            FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD => Azerty,
+            CANADIAN_FRENCH => QwertyCFR,
             _ => Qwerty,
         }
     }

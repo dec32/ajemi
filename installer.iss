@@ -15,7 +15,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultGroupName={#MyAppName}
 DefaultDirName={autopf}\{#MyAppName}
 ;; icon and style
-WizardStyle=classic
+WizardStyle=modern
 WizardSizePercent=100
 ;; allow user to disable start menu shorcuts
 AllowNoIcons=yes
@@ -70,7 +70,7 @@ begin
 
   Layout2 := TNewRadioButton.Create(WizardForm);
   Layout2.Parent := CustomPage.Surface;
-  Layout2.Caption := 'ATERZY'
+  Layout2.Caption := 'AZERTY'
   Layout2.Top := Layout1.Top + Layout1.Height + 8;
   Layout2.Checked := False;
 
@@ -89,10 +89,10 @@ begin
       SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Qwerty"', False);
     end;
     if Layout1.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="CanadianFrench"', False);
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="QwertyCFR"', False);
     end;
     if Layout2.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Aterzy"', False);
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Azerty"', False);
     end;
     if Layout3.Checked then begin
       SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="QWERTZ"', False);
