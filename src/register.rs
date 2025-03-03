@@ -82,14 +82,16 @@ pub unsafe fn register_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
-    let (langid, layout) = detect_layout()?;
+    let (langid, layout) = detect_layout()
+        .inspect_err_with_log()
+        .unwrap_or((LanguageID::US as u16, HKL::default()));
 
     // three things to register:
     // 1. the IME itself
     // 2. language profile
     // 3. categories(the features the IME has)
     input_processor_profiles.Register(&IME_ID)?;
-    log::debug!("Registered the input method.");
+    log::info!("Registered the input method.");
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
     let icon_index = {
@@ -104,11 +106,11 @@ pub unsafe fn register_ime() -> Result<()> {
         &IME_ID, langid, &LANG_PROFILE_ID, &ime_name, 
         &icon_file, icon_index)?;
     input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID, layout)?;
-    log::debug!("Registered the language profile.");
+    log::info!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
         category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
-    log::debug!("Registered the categories.");
+    log::info!("Registered the categories.");
     Ok(())
 }
 
@@ -125,17 +127,17 @@ pub unsafe fn unregister_ime() -> Result<()> {
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
-    log::debug!("Unregistered the categories.");
-    if let Some(langid) = Install::open().watch().ok().and_then(|install|install.langid) {
+    log::info!("Unregistered the categories.");
+    if let Some(langid) = Install::open().ok().and_then(|install|install.langid) {
         input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
     }
     for langid in LanguageID::iter() {
         let langid = langid as u16;
         input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
     }
-    log::debug!("Unregistered the language profile.");
+    log::info!("Unregistered the language profile.");
     input_processor_profiles.Unregister(&IME_ID)?;
-    log::debug!("Unregistered the input method.");
+    log::info!("Unregistered the input method.");
     Ok(())
 }
 
@@ -163,7 +165,7 @@ fn detect_layout() -> Result<(u16, HKL)> {
         };
         let layout = Layout::from_lang_id(id);
         if layout == prefered_layout {
-            log::debug!("Detected language ID: {id:08x}");
+            log::info!("Detected language ID: {id:08x}");
             let lang_id = id as u16;
             install.langid = Some(lang_id);
             install.save()?;

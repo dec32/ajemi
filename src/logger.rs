@@ -32,17 +32,17 @@ fn _setup() -> Result<(), fern::InitError>{
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
-                "{} [{:<5}({})] {}",
+                "{} [{:<3}({})] {}",
                 Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-                record.level(),
+                record.level().abbr(),
                 ARCHITECHTURE,
                 message
             ))
         })
-        .level(if RELEASE { Warn } else { Debug })
+        .level(if RELEASE { Info } else { Debug })
         .chain(fern::log_file(path)?)
         .apply()?;
-    panic::set_hook(Box::new(|info|log::error!("Fatal error happend. {info}")));
+    panic::set_hook(Box::new(|panic_info|log::error!("Fatal error happend. {panic_info}")));
     Ok(())
 }
 

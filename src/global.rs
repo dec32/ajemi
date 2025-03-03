@@ -36,7 +36,7 @@ pub fn dll_path() -> Result<&'static OsStr> {
         }
         buf.truncate(to);
         let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
-        debug!("Found dll in {}", path.to_string_lossy());
+        debug!("Found DLL in {}", path.to_string_lossy());
         unsafe { DLL_PATH = Some(path) };
     }
     let path: &'static OsStr = unsafe{ DLL_PATH.as_ref() }.unwrap();

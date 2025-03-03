@@ -129,9 +129,9 @@ impl IClassFactory_Impl for ClassFactory {
         unsafe {
             *ppvobject = match *riid {
                 ITfTextInputProcessor::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessor>().watch()?),
+                    TextService::create::<ITfTextInputProcessor>().inspect_err_with_log()?),
                 ITfTextInputProcessorEx::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessorEx>().watch()?),
+                    TextService::create::<ITfTextInputProcessorEx>().inspect_err_with_log()?),
                 guid => {
                     log::error!("The required instance {} is not available.", guid.to_rfc4122());
                     result = Err(E_NOINTERFACE.into());
