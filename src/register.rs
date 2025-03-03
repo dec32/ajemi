@@ -121,13 +121,12 @@ pub unsafe fn unregister_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
-    let (lang_id, _) = detect_layout()?;
-
+    let langid = Install::open()?.langid.ok_or(Error::LangidMissing)?;
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
     log::debug!("Unregistered the categories.");
-    input_processor_profiles.RemoveLanguageProfile(&IME_ID, lang_id, &LANG_PROFILE_ID)?;
+    input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID)?;
     log::debug!("Unregistered the language profile.");
     input_processor_profiles.Unregister(&IME_ID)?;
     log::debug!("Unregistered the input method.");
