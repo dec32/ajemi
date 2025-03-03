@@ -34,6 +34,12 @@ unsafe fn use_default() -> Result<()>{
 
 unsafe fn use_customized() -> Result<()> {
     let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
+    if !path.exists() {
+        fs::create_dir_all(path.parent().unwrap())?;
+        fs::write(path, DEFAULT_CONF)?;
+        return Ok(());
+    }
+
     let last_modified = fs::metadata(&path)?.last_write_time();
     if last_modified == LAST_MODIFIED {
         return Ok(());
@@ -46,7 +52,7 @@ unsafe fn use_customized() -> Result<()> {
 }
 
 unsafe fn use_conf(text: &str) -> Result<()>{
-    let mut table = text.parse::<Table>().map_err(Error::MalformedConfig)?;
+    let mut table = text.parse::<Table>().map_err(|err|Error::ParseError("conf.toml", err))?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
         color.give("candidate", &mut CANDI_COLOR);
         color.give("highlighted", &mut CANDI_HIGHLIGHTED_COLOR);

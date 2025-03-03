@@ -11,7 +11,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
 use windows::{core::{implement, AsImpl, Interface, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink, HKL}, WindowsAndMessaging::HICON}}};
-use crate::{engine::Suggestion, extend::ResultExt, global::registered_hkl, ui::candidate_list::CandidateList};
+use crate::{engine::Suggestion, global::registered_hkl, ui::candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //

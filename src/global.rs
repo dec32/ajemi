@@ -1,8 +1,7 @@
 use std::ffi::{OsStr, OsString};
 use log::{debug, error};
 use windows::{core::{GUID, Interface}, Win32::{Foundation::{GetLastError, HINSTANCE}, System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{CLSID_TF_InputProcessorProfiles, ITfInputProcessorProfileSubstituteLayout, ITfInputProcessorProfiles, HKL}}};
-use crate::{Error, Result};
-use crate::register::RegInfo;
+use crate::{install::Install, Error, Result};
 
 pub fn setup(dll_module: HINSTANCE) {
     unsafe { DLL_MODULE = Some(dll_module) };
@@ -44,24 +43,19 @@ pub fn dll_path() -> Result<&'static OsStr> {
 }
 
 pub fn registered_hkl() -> Result<HKL> {
-    let reg_info = RegInfo::open()?;
-    let lang_id = reg_info.lang_id.ok_or(Error::LangIdNotFound)?;
+    let install = Install::open()?;
+    let langid = install.langid.ok_or(Error::LangIdNotFound)?;
     unsafe {
         // i fucking hate microsoft
         let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
             &CLSID_TF_InputProcessorProfiles, 
             None, 
             CLSCTX_INPROC_SERVER)?;
-        let input_processor_profile_substitute_layout: ITfInputProcessorProfileSubstituteLayout = input_processor_profiles.cast()?;
-        log::debug!("casted interface");
-        let hkl = input_processor_profile_substitute_layout.GetSubstituteKeyboardLayout(
-            &IME_ID, 
-            lang_id, 
-            &LANG_PROFILE_ID)?;
-        log::debug!("obtained hkl");
+        let hkl = input_processor_profiles
+            .cast::<ITfInputProcessorProfileSubstituteLayout>()?
+            .GetSubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID)?;
         Ok(hkl)
     }
-
 }
 
 // registration stuff
@@ -83,4 +77,17 @@ pub const PREEDIT_DELIMITER: &str = "'";
 pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
 pub const SITELEN_SCHEMA: &str = include_str!("../res/schema/sitelen.schema");
 pub const EMOJI_SCHEMA: &str = include_str!("../res/schema/emoji.schema");
+// Keyboard Indentifiers
+// QWERTY
+pub const US: u16 = 0x0409;
+pub const CANADIAN_FRENCH: u32 = 0x00001009;
+// AZERTY
+pub const FRENCH: u32 = 0x0000_040C;
+pub const BELGIAN_FRENCH: u32 = 0x0000_080C;
+pub const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
+pub const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
+// QWERTZ
+pub const GERMAN: u32 = 0x0000_0407;
+pub const GERMAN_IBM: u32 = 0x0001_0407;
+pub const SWISS_FRENCH: u32 = 0x0000_100C;
 

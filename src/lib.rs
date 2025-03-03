@@ -17,7 +17,7 @@ use windows::{core::{implement, IUnknown, Interface, GUID, HRESULT}, Win32::{Fou
 use global::*;
 use register::*;
 
-use crate::{extend::GUIDExt, install::install, tsf::TextService};
+use crate::{extend::GUIDExt, tsf::TextService};
 
 //----------------------------------------------------------------------------
 //
@@ -51,17 +51,13 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
     unsafe fn reg() -> Result<()> {
         register_server()?;
-        register_ime()?;
-        install()
+        register_ime()
     }
     match reg() {
-        Ok(()) => {
-            debug!("Registered server successfully.");
-            S_OK
-        },
+        Ok(_) => S_OK,
         Err(err) => {
             error!("Failed to register server. {:?}", err);
-            windows::core::Error::from(err).into()
+            err.into()
         }
     }
 }
@@ -75,13 +71,10 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
         unregister_server()
     }
     match unreg() {
-        Ok(()) => {
-            debug!("Unegistered server successfully.");
-            S_OK
-        },
+        Ok(_) => S_OK,
         Err(err) => {
             error!("Failed to unregister server. {:?}", err);
-            windows::core::Error::from(err).into()
+            err.into()
         }
     }
 }
@@ -167,21 +160,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    // windows
-    #[error("{0}")]
+    #[error(transparent)]
     Win(#[from] windows::core::Error),
-    // std errors
-    #[error("{0}")]
+    #[error(transparent)]
     Io(#[from] std::io::Error),
-    #[error("{0}")]
+    #[error(transparent)]
     Var(#[from] std::env::VarError),
     // custom ones
     #[error("Language ID is not found.")]
     LangIdNotFound,
-    #[error("Handle to keyboard layout is missing.")]
-    HKLMissing,
-    #[error("Conf.toml is malformed. {0}")]
-    MalformedConfig(toml::de::Error),
+    #[error("Failed to parse '{0}'. {1:?}")]
+    ParseError(&'static str, toml::de::Error)
 }
 
 // bonus From<E> for alternative windows Error types
@@ -195,6 +184,11 @@ impl From<Error> for windows::core::Error {
             Error::Win(e) => e,
             other => windows::core::Error::new(E_FAIL, other.to_string())
         }
+    }
+}
+impl From<Error> for HRESULT {
+    fn from(value: Error) -> Self {
+        windows::core::Error::from(value).into()
     }
 }
 
