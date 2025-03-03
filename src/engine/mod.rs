@@ -2,10 +2,13 @@ mod long_glyph;
 mod sentence;
 mod schema;
 use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::{env, fs};
 use std::{cell::OnceCell, collections::HashSet};
 use self::schema::Schema;
 use self::schema::Candidate::*;
-use crate::{EMOJI_SCHEMA, SITELEN_SCHEMA};
+use crate::global::IME_NAME;
+use crate::{Result, EMOJI_SCHEMA, SITELEN_SCHEMA};
 use crate::{conf::CJK_SPACE, CANDI_NUM};
 
 /// Suggestions from engine
@@ -22,13 +25,49 @@ pub struct Engine {
     dquote_open: bool,
 }
 
-impl Engine {
-    fn new() -> Engine {
+impl Default for Engine {
+    fn default() -> Engine {
         Engine {
             schemas: VecDeque::from([Schema::from(SITELEN_SCHEMA), Schema::from(EMOJI_SCHEMA)]),
             squote_open: false,
             dquote_open: false
         }
+    }
+}
+
+impl Engine {
+    fn build() -> Result<Engine> {
+        let mut schemas = VecDeque::new();
+        let mut default_schema = None;
+        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("schema");
+        fs::create_dir_all(&path)?;
+        for entry in fs::read_dir(&path)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_name = entry.file_name();
+            let file_name = file_name.to_string_lossy();
+            if path.is_dir() || !file_name.ends_with(".schema") {
+                continue;
+            }
+            let schema = Schema::from(fs::read_to_string(path)?.as_str());
+            if file_name == "sitelen.schema" {
+                default_schema = Some(schema)
+            } else {
+                schemas.push_back(schema);
+            }
+        }
+        if let Some(default_schema) = default_schema {
+            schemas.push_front(default_schema);
+        }
+        if schemas.is_empty() {
+            log::info!("No schema file found. Creating default ones now.");
+            let sitelen_path = path.as_path().join("sitelen.schema");
+            let emoji_path = path.join("emoji.schema");
+            fs::write(sitelen_path, SITELEN_SCHEMA)?;
+            fs::write(emoji_path, EMOJI_SCHEMA)?;
+            return Ok(Engine::default())
+        }
+        Ok(Engine { schemas, squote_open: false, dquote_open: false })
     }
 
     fn schema(&self) -> &Schema {
@@ -143,7 +182,15 @@ pub fn engine() -> &'static mut Engine {
 
 pub fn setup() {
     unsafe { 
-        ENGINE.get_or_init(Engine::new);
+        ENGINE.get_or_init(||{
+            match Engine::build() {
+                Ok(engine) => engine,
+                Err(err) => {
+                    log::error!("Failed to build schemas for engine. Use default for fallback. {err:?}");
+                    Engine::default()
+                }
+            }
+        });
     };
 }
 
