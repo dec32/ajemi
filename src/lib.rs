@@ -2,7 +2,7 @@
 mod register;
 mod install;
 mod global;
-mod log;
+mod logger;
 mod conf;
 mod extend;
 mod tsf;
@@ -12,11 +12,9 @@ mod ui;
 use std::{ffi::c_void, fmt::Debug, mem, ptr};
 use extend::ResultExt;
 use ui::candidate_list;
-use ::log::{debug, error};
 use windows::{core::{implement, IUnknown, Interface, GUID, HRESULT}, Win32::{Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, E_NOINTERFACE, HINSTANCE, S_FALSE, S_OK, WIN32_ERROR}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}};
 use global::*;
 use register::*;
-
 use crate::{extend::GUIDExt, tsf::TextService};
 
 //----------------------------------------------------------------------------
@@ -31,7 +29,7 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
     if call_reason != DLL_PROCESS_ATTACH {
         return true;
     }
-    log::setup();
+    logger::setup();
     global::setup(dll_module);
     conf::setup();
     engine::setup();
@@ -56,7 +54,7 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
     match reg() {
         Ok(_) => S_OK,
         Err(err) => {
-            error!("Failed to register server. {:?}", err);
+            log::error!("Failed to register server. {:?}", err);
             err.into()
         }
     }
@@ -73,7 +71,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
     match unreg() {
         Ok(_) => S_OK,
         Err(err) => {
-            error!("Failed to unregister server. {:?}", err);
+            log::error!("Failed to unregister server. {:?}", err);
             err.into()
         }
     }
@@ -86,13 +84,13 @@ unsafe extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const 
     // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
-    debug!("DllGetClassObject({})", (*riid).to_rfc4122());
+    log::debug!("DllGetClassObject({})", (*riid).to_rfc4122());
     let mut result = S_OK;
     *ppv = match *riid {
         IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
         IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
         guid => {
-            error!("The required class object {} is not available.", guid.to_rfc4122());
+            log::error!("The required class object {} is not available.", guid.to_rfc4122());
             result = CLASS_E_CLASSNOTAVAILABLE;
             ptr::null_mut()
         }
@@ -126,7 +124,7 @@ impl ClassFactory {
 
 impl IClassFactory_Impl for ClassFactory {
     fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> windows::core::Result<()> {
-        debug!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
+        log::debug!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
         let mut result = Ok(());
         unsafe {
             *ppvobject = match *riid {
@@ -135,7 +133,7 @@ impl IClassFactory_Impl for ClassFactory {
                 ITfTextInputProcessorEx::IID => mem::transmute(
                     TextService::create::<ITfTextInputProcessorEx>().watch()?),
                 guid => {
-                    error!("The required instance {} is not available.", guid.to_rfc4122());
+                    log::error!("The required instance {} is not available.", guid.to_rfc4122());
                     result = Err(E_NOINTERFACE.into());
                     ptr::null_mut()
                 }
@@ -145,7 +143,7 @@ impl IClassFactory_Impl for ClassFactory {
     }
 
     fn LockServer(&self, flock: BOOL) -> windows::core::Result<()> {
-        debug!("LockServer({})", flock.as_bool());
+        log::debug!("LockServer({})", flock.as_bool());
         Ok(())
     }
 }
@@ -167,8 +165,12 @@ pub enum Error {
     #[error(transparent)]
     Var(#[from] std::env::VarError),
     // custom ones
-    #[error("Language ID is not found.")]
-    LangIdNotFound,
+    #[error("Language ID is missing from 'install.toml'.")]
+    LangidMissing,
+    #[error("Keyboad layout is is missing from 'install.toml'.")]
+    LayoutMissing,
+    #[error("Requested keyboard layout is invalid.")]
+    LayoutInvalid,
     #[error("Failed to parse '{0}'. {1:?}")]
     ParseError(&'static str, toml::de::Error)
 }

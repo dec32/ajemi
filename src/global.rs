@@ -44,7 +44,7 @@ pub fn dll_path() -> Result<&'static OsStr> {
 
 pub fn registered_hkl() -> Result<HKL> {
     let install = Install::open()?;
-    let langid = install.langid.ok_or(Error::LangIdNotFound)?;
+    let langid = install.langid.ok_or(Error::LangidMissing)?;
     unsafe {
         // i fucking hate microsoft
         let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
@@ -78,15 +78,11 @@ pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
 pub const SITELEN_SCHEMA: &str = include_str!("../res/schema/sitelen.schema");
 pub const EMOJI_SCHEMA: &str = include_str!("../res/schema/emoji.schema");
 // Keyboard Indentifiers
-// QWERTY
-pub const US: u16 = 0x0409;
 pub const CANADIAN_FRENCH: u32 = 0x00001009;
-// AZERTY
 pub const FRENCH: u32 = 0x0000_040C;
 pub const BELGIAN_FRENCH: u32 = 0x0000_080C;
 pub const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
 pub const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
-// QWERTZ
 pub const GERMAN: u32 = 0x0000_0407;
 pub const GERMAN_IBM: u32 = 0x0001_0407;
 pub const SWISS_FRENCH: u32 = 0x0000_100C;

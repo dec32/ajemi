@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use log::{debug, error};
 use windows::core::GUID;
 use windows::Win32::UI::Input::KeyboardAndMouse::{ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA, KLF_SETFORPROCESS};
 use windows::Win32::UI::TextServices::{self, HKL};
@@ -7,7 +6,7 @@ use windows::Win32::{System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, UI::
 use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::install::{Install, Layout};
-use crate::Result;
+use crate::{Error, Result};
 use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
 
@@ -82,14 +81,14 @@ pub unsafe fn register_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
-    let (lang_id, layout) = detect_layout();
+    let (langid, layout) = detect_layout()?;
 
     // three things to register:
     // 1. the IME itself
     // 2. language profile
     // 3. categories(the features the IME has)
     input_processor_profiles.Register(&IME_ID)?;
-    debug!("Registered the input method.");
+    log::debug!("Registered the input method.");
     let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
     let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
     let icon_index = {
@@ -101,16 +100,14 @@ pub unsafe fn register_ime() -> Result<()> {
             .unwrap_or(LITE_TRAY_ICON_INDEX)
     };
     input_processor_profiles.AddLanguageProfile(
-        &IME_ID, lang_id, &LANG_PROFILE_ID, &ime_name, 
+        &IME_ID, langid, &LANG_PROFILE_ID, &ime_name, 
         &icon_file, icon_index)?;
-    if let Some(layout) = layout {
-        input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, lang_id, &LANG_PROFILE_ID, layout)?;
-    }
-    debug!("Registered the language profile.");
+    input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID, layout)?;
+    log::debug!("Registered the language profile.");
     for rcatid  in SUPPORTED_CATEGORIES {
         category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
-    debug!("Registered the categories.");
+    log::debug!("Registered the categories.");
     Ok(())
 }
 
@@ -124,16 +121,16 @@ pub unsafe fn unregister_ime() -> Result<()> {
         &CLSID_TF_CategoryMgr, 
         None, 
         CLSCTX_INPROC_SERVER)?;
-    let (lang_id, _) = detect_layout();
+    let (lang_id, _) = detect_layout()?;
 
     for rcatid in SUPPORTED_CATEGORIES {
         category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
     }
-    debug!("Unregistered the categories.");
+    log::debug!("Unregistered the categories.");
     input_processor_profiles.RemoveLanguageProfile(&IME_ID, lang_id, &LANG_PROFILE_ID)?;
-    debug!("Unregistered the language profile.");
+    log::debug!("Unregistered the language profile.");
     input_processor_profiles.Unregister(&IME_ID)?;
-    debug!("Unregistered the input method.");
+    log::debug!("Unregistered the input method.");
     Ok(())
 }
 
@@ -144,37 +141,29 @@ pub unsafe fn unregister_ime() -> Result<()> {
 //
 //----------------------------------------------------------------------------
 
-/// Detect the proper language ID and keyboard layout for the input method.
-fn detect_layout() -> (u16, Option<HKL>) {
-    match detect_layout_inner() {
-        Some((lang_id, layout)) => (lang_id, Some(layout)),
-        None => (US, None)
-    }
-}
-
 /// Detect if there's any preferred keyboard layout.
-fn detect_layout_inner() -> Option<(u16, HKL)> {
-    let mut install = Install::open().ok()?;
-    let prefered_layout = install.layout?;
+fn detect_layout() -> Result<(u16, HKL)> {
+    let mut install = Install::open()?;
+    let prefered_layout = install.layout.ok_or(Error::LayoutMissing)?;
     let mut hkls = [HKL::default(); 16];
     let len = unsafe { GetKeyboardLayoutList(Some(&mut hkls)) } as usize;
     let hkls = &hkls[..len];
     for hkl in hkls.iter().cloned() {
         let id = unsafe {
             let mut buf = [0; 9];
-            ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS).ok()?;
-            GetKeyboardLayoutNameA(&mut buf).ok()?;
-            u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16).ok()?
+            ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS)?;
+            GetKeyboardLayoutNameA(&mut buf)?;
+            u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16)
+                .expect(&format!("`GetKeyboardLayoutNameA` returned malformed data. {buf:?}"))
         };
         let layout = Layout::from_lang_id(id);
         if layout == prefered_layout {
-            debug!("Detected language ID: {id:08x}");
+            log::debug!("Detected language ID: {id:08x}");
             let lang_id = id as u16;
             install.langid = Some(lang_id);
-            install.save().ok()?;
-            return Some((lang_id, hkl));
+            install.save()?;
+            return Ok((lang_id, hkl));
         }
     }
-    error!("Prefered layout is not found within the layout list of the OS. ");
-    None
+    Err(Error::LayoutInvalid)
 }

@@ -1,4 +1,4 @@
-use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
+use std::{env, fs, os::windows::fs::MetadataExt, panic, path::PathBuf};
 use chrono::Local;
 use log::{Level, LevelFilter::*};
 
@@ -42,6 +42,7 @@ fn _setup() -> Result<(), fern::InitError>{
         .level(if RELEASE { Warn } else { Debug })
         .chain(fern::log_file(path)?)
         .apply()?;
+    panic::set_hook(Box::new(|info|log::error!("Fatal error happend. {info}")));
     Ok(())
 }
 
