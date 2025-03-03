@@ -1,6 +1,20 @@
-use std::{ffi::{OsString, OsStr}, os::windows::ffi::OsStrExt};
+use std::{char::DecodeUtf16Error, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
 use toml::{Table, Value};
-use windows::{core::GUID, Win32::{Foundation::E_FAIL, UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}}};
+use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
+
+pub trait ResultExt{
+    fn inspect_and_log(self) -> Self;
+}
+
+impl<T,E: std::error::Error> ResultExt for std::result::Result<T, E> {
+    fn inspect_and_log(self) -> Self {
+        if let Err(e) = self.as_ref() {
+            log::error!("{e:#}")
+        }
+        self
+    }
+}
+
 pub trait GUIDExt {
     fn to_rfc4122(&self) -> String;
 }
@@ -58,21 +72,16 @@ impl StringExt for String {
 }
 pub trait CharExt {
     fn is_joiner(self) -> bool;
+    fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error>;
 }
 
 impl CharExt for char {
     fn is_joiner(self) -> bool {
         matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{200D}')
     }
-}
-
-pub trait IntoWinResult<T> {
-    fn into_win_result(self) -> windows::core::Result<T>;
-}
-
-impl<T> IntoWinResult<T> for anyhow::Result<T> {
-    fn into_win_result(self) -> windows::core::Result<T> {
-        self.map_err(|_err|E_FAIL.into())
+    
+    fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error> {
+        char::decode_utf16(std::iter::once(value)).next().unwrap()
     }
 }
 

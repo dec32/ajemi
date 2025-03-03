@@ -1,13 +1,17 @@
 use std::ffi::OsStr;
+use std::io::{BufWriter, Write};
+use std::path::PathBuf;
+use std::{env, fs, io};
 use log::{debug, error};
-use windows::core::{Result, GUID};
+use windows::core::GUID;
 use windows::Win32::UI::Input::KeyboardAndMouse::{ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA, KLF_SETFORPROCESS};
 use windows::Win32::UI::TextServices::{self, HKL};
 use windows::Win32::{System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, UI::TextServices::{ITfInputProcessorProfiles, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr, CLSID_TF_CategoryMgr}};
 use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
+use strum_macros::{Display, EnumString};
+use crate::Result;
 use crate::extend::GUIDExt;
-use crate::layout::{Layout, US};
 use crate::{global::*, extend::OsStrExt2};
 
 //----------------------------------------------------------------------------
@@ -153,7 +157,8 @@ fn detect_layout() -> (u16, Option<HKL>) {
 
 /// Detect if there's any preferred keyboard layout.
 fn detect_layout_inner() -> Option<(u16, HKL)> {
-    let prefered_layout = prefered_layout()?;
+    let mut reg_info = RegInfo::open().ok()?;
+    let prefered_layout = reg_info.layout?;
     let mut hkls = [HKL::default(); 16];
     let len = unsafe { GetKeyboardLayoutList(Some(&mut hkls)) } as usize;
     let hkls = &hkls[..len];
@@ -168,9 +173,85 @@ fn detect_layout_inner() -> Option<(u16, HKL)> {
         if layout == prefered_layout {
             debug!("Detected layouts: {id:08X?}");
             let lang_id = id as u16;
+            reg_info.lang_id = Some(lang_id);
+            reg_info.save().ok()?;
             return Some((lang_id, hkl));
         }
     }
     error!("Prefered layout is not found within the layout list of the OS. ");
     None
 }
+
+pub struct RegInfo {
+    pub layout: Option<Layout>,
+    pub lang_id: Option<u16>,
+}
+
+impl RegInfo {
+    fn path() -> PathBuf {
+        PathBuf::from(env::var("APPDATA").expect("%APPDATA% is undefined")).join(IME_NAME).join(".reginfo")
+    }
+
+    pub fn open() -> io::Result<RegInfo> {
+        let info = fs::read_to_string(RegInfo::path())?;
+        let mut lines = info.lines();
+        let layout = lines.next().and_then(|line|{
+            Layout::try_from(line).inspect_err(|e|error!("Unrecognizable layout '{line}'.")).ok()
+        });
+        let lang_id = lines.next().and_then(|line|{
+            u16::from_str_radix(line, 16).inspect_err(|e|error!("Unrecognizable lang_id '{line}'.")).ok()
+        });
+        Ok(RegInfo { layout, lang_id })
+    }
+    
+    pub fn save(&self) -> io::Result<()> {
+        let info = fs::OpenOptions::new().write(true).open(RegInfo::path())?;
+        let mut info = BufWriter::new(info);
+        if let Some(layout) = self.layout {
+            write!(info, "{layout:#}")?;
+        }
+        writeln!(info, "")?;
+        if let Some(lang_id) = self.lang_id {
+            write!(info, "{lang_id:#}")?;
+        }
+        writeln!(info, "")?;
+        info.flush()
+    }
+}
+
+
+
+// keyboard layouts
+#[derive(EnumString, Display, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Layout {
+    Qwerty,
+    German, 
+    French,
+    CanadianFrench,
+}
+
+impl Layout {
+    pub fn from_lang_id(lang_id: u32) -> Layout {
+        use Layout::*;
+        match lang_id {
+            GERMAN | GERMAN_IBM | SWISS_FRENCH => German,
+            FRENCH | BELGIAN_FRENCH | BELGIAN_FRENCH_COMMA | BELGIAN_FRENCH_PERIOD => French,
+            CANADIAN_FRENCH => CanadianFrench,
+            _ => Qwerty,
+        }
+    }
+}
+
+// Keyboard Indentifiers
+// QWERTY
+pub const US: u16 = 0x0409;
+pub const CANADIAN_FRENCH: u32 = 0x00001009;
+// AZERTY
+pub const FRENCH: u32 = 0x0000_040C;
+pub const BELGIAN_FRENCH: u32 = 0x0000_080C;
+pub const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
+pub const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
+// QWERTZ
+pub const GERMAN: u32 = 0x0000_0407;
+pub const GERMAN_IBM: u32 = 0x0001_0407;
+pub const SWISS_FRENCH: u32 = 0x0000_100C;

@@ -1,8 +1,8 @@
 use std::ffi::OsString;
 use log::{trace, warn};
-use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RMENU, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
+use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{GetKeyboardState, ToUnicodeEx, VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
-use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}, layout::Layout};
+use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}};
 use super::{edit_session, TextService, TextServiceInner};
 use Input::*;
 use Shortcut::*;
@@ -28,7 +28,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// `wparam` indicates the key that is pressed.
     /// The 0-15 bits of `_lparam` indicates the repeat count (ignored here because it's actually always 1). 
     /// (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
-    fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
+    fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         // disable the IME completly when CapsLock is on
@@ -40,7 +40,7 @@ impl ITfKeyEventSink_Impl for TextService {
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.test_shortcut(shortcut);
         }
-        let input = Input::from(wparam.0, inner.layout);
+        let input = inner.parse_input(wparam.0 as u32, lparam.0 as u32)?;
         inner.test_input(input)
     }
 
@@ -48,7 +48,7 @@ impl ITfKeyEventSink_Impl for TextService {
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
     /// The client might call `OnKeyDown` even if `OnTestKeyDown` returned `false`.
     /// The client can be an asshole. Remember that.
-    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
+    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         if VK_CAPITAL.is_toggled() {
@@ -58,7 +58,7 @@ impl ITfKeyEventSink_Impl for TextService {
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.handle_shortcut(shortcut);
         }
-        let input = Input::from(wparam.0, inner.layout);
+        let input = inner.parse_input(wparam.0 as u32, lparam.0 as u32)?;
         inner.handle_input(input, context)
     }
 
@@ -89,6 +89,41 @@ impl ITfKeyEventSink_Impl for TextService {
     }
 }
 
+
+impl TextServiceInner {
+    fn parse_input(&self, keycode: u32, scancode: u32) -> Result<Input>{
+        return Ok(Input::from(keycode as usize));
+        // let input = match keycode {
+        //     0x08 => Backspace,
+        //     0x09 => Tab,
+        //     0x0D => Enter,
+        //     0x20 => Space,
+        //     0x25 => Left,
+        //     0x26 => Up,
+        //     0x27 => Right,
+        //     0x28 => Down,
+        //     keycode => unsafe {
+        //         let mut buf = [0;8];
+        //         let mut keyboard_state = [0;256];
+        //         GetKeyboardState(&mut keyboard_state)?;
+        //         let ret = ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, self.hkl);
+        //         if ret == 0 {
+        //             return Ok(Unknown(keycode));
+        //         }
+        //         let Ok(ch) = char::try_from_utf16(buf[0]) else {
+        //             return Ok(Unknown(keycode));
+        //         };
+        //         match ch {
+        //             number @ '0'..='9' => Number(number as usize - '0' as usize),
+        //             letter @ 'a'..='z' | letter @ 'A'..='Z' => Letter(letter),
+        //             punct => Punct(punct)
+        //         }
+        //     }
+        // };
+        // Ok(input)
+    }
+}
+
 #[derive(Debug)]
 enum Shortcut {
     NextSchema,
@@ -116,11 +151,11 @@ enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
-    Unknown(usize)
+    Unknown(u32)
 }
 
 impl Input {
-    fn from(key_code: usize, layout: Layout) -> Input {
+    fn from(key_code: usize) -> Input {
         fn offset(key_code: usize, from: usize ) -> u8 {
             (key_code - from).try_into().unwrap()
         }
@@ -130,7 +165,6 @@ impl Input {
             sum.try_into().unwrap()
         }
         let shift = VK_SHIFT.is_down() || VK_LSHIFT.is_down() || VK_RSHIFT.is_down();
-        let altgr = VK_RMENU.is_down();
         match (key_code, shift) {
             // Letter keys
             (0x41..=0x5A, false) => Letter(add('a', offset(key_code, 0x41))),
@@ -186,7 +220,7 @@ impl Input {
             (0x26, _    ) => Up,
             (0x27, _    ) => Right,
             (0x28, _    ) => Down,
-            _ => Unknown(key_code)
+            _ => Unknown(key_code as u32)
         }
     }
 }

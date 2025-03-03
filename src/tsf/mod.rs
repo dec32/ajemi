@@ -10,8 +10,8 @@ use std::time::{Duration, Instant};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
-use windows::{core::{Interface, implement, AsImpl, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink}, WindowsAndMessaging::HICON}}};
-use crate::{engine::Suggestion, global::prefered_layout, layout::Layout, ui::candidate_list::CandidateList};
+use windows::{core::{implement, AsImpl, Interface, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink, HKL}, WindowsAndMessaging::HICON}}};
+use crate::{engine::Suggestion, global::registered_hkl, ui::candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //
@@ -46,8 +46,8 @@ struct TextServiceInner {
     // ThreadMrgEventSink
     cookie: Option<u32>,
     // KeyEventSink
+    // hkl: HKL,
     char_buf: String,
-    layout: Layout,
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
@@ -64,13 +64,13 @@ struct TextServiceInner {
 }
 
 impl TextService {
-    pub fn create<I: Interface>() -> Result<I>{
+    pub fn create<I: Interface>() -> Result<I> {
         let inner = TextServiceInner {
             tid: 0,
             thread_mgr: None,
             context: None,
+            // hkl: registered_hkl()?,
             char_buf: String::with_capacity(4),
-            layout: prefered_layout().unwrap_or(Layout::Qwerty),
             cookie: None,
             composition: None,
             spelling: String::with_capacity(32),

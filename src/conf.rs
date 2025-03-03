@@ -1,7 +1,6 @@
 use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
-use anyhow::Result;
 use toml::{Table, Value};
-use crate::{extend::TableExt, ui::Color, DEFAULT_CONF, IME_NAME};
+use crate::{extend::TableExt, ui::Color, Error, Result, DEFAULT_CONF, IME_NAME};
 // font
 pub static mut FONT: String = String::new(); 
 pub static mut FONT_SIZE: i32 = 0;
@@ -47,7 +46,7 @@ unsafe fn use_customized() -> Result<()> {
 }
 
 unsafe fn use_conf(text: &str) -> Result<()>{
-    let mut table = text.parse::<Table>()?;
+    let mut table = text.parse::<Table>().map_err(Error::MalformedConfig)?;
     if let Some(Value::Table(color)) = table.get_mut("color") {
         color.give("candidate", &mut CANDI_COLOR);
         color.give("highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
