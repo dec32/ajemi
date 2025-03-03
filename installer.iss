@@ -15,7 +15,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultGroupName={#MyAppName}
 DefaultDirName={autopf}\{#MyAppName}
 ;; icon and style
-WizardStyle=modern
+WizardStyle=classic
 WizardSizePercent=100
 ;; allow user to disable start menu shorcuts
 AllowNoIcons=yes
@@ -43,11 +43,10 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 var
   CustomPage: TWizardPage;
   Guide: TLabel;
-  QwertyBtn: TNewRadioButton; 
-  QwetzyBtn: TNewRadioButton;
-  AterzyBtn: TNewRadioButton;
-  DvorakBtn: TNewRadioButton;
-  CustomBtn: TNewRadioButton;
+  Layout0: TNewRadioButton; 
+  Layout1: TNewRadioButton;
+  Layout2: TNewRadioButton;
+  Layout3: TNewRadioButton;
   
 procedure InitializeWizard;
 begin
@@ -57,55 +56,46 @@ begin
   Guide.Parent := CustomPage.Surface;
   Guide.Caption := 'Which keyboard layout do you wish to use?';
 
-  QwertyBtn := TNewRadioButton.Create(WizardForm);
-  QwertyBtn.Parent := CustomPage.Surface;
-  QwertyBtn.Caption := 'QWERTY'
-  QwertyBtn.Top := Guide.Top + Guide.Height + 16;
-  QwertyBtn.Checked := True;
+  Layout0 := TNewRadioButton.Create(WizardForm);
+  Layout0.Parent := CustomPage.Surface;
+  Layout0.Caption := 'QWERTY'
+  Layout0.Top := Guide.Top + Guide.Height + 16;
+  Layout0.Checked := True;
 
-  QwetzyBtn := TNewRadioButton.Create(WizardForm);
-  QwetzyBtn.Parent := CustomPage.Surface;
-  QwetzyBtn.Caption := 'QWERTZ'
-  QwetzyBtn.Top := QwertyBtn.Top + QwertyBtn.Height + 8;
-  QwetzyBtn.Checked := False;
+  Layout1 := TNewRadioButton.Create(WizardForm);
+  Layout1.Parent := CustomPage.Surface;
+  Layout1.Caption := 'QWERTY (CFR)'
+  Layout1.Top := Layout0.Top + Layout0.Height + 8;
+  Layout1.Checked := False;
 
-  AterzyBtn := TNewRadioButton.Create(WizardForm);
-  AterzyBtn.Parent := CustomPage.Surface;
-  AterzyBtn.Caption := 'ATERZY'
-  AterzyBtn.Top := QwetzyBtn.Top + QwetzyBtn.Height + 8;
-  AterzyBtn.Checked := False;
+  Layout2 := TNewRadioButton.Create(WizardForm);
+  Layout2.Parent := CustomPage.Surface;
+  Layout2.Caption := 'ATERZY'
+  Layout2.Top := Layout1.Top + Layout1.Height + 8;
+  Layout2.Checked := False;
 
-  DvorakBtn := TNewRadioButton.Create(WizardForm);
-  DvorakBtn.Parent := CustomPage.Surface;
-  DvorakBtn.Caption := 'Dvorak'
-  DvorakBtn.Top := AterzyBtn.Top + AterzyBtn.Height + 8;
-  DvorakBtn.Checked := False;
-
-  CustomBtn := TNewRadioButton.Create(WizardForm);
-  CustomBtn.Parent := CustomPage.Surface;
-  CustomBtn.Caption := 'Colemak, Workman'
-  CustomBtn.Top := DvorakBtn.Top + DvorakBtn.Height + 8;
-  CustomBtn.Checked := False;
+  Layout3 := TNewRadioButton.Create(WizardForm);
+  Layout3.Parent := CustomPage.Surface;
+  Layout3.Caption := 'QWERTZ'
+  Layout3.Top := Layout2.Top + Layout2.Height + 8;
+  Layout3.Checked := False;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpReady then begin
-    ForceDirectories(ExpandConstant('{app}'));
-    if QwertyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{app}\.layout'), 'QWERTY', False);
+    ForceDirectories(ExpandConstant('{userappdata}\{#MyAppName}'));
+    if Layout0.Checked then begin
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Qwerty"', False);
     end;
-    if QwetzyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{app}\.layout'), 'QWERTZ', False);
+    if Layout1.Checked then begin
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="CanadianFrench"', False);
     end;
-    if AterzyBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{app}\.layout'), 'AZERTY', False);
+    if Layout2.Checked then begin
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Aterzy"', False);
     end;
-    if DvorakBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{app}\.layout'), 'DVORAK', False);
-    end;
-    if CustomBtn.Checked then begin
-      SaveStringToFile(ExpandConstant('{app}\.layout'), 'CUSTOM', False);
+    if Layout3.Checked then begin
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="QWERTZ"', False);
     end;
   end;
 end;
