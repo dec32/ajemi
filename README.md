@@ -70,7 +70,26 @@ Here's a rough demonstration of the behavior of the control characters:
 
 ## Customize
 
-You can customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. Here's a template for the configuration file:
+The dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their names end with `.dict` suffix. The format follows these 3 rules:
+
+1. Entries are written as `{spelling} {output_0} {output_1}...{output_n}`
+2. Single-character outputs can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `#`
+3. Comments start with `//`
+
+Here's a minimal example:
+
+```
+// This is a line of comment
+a 🅰️ 
+akesi 🦎 🐸
+ala ❌ 
+alasa 🏹 
+
+[ #1F58C
+] #1F58C
+```
+
+You can also customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. The configuration file is self-explanatory. Here's the default one for reference:
 
 ```Toml
 [font]
@@ -93,3 +112,4 @@ long_pi = false
 long_glyph = false
 cjk_space = false
 ```
+
