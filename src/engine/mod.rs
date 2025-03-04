@@ -8,7 +8,7 @@ use std::{cell::OnceCell, collections::HashSet};
 use self::schema::Schema;
 use self::schema::Candidate::*;
 use crate::global::IME_NAME;
-use crate::{Result, EMOJI_SCHEMA, SITELEN_SCHEMA};
+use crate::{Result, EMOJI_DICT, SITELEN_DICT};
 use crate::{conf::CJK_SPACE, CANDI_NUM};
 
 /// Suggestions from engine
@@ -28,7 +28,7 @@ pub struct Engine {
 impl Default for Engine {
     fn default() -> Engine {
         Engine {
-            schemas: VecDeque::from([Schema::from(SITELEN_SCHEMA), Schema::from(EMOJI_SCHEMA)]),
+            schemas: VecDeque::from([Schema::from(SITELEN_DICT), Schema::from(EMOJI_DICT)]),
             squote_open: false,
             dquote_open: false
         }
@@ -39,18 +39,18 @@ impl Engine {
     fn build() -> Result<Engine> {
         let mut schemas = VecDeque::new();
         let mut default_schema = None;
-        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("schema");
+        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("dict");
         fs::create_dir_all(&path)?;
         for entry in fs::read_dir(&path)? {
             let entry = entry?;
             let path = entry.path();
             let file_name = entry.file_name();
             let file_name = file_name.to_string_lossy();
-            if path.is_dir() || !file_name.ends_with(".schema") {
+            if path.is_dir() || !file_name.ends_with(".dict") {
                 continue;
             }
             let schema = Schema::from(fs::read_to_string(path)?.as_str());
-            if file_name == "sitelen.schema" {
+            if file_name == "sitelen.dict" {
                 default_schema = Some(schema)
             } else {
                 schemas.push_back(schema);
@@ -60,11 +60,11 @@ impl Engine {
             schemas.push_front(default_schema);
         }
         if schemas.is_empty() {
-            log::info!("No schema file found. Creating default ones now.");
-            let sitelen_path = path.as_path().join("sitelen.schema");
-            let emoji_path = path.join("emoji.schema");
-            fs::write(sitelen_path, SITELEN_SCHEMA)?;
-            fs::write(emoji_path, EMOJI_SCHEMA)?;
+            log::info!("No dictionary found. Creating default ones now.");
+            let sitelen_path = path.as_path().join("sitelen.dict");
+            let emoji_path = path.join("emoji.dict");
+            fs::write(sitelen_path, SITELEN_DICT)?;
+            fs::write(emoji_path, EMOJI_DICT)?;
             return Ok(Engine::default())
         }
         Ok(Engine { schemas, squote_open: false, dquote_open: false })
@@ -186,7 +186,7 @@ pub fn setup() {
             match Engine::build() {
                 Ok(engine) => engine,
                 Err(err) => {
-                    log::error!("Failed to build schemas for engine. Use default for fallback. {err:?}");
+                    log::error!("Failed to build engine. Use default for fallback. {err:?}");
                     Engine::default()
                 }
             }

@@ -76,8 +76,8 @@ pub const CANDI_INDEX_SUFFIX_MONO: &str = ".";
 pub const PREEDIT_DELIMITER: &str = "'";
 // included text
 pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
-pub const SITELEN_SCHEMA: &str = include_str!("../res/schema/sitelen.schema");
-pub const EMOJI_SCHEMA: &str = include_str!("../res/schema/emoji.schema");
+pub const SITELEN_DICT: &str = include_str!("../res/dict/sitelen.dict");
+pub const EMOJI_DICT: &str = include_str!("../res/dict/emoji.dict");
 // Keyboard Indentifiers
 pub const CANADIAN_FRENCH: u32 = 0x00001009;
 pub const FRENCH: u32 = 0x0000_040C;

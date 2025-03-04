@@ -151,8 +151,8 @@ impl From<&str> for Schema {
 
 #[test]
 fn test() {
-    test_schema(crate::SITELEN_SCHEMA);
-    test_schema(crate::EMOJI_SCHEMA);
+    test_schema(crate::SITELEN_DICT);
+    test_schema(crate::EMOJI_DICT);
 }
 
 
