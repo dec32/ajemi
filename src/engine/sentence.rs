@@ -147,13 +147,12 @@ impl Engine {
 #[test]
 fn repl() {
     use std::io::stdin;
-    use super::{setup, engine};
-    setup();
+    let engine = Engine::build_or_default();
     let mut buf = String::new();
     loop {
         buf.clear();
         stdin().read_line(&mut buf).unwrap();
-        let sugg = engine().suggest_sentence(&buf);
+        let sugg = engine.suggest_sentence(&buf);
         if let Some(sugg) = sugg {
             println!("{}", sugg.output)
         } else {
@@ -163,17 +162,16 @@ fn repl() {
 }
 #[test]
 fn test() {
-    use super::{setup, engine};
-    fn assert_sent(spelling: &str, expected: &str) {
-        let sent = engine().suggest_sentence(spelling).unwrap().output;
+    fn assert_sent(engine: &Engine, spelling: &str, expected: &str) {
+        let sent = engine.suggest_sentence(spelling).unwrap().output;
         let mut buf =  String::new();
         for word in expected.split(' ') {
-            buf.push_str(&engine().suggest(word)[0].output)
+            buf.push_str(&engine.suggest(word)[0].output)
         }
         assert_eq!(sent, buf)
     }
-    setup();
-    assert_sent("lilonsewi", "li lon sewi");
-    assert_sent("pimaka", "pi ma");
-    assert_sent("pimkule", "pimeja kule");
+    let engine = Engine::build().unwrap();
+    assert_sent(&engine, "lilonsewi", "li lon sewi");
+    assert_sent(&engine,"pimaka", "pi ma");
+    assert_sent(&engine,"pimkule", "pimeja kule");
 }

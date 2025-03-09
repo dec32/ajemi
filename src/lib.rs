@@ -32,7 +32,6 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
     logger::setup();
     global::setup(dll_module);
     conf::setup();
-    engine::setup();
     candidate_list::setup().is_ok()
 }
 

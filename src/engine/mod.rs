@@ -4,7 +4,7 @@ mod schema;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::{env, fs};
-use std::{cell::OnceCell, collections::HashSet};
+use std::collections::HashSet;
 use self::schema::Schema;
 use self::schema::Candidate::*;
 use crate::global::IME_NAME;
@@ -36,7 +36,7 @@ impl Default for Engine {
 }
 
 impl Engine {
-    fn build() -> Result<Engine> {
+    pub fn build() -> Result<Engine> {
         let mut schemas = VecDeque::new();
         let mut default_schema = None;
         let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("dict");
@@ -68,6 +68,16 @@ impl Engine {
             return Ok(Engine::default())
         }
         Ok(Engine { schemas, squote_open: false, dquote_open: false })
+    }
+
+    pub fn build_or_default() -> Engine {
+        match Engine::build() {
+            Ok(engine) => engine,
+            Err(err) => {
+                log::error!("Failed to build engine. Use default for fallback. {err:?}");
+                Engine::default()
+            }
+        }
     }
 
     fn schema(&self) -> &Schema {
@@ -168,41 +178,15 @@ impl Engine {
 }
 
 
-//----------------------------------------------------------------------------
-//
-//  Static section.
-//
-//----------------------------------------------------------------------------
-
-static mut ENGINE: OnceCell<Engine> = OnceCell::new();
-
-pub fn engine() -> &'static mut Engine {
-    unsafe {ENGINE.get_mut().unwrap()}
-}
-
-pub fn setup() {
-    unsafe { 
-        ENGINE.get_or_init(||{
-            match Engine::build() {
-                Ok(engine) => engine,
-                Err(err) => {
-                    log::error!("Failed to build engine. Use default for fallback. {err:?}");
-                    Engine::default()
-                }
-            }
-        });
-    };
-}
-
 #[test]
 fn repl() {
     use std::io::stdin;
-    setup();
+    let engine = Engine::build().unwrap();
     let mut buf = String::new();
     loop {
         buf.clear();
         stdin().read_line(&mut buf).unwrap();
-        let suggs = engine().suggest(&buf);
+        let suggs = engine.suggest(&buf);
         for sugg in suggs {
             println!("{}", sugg.output);
         }

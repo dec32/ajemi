@@ -59,17 +59,6 @@ impl OsStrExt2 for OsString {
     }
 }
 
-pub trait StringExt {
-    fn push_chars(&mut self, chars: &[char]);
-}
-
-impl StringExt for String {
-    fn push_chars(&mut self, chars: &[char]) {
-        for ch in chars {
-            self.push(*ch);
-        }
-    }
-}
 pub trait CharExt {
     fn is_joiner(self) -> bool;
     fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error>;

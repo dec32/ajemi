@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use log::{trace, warn};
 use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{GetKeyboardState, ToUnicodeEx, VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
 use windows::core::Result;
-use crate::{engine::engine, extend::{CharExt, GUIDExt, OsStrExt2, VKExt}};
+use crate::extend::{CharExt, GUIDExt, OsStrExt2, VKExt};
 use super::{edit_session, TextService, TextServiceInner};
 use Input::*;
 use Shortcut::*;
@@ -190,10 +190,12 @@ impl TextServiceInner {
                     self.push(letter)?
                 },
                 Punct(punct) => {
-                    self.insert_char(engine().remap_punct(punct))?
+                    let ch = self.engine.remap_punct(punct);
+                    self.insert_char(ch)?
                 },
                 Space => {
-                    self.insert_char(engine().remap_punct(' '))?
+                    let ch = self.engine.remap_punct(' ');
+                    self.insert_char(ch)?
                 }
                 _ => {return Ok(FALSE)}
             }
@@ -203,7 +205,7 @@ impl TextServiceInner {
                 Number(0) => (),
                 Number(number) => self.select(number - 1)?,
                 Punct(punct) => {
-                    let remmaped = engine().remap_punct(punct);
+                    let remmaped = self.engine.remap_punct(punct);
                     if remmaped.is_joiner() {
                         self.push(punct)?;
                     } else {
@@ -245,11 +247,11 @@ impl TextServiceInner {
         }
     }
 
-    fn handle_shortcut(&self, shortcut: Shortcut) -> Result<BOOL> {
+    fn handle_shortcut(&mut self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
                 NextSchema => {    
-                    engine().next_schema();
+                    self.engine.next_schema();
                     Ok(TRUE)
                 }
                 _ => Ok(FALSE),

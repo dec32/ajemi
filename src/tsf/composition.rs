@@ -4,7 +4,7 @@ use windows::Win32::Foundation::E_FAIL;
 use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
 use windows::core::Result;
 use crate::PREEDIT_DELIMITER;
-use crate::{extend::OsStrExt2, engine::engine};
+use crate::extend::OsStrExt2;
 use super::{edit_session, TextService, TextServiceInner};
 
 //----------------------------------------------------------------------------
@@ -105,7 +105,7 @@ impl TextServiceInner {
 impl TextServiceInner {
     pub fn push(&mut self, ch: char) -> Result<()>{
         self.spelling.push(ch);
-        self.suggestions = engine().suggest(&self.spelling);
+        self.suggestions = self.engine.suggest(&self.spelling);
         self.udpate_preedit()?;
         self.update_candidate_list()?;
         Ok(())
@@ -117,7 +117,7 @@ impl TextServiceInner {
         if self.spelling.is_empty() {
             return self.abort();
         }
-        self.suggestions = engine().suggest(&self.spelling);
+        self.suggestions = self.engine.suggest(&self.spelling);
         self.udpate_preedit()?;
         self.update_candidate_list()?;
         Ok(())
@@ -169,7 +169,7 @@ impl TextServiceInner {
             self.selected.push_str(&sugg.output);
             // TODO strip off the begining instead of re allocate
             self.spelling = self.spelling[last..].to_string(); 
-            self.suggestions = engine().suggest(&self.spelling);
+            self.suggestions = self.engine.suggest(&self.spelling);
             self.udpate_preedit()?;
             self.update_candidate_list()
         }

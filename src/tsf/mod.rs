@@ -11,7 +11,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
 use windows::{core::{implement, AsImpl, Interface, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink, HKL}, WindowsAndMessaging::HICON}}};
-use crate::{engine::Suggestion, global::registered_hkl, ui::candidate_list::CandidateList};
+use crate::{engine::{Engine, Suggestion}, global::registered_hkl, ui::candidate_list::CandidateList};
 
 //----------------------------------------------------------------------------
 //
@@ -39,6 +39,8 @@ pub struct TextService {
     inner: RwLock<TextServiceInner>,
 }
 struct TextServiceInner {
+    // engine
+    engine: Engine,
     // Some basic info about the clinet (the program where user is typing)
     tid: u32,
     thread_mgr: Option<ITfThreadMgr>,
@@ -66,6 +68,7 @@ struct TextServiceInner {
 impl TextService {
     pub fn create<I: Interface>() -> Result<I> {
         let inner = TextServiceInner {
+            engine: Engine::build_or_default(),
             tid: 0,
             thread_mgr: None,
             context: None,
