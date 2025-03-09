@@ -1,45 +1,40 @@
-use std::ffi::{OsStr, OsString};
+use std::{ffi::OsString, sync::OnceLock};
 use log::{debug, error};
 use strum::EnumIter;
 use windows::{core::{GUID, Interface}, Win32::{Foundation::{GetLastError, HINSTANCE}, System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{CLSID_TF_InputProcessorProfiles, ITfInputProcessorProfileSubstituteLayout, ITfInputProcessorProfiles, HKL}}};
 use crate::{install::Install, Error, Result};
 
 pub fn setup(dll_module: HINSTANCE) {
-    unsafe { DLL_MODULE = Some(dll_module) };
+    DLL_MODULE.get_or_init(||dll_module);
 }
 
 // global variables
-static mut DLL_MODULE: Option<HINSTANCE> = None;
+static DLL_MODULE: OnceLock<HINSTANCE> = OnceLock::new();
 pub fn dll_module() -> HINSTANCE {
-    unsafe{ DLL_MODULE.unwrap() }
+    DLL_MODULE.get().cloned().unwrap()
 }
 
-static mut DLL_PATH: Option<OsString> = None;
-pub fn dll_path() -> Result<&'static OsStr> {
-    if unsafe { DLL_PATH.as_ref() }.is_none() {
-        let mut buf: Vec<u8> = vec![0;512];
-        unsafe { GetModuleFileNameA(dll_module(), &mut buf) };
-        if buf[0] == 0 {
-            let err = unsafe { GetLastError() };
-            error!("Failed to find the dll path. {:?}", err);
-            return Err(err.into());
-        }
-        let mut from = 0;
-        let mut to = buf.len();
-        while to != from + 1 {
-            let i = (to + from) / 2;
-            if buf[i] == 0 {
-                to = i;
-            } else {
-                from = i;
-            }
-        }
-        buf.truncate(to);
-        let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
-        debug!("Found DLL in {}", path.to_string_lossy());
-        unsafe { DLL_PATH = Some(path) };
+pub fn dll_path() -> Result<OsString> {
+    let mut buf: Vec<u8> = vec![0;512];
+    unsafe { GetModuleFileNameA(dll_module(), &mut buf) };
+    if buf[0] == 0 {
+        let err = unsafe { GetLastError() };
+        error!("Failed to find the dll path. {:?}", err);
+        return Err(err.into());
     }
-    let path: &'static OsStr = unsafe{ DLL_PATH.as_ref() }.unwrap();
+    let mut from = 0;
+    let mut to = buf.len();
+    while to != from + 1 {
+        let i = (to + from) / 2;
+        if buf[i] == 0 {
+            to = i;
+        } else {
+            from = i;
+        }
+    }
+    buf.truncate(to);
+    let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
+    debug!("Found DLL in {}", path.to_string_lossy());
     Ok(path)
 }
 
