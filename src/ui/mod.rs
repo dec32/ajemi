@@ -1,83 +1,23 @@
 pub mod candidate_list;
-
-use toml::Value;
 use windows::Win32::{Foundation::COLORREF, Graphics::Gdi::{CreateSolidBrush, HBRUSH}};
-use windows::core::IntoParam;
-use windows::core::Param;
 
-use crate::extend::LoadValue;
 
-#[derive(Default, Clone, Copy)]
-pub struct Color{
-    r:u8, g:u8, b:u8
+trait Color {
+    fn to_color_ref(self) -> COLORREF;
+    fn to_hbrush(self) -> HBRUSH;
 }
 
-impl Color {
-    pub const fn rgb(r:u8, g:u8, b:u8) -> Color {
-        Color{r, g, b}
+impl Color for u32 {
+    fn to_color_ref(mut self) -> COLORREF {
+        let b = (self % 0x100) as u8;
+        self /= 0x100;
+        let g = (self % 0x100) as u8;
+        self /= 0x100;
+        let r = (self % 0x100) as u8;
+        COLORREF{0: b as u32 * 0x10000 + g as u32 * 0x100 + r as u32}
     }
 
-    pub const fn hex(mut hex: u32) -> Color {
-        let b = (hex % 0x100) as u8;
-        hex /= 0x100;
-        let g = (hex % 0x100) as u8;
-        hex /= 0x100;
-        let r = (hex % 0x100) as u8;
-        Color::rgb(r, g, b)
-    }
-
-    pub const fn gray(gray: u8) -> Color {
-        Color::rgb(gray, gray, gray)
-    }
-
-    pub const fn white() -> Color {
-        Color::hex(0xFFFFFF)
+    fn to_hbrush(self) -> HBRUSH {
+        unsafe{ CreateSolidBrush(self.to_color_ref()) }
     }
 }
-
-impl LoadValue for Color {
-    fn load(&mut self, value: Value) {
-        if let Value::Integer(value) = value {
-            *self = Color::hex(value as u32);
-        }
-    }
-}
-impl TryFrom<Value> for Color {
-    type Error = ();
-    fn try_from(value: Value) -> Result<Color, ()> {
-        match value {
-            Value::Integer(code) => Ok(Color::hex(code as u32)),
-            Value::String(text) => if text.starts_with("#") {
-                u32::from_str_radix(&text[1..], 16).map(Color::hex).map_err(|_|())
-            } else {
-                Err(())
-            }
-            _ => Err(())
-        }
-    }
-}
-
-impl From<Color> for COLORREF {
-    fn from(color: Color) -> Self {
-        COLORREF{0: color.b as u32 * 0x10000 + color.g as u32 * 0x100 + color.r as u32}
-    }
-}
-
-impl From<Color> for HBRUSH {
-    fn from(color: Color) -> Self {
-        unsafe{ CreateSolidBrush(COLORREF::from(color)) }
-    }
-}
-
-impl IntoParam<COLORREF> for Color {
-    unsafe fn into_param(self) -> Param<COLORREF> {
-        Param::Owned(self.into())
-    }
-}
-
-impl IntoParam<HBRUSH> for Color {
-    unsafe fn into_param(self) -> Param<HBRUSH> {
-        Param::Owned(self.into())
-    }
-}
-

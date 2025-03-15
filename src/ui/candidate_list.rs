@@ -2,7 +2,9 @@ use std::{cmp::max, ffi::{CString, OsString}, mem::{self, size_of, ManuallyDrop}
 use log::{trace, debug, error};
 use windows::{Win32::{UI::WindowsAndMessaging::{CreateWindowExA, DefWindowProcA, DestroyWindow, GetWindowLongPtrA, LoadCursorW, RegisterClassExA, SetWindowLongPtrA, SetWindowPos, ShowWindow, CS_DROPSHADOW, CS_HREDRAW, CS_IME, CS_VREDRAW, HICON, HWND_TOPMOST, IDC_ARROW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, WINDOW_LONG_PTR_INDEX, WM_PAINT, WNDCLASSEXA, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP}, Foundation::{GetLastError, BOOL, HWND, LPARAM, LRESULT, RECT, SIZE, WPARAM}, Graphics::Gdi::{self, BeginPaint, CreateFontA, EndPaint, GetDC, GetDeviceCaps, GetTextExtentPoint32W, InvalidateRect, ReleaseDC, SelectObject, SetBkMode, SetTextColor, TextOutW, HDC, HFONT, LOGPIXELSY, OUT_TT_PRECIS, PAINTSTRUCT, TRANSPARENT}}, core::{s, PCSTR}};
 use windows::core::Result;
-use crate::{conf::*, engine::Suggestion, extend::OsStrExt2, global, ui::Color, CANDI_INDEXES, CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO};
+use crate::{conf::{self}, engine::Suggestion, extend::OsStrExt2, global, CANDI_INDEXES, CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO};
+
+use super::Color;
 
 const WINDOW_CLASS: PCSTR = s!("CANDIDATE_LIST");
 // Layout
@@ -33,7 +35,7 @@ pub fn setup() -> Result<()> {
         hInstance: global::dll_module(),
         hIcon: HICON::default(),
         hCursor: unsafe{ LoadCursorW(None, IDC_ARROW)? },
-        hbrBackground: Color::hex(0xFFFFFF).into(),
+        hbrBackground: 0xFFFFFFu32.to_hbrush(),
         lpszMenuName: PCSTR::null(),
         lpszClassName: WINDOW_CLASS,
         hIconSm: HICON::default()
@@ -79,6 +81,7 @@ impl CandidateList {
         // WS_POPUP:          A window having no top bar or border.
         // see: https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
         unsafe {
+            let conf = conf::get();
             let window = CreateWindowExA(
                 WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST, 
                 WINDOW_CLASS, PCSTR::null(),
@@ -92,8 +95,8 @@ impl CandidateList {
             }
             let dc: HDC = GetDC(window);
             let pixel_per_inch = GetDeviceCaps(dc, LOGPIXELSY);
-            let font_size = FONT_SIZE * pixel_per_inch / 72;
-            let font_name = CString::new(FONT.as_str()).unwrap();
+            let font_size = conf.font.size * pixel_per_inch / 72;
+            let font_name = CString::new(conf.font.name.as_str()).unwrap();
             let font_name = PCSTR::from_raw(font_name.as_bytes_with_nul().as_ptr());
             let candi_font = CreateFontA (
                 font_size, 0, 0, 0, 0, 0, 0, 0, 0, OUT_TT_PRECIS.0 as u32, 0, 0, 0, font_name);
@@ -110,7 +113,7 @@ impl CandidateList {
             }
     
             let index_suffix;
-            let lowercase_font_name = FONT.to_ascii_lowercase();
+            let lowercase_font_name = conf.font.name.to_ascii_lowercase();
             // TODO this is no reliable at all
             if lowercase_font_name.contains("mono") || lowercase_font_name.contains("fairfax") {
                 index_suffix = CANDI_INDEX_SUFFIX_MONO;
@@ -134,6 +137,7 @@ impl CandidateList {
 
     pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
         unsafe{ 
+            let conf = conf::get();
             let mut indice = Vec::with_capacity(suggs.len());
             let mut candis = Vec::with_capacity(suggs.len());
 
@@ -167,7 +171,7 @@ impl CandidateList {
             let label_height = LABEL_PADDING_TOP + row_height + LABEL_PADDING_BOTTOM;
             let mut wnd_height = 0;
             let mut wnd_width = 0;
-            if VERTICAL {
+            if conf.layout.vertical {
                 let candi_num: i32 = suggs.len().try_into().unwrap();
                 wnd_height += candi_num * label_height;
                 wnd_width += CLIP_WIDTH + LABEL_PADDING_LEFT + index_width + candi_width + LABEL_PADDING_RIGHT;
@@ -184,7 +188,7 @@ impl CandidateList {
             wnd_height += BORDER_WIDTH * 2;
             wnd_width += BORDER_WIDTH * 2;
 
-            let highlight_width = if VERTICAL {
+            let highlight_width = if conf.layout.vertical {
                 wnd_width - CLIP_WIDTH - BORDER_WIDTH * 2
             } else {
                 LABEL_PADDING_LEFT + index_width + candi_widths[0] + LABEL_PADDING_RIGHT   
@@ -252,6 +256,7 @@ impl PaintArg {
 }
 
 unsafe fn paint(window: HWND) -> LRESULT{
+    let conf = conf::get();
     // load the extra arg
     let Some(arg) = PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) else {
         error!("Args for repaint is not found.");
@@ -265,11 +270,11 @@ unsafe fn paint(window: HWND) -> LRESULT{
         return LRESULT::default();
     }
     // window
-    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, BKG_COLOR);
+    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, conf.color.background);
     // clip
-    FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, CLIP_COLOR);
+    FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, conf.color.clip);
     // highlight
-    FillRect(dc, BORDER_WIDTH + CLIP_WIDTH, BORDER_WIDTH, arg.highlight_width, arg.label_height, HIGHTLIGHT_COLOR);
+    FillRect(dc, BORDER_WIDTH + CLIP_WIDTH, BORDER_WIDTH, arg.highlight_width, arg.label_height, conf.color.highlight);
     // highlighted text
     let mut index_x = BORDER_WIDTH + CLIP_WIDTH + LABEL_PADDING_LEFT;
     let mut candi_x = BORDER_WIDTH + index_x + arg.index_width;
@@ -277,19 +282,19 @@ unsafe fn paint(window: HWND) -> LRESULT{
     let mut candi_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.candi_height) / 2;
     
     SetBkMode(dc, TRANSPARENT);
-    TextOut(dc, index_x, index_y, &arg.indice[0], INDEX_COLOR, arg.index_font);
-    TextOut(dc, candi_x, candi_y, &arg.candis[0], CANDI_HIGHLIGHTED_COLOR, arg.candi_font);
+    TextOut(dc, index_x, index_y, &arg.indice[0], conf.color.index, arg.index_font);
+    TextOut(dc, candi_x, candi_y, &arg.candis[0], conf.color.highlighted, arg.candi_font);
     // normal text
     for i in 1..arg.candis.len() {
-        if VERTICAL {
+        if conf.layout.vertical {
             index_y += arg.label_height;
             candi_y += arg.label_height;
         } else {
             index_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
             candi_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
         }
-        TextOut(dc, index_x, index_y, &arg.indice[i], INDEX_COLOR, arg.index_font);
-        TextOut(dc, candi_x, candi_y, &arg.candis[i], CANDI_COLOR, arg.candi_font);
+        TextOut(dc, index_x, index_y, &arg.indice[i], conf.color.index, arg.index_font);
+        TextOut(dc, candi_x, candi_y, &arg.candis[i], conf.color.candidate, arg.candi_font);
     }
     ReleaseDC(window, dc);
     EndPaint(window, &mut ps);
@@ -297,21 +302,21 @@ unsafe fn paint(window: HWND) -> LRESULT{
 }
 
 #[allow(non_snake_case)]
-unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: Color, font: HFONT) {
+unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: u32, font: HFONT) {
     SelectObject(hdc, font);
-    SetTextColor(hdc, color);
+    SetTextColor(hdc, color.to_color_ref());
     TextOutW(hdc, x, y, wchars);
 }
 
 #[allow(non_snake_case)]
-unsafe fn FillRect(hdc: HDC, x: i32, y: i32, width: i32, height: i32, color: Color) {
+unsafe fn FillRect(hdc: HDC, x: i32, y: i32, width: i32, height: i32, color: u32) {
     let rect = RECT {
         left: x,
         top: y,
         right: x + width,
         bottom: height,
     };
-    Gdi::FillRect(hdc, &rect, color);
+    Gdi::FillRect(hdc, &rect, color.to_hbrush());
 }
 
 

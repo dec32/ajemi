@@ -152,7 +152,7 @@ enum Input {
     Letter(char), Number(usize), Punct(char),
     Space, Backspace, Enter, Tab,
     Left, Up, Right, Down,
-    Unknown(u32)
+    Unknown(#[allow(dead_code)] u32)
 }
 
 //----------------------------------------------------------------------------

@@ -1,5 +1,4 @@
 use std::{char::DecodeUtf16Error, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
-use toml::{Table, Value};
 use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
 
 pub trait ResultExt{
@@ -82,48 +81,6 @@ impl<'a> IterStr<'a> for Vec<String> {
     fn iter_str(&'a self) -> impl Iterator<Item = &'a str> {
         self.iter().map(String::as_str)
     }
-}
-
-pub trait LoadValue where Self: Sized {
-    fn load(&mut self, value: Value);
-}
-
-impl LoadValue for bool {
-    fn load(&mut self, value: Value) {
-        if let Value::Boolean(value) = value {
-            *self = value;
-        }
-    }
-}
-
-impl LoadValue for String {
-    fn load(&mut self, value: Value) {
-        if let Value::String(value) = value {
-            *self = value;
-        }
-    }
-}
-
-impl LoadValue for i32 {
-    fn load(&mut self, value: Value) {
-        if let Value::Integer(value) = value {
-            *self = value as i32;
-        }
-    }
-}
-
-
-pub trait TableExt {
-    fn give<T: LoadValue>(&mut self, key: &str, out: &mut T);
-}
-
-impl TableExt for Table {
-    fn give<T: LoadValue>(&mut self, key: &str, out: &mut T) {
-        if let Some(value) = self.remove(key) {
-            out.load(value)
-        }
-    }
-    
 }
 
 pub trait VKExt {

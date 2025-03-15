@@ -1,80 +1,92 @@
-use std::{env, fs, os::windows::fs::MetadataExt, path::PathBuf};
-use toml::{Table, Value};
-use crate::{extend::TableExt, ui::Color, Error, Result, DEFAULT_CONF, IME_NAME};
-// font
-pub static mut FONT: String = String::new(); 
-pub static mut FONT_SIZE: i32 = 0;
-// layout
-pub static mut VERTICAL: bool = false;
-// color scheme
-pub static mut CANDI_COLOR: Color = Color::white();
-pub static mut CANDI_HIGHLIGHTED_COLOR: Color = Color::white();
-pub static mut INDEX_COLOR: Color = Color::white();
-pub static mut CLIP_COLOR: Color = Color::white();
-pub static mut BKG_COLOR: Color = Color::white();
-pub static mut HIGHTLIGHT_COLOR: Color = Color::white();
-// behavior
-pub static mut LONG_PI: bool = false;
-pub static mut LONG_GLYPH: bool = false;
-pub static mut CJK_SPACE: bool = false;
+use std::{env, fs, path::PathBuf};
+use serde::Deserialize;
+use crate::{extend::ResultExt, Error, Result, DEFAULT_CONF, IME_NAME};
 
-static mut LAST_MODIFIED: u64 = 0;
+static mut CONF: Conf = Conf::new_const();
+
+pub fn get() -> &'static Conf {
+    unsafe { &CONF }
+}
 
 pub fn setup() {
-    unsafe { let _ = use_default(); }
+    unsafe { CONF = Conf::open_or_default() }
 }
 
 pub fn reload() {
-    unsafe { let _ = use_customized(); }
+
 }
 
-unsafe fn use_default() -> Result<()>{
-    use_conf(DEFAULT_CONF)
+#[derive(Deserialize, Debug)]
+pub struct Conf {
+    pub font: Font,
+    pub layout: Layout,
+    pub color: Color,
+    pub behavior: Behavior
 }
 
-unsafe fn use_customized() -> Result<()> {
-    let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
-    if !path.exists() {
-        fs::create_dir_all(path.parent().unwrap())?;
-        fs::write(path, DEFAULT_CONF)?;
-        return Ok(());
+impl Default for Conf {
+    fn default() -> Self {
+        toml::from_str(DEFAULT_CONF).unwrap()
     }
-
-    let last_modified = fs::metadata(&path)?.last_write_time();
-    if last_modified == LAST_MODIFIED {
-        return Ok(());
-    }
-    let customized = fs::read_to_string(path)?;
-    use_conf(DEFAULT_CONF)?;
-    use_conf(&customized)?;
-    LAST_MODIFIED = last_modified;
-    Ok(())
 }
 
-unsafe fn use_conf(text: &str) -> Result<()>{
-    let mut table = text.parse::<Table>().map_err(|err|Error::ParseError("conf.toml", err))?;
-    if let Some(Value::Table(color)) = table.get_mut("color") {
-        color.give("candidate", &mut CANDI_COLOR);
-        color.give("highlighted", &mut CANDI_HIGHLIGHTED_COLOR);
-        color.give("index", &mut INDEX_COLOR);
-        color.give("clip", &mut CLIP_COLOR);
-        color.give("background", &mut BKG_COLOR);
-        color.give("highlight", &mut HIGHTLIGHT_COLOR);
+impl Conf {
+    const fn new_const() -> Conf {
+        Conf {
+            font: Font { name: String::new(), size: 0 },
+            layout: Layout { vertical: false },
+            color: Color { candidate: 0, index: 0, background: 0, clip: 0, highlight: 0, highlighted: 0 },
+            behavior: Behavior { long_pi: false, long_glyph: false, cjk_space: false },
+        }
     }
 
-    if let Some(Value::Table(layout)) = table.get_mut("layout") {
-        layout.give("vertical", &mut VERTICAL);
+    pub fn open() -> Result<Conf> {
+        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
+        if !path.exists() {
+            fs::create_dir_all(path.parent().unwrap())?;
+            fs::write(path, DEFAULT_CONF)?;
+            return Ok(Conf::default());
+        }
+        let conf = fs::read_to_string(path)?;
+        let conf = toml::from_str(&conf).map_err(|e|Error::ParseError("conf.toml", e))?;
+        Ok(conf)
     }
 
-    if let Some(Value::Table(font)) = table.get_mut("font") {
-        font.give("name", &mut FONT);
-        font.give("size", &mut FONT_SIZE);
+    pub fn open_or_default() -> Conf {
+        Conf::open().inspect_err_with_log().unwrap_or_default()
     }
+}
 
-    if let Some(Value::Table(behavior)) = table.get_mut("behavior") {
-        behavior.give("long_pi", &mut LONG_PI);
-        behavior.give("long_glyph", &mut LONG_GLYPH);
-        behavior.give("cjk_space", &mut CJK_SPACE);
-    }
-    Ok(())
+#[derive(Deserialize, Debug)]
+pub struct Font {
+    pub name: String,
+    pub size: i32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Color {
+    pub candidate: u32,
+    pub index: u32,
+    pub background: u32,
+    pub clip: u32,
+    pub highlight: u32,
+    pub highlighted: u32
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Layout {
+    pub vertical: bool
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Behavior {
+    pub long_pi: bool,
+    pub long_glyph: bool,
+    pub cjk_space: bool
+}
+
+#[test]
+fn test_open() {
+    let conf = get();
+    println!("{conf:#?}")
 }

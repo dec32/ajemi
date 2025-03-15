@@ -1,4 +1,4 @@
-use crate::conf::{LONG_GLYPH, LONG_PI};
+use crate::conf;
 
 const ALA: char = '󱤂';
 const AWEN: char = '󱤈';
@@ -133,31 +133,25 @@ pub(super) fn insert_long_glyph(text: &mut String) {
 
 
 fn ext_as_ala(ch: char) -> bool {
-    unsafe {
-        ch == ALA && LONG_GLYPH
-    }
+    ch == ALA && conf::get().behavior.long_glyph
 }
 
 
 fn ext_left(ch: char) -> bool {
-    unsafe {
-        match ch {
-            PI => LONG_PI,
-            AWEN|KEN|KEPEKEN|LON|TAWA => LONG_GLYPH,
-            _ => false
-        }
+    match ch {
+        PI => conf::get().behavior.long_pi,
+        AWEN|KEN|KEPEKEN|LON|TAWA => conf::get().behavior.long_glyph,
+        _ => false
     }
 }
 
 #[allow(unused)]
 fn ext_right(ch: char) -> bool {
-    unsafe {
-        match ch {
-            // KAMA is disabled for now because i don't want to handle "tenpo kama la"
-            LA => LONG_GLYPH,
-            KAMA => false,
-            _ => false
-        }
+    match ch {
+        // KAMA is disabled for now because i don't want to handle "tenpo kama la"
+        LA => conf::get().behavior.long_glyph,
+        KAMA => false,
+        _ => false
     }
 }
 

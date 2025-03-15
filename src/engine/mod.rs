@@ -9,8 +9,8 @@ use self::schema::Schema;
 use self::schema::Candidate::*;
 use crate::extend::IterStr;
 use crate::global::IME_NAME;
-use crate::{Result, EMOJI_DICT, SITELEN_DICT};
-use crate::{conf::CJK_SPACE, CANDI_NUM};
+use crate::{conf, Result, EMOJI_DICT, SITELEN_DICT};
+use crate::CANDI_NUM;
 
 /// Suggestions from engine
 #[derive(Default, Clone)]
@@ -112,7 +112,7 @@ impl Engine {
             punct => self.schema().puncts
                 .get(&punct)
                 .cloned()
-                .filter(|it| *it != '\u{3000}' || unsafe { !CJK_SPACE } )
+                .filter(|it| *it != '\u{3000}' || !conf::get().behavior.cjk_space )
                 .unwrap_or(punct)
         }
     }
