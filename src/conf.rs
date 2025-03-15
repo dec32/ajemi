@@ -1,15 +1,11 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::PathBuf, sync::OnceLock};
 use serde::Deserialize;
 use crate::{extend::ResultExt, Error, Result, DEFAULT_CONF, IME_NAME};
 
-static mut CONF: Conf = Conf::new_const();
+static CONF: OnceLock<Conf> = OnceLock::new();
 
 pub fn get() -> &'static Conf {
-    unsafe { &CONF }
-}
-
-pub fn setup() {
-    unsafe { CONF = Conf::open_or_default() }
+    CONF.get_or_init(Conf::open_or_default)
 }
 
 pub fn reload() {
@@ -31,15 +27,6 @@ impl Default for Conf {
 }
 
 impl Conf {
-    const fn new_const() -> Conf {
-        Conf {
-            font: Font { name: String::new(), size: 0 },
-            layout: Layout { vertical: false },
-            color: Color { candidate: 0, index: 0, background: 0, clip: 0, highlight: 0, highlighted: 0 },
-            behavior: Behavior { long_pi: false, long_glyph: false, cjk_space: false },
-        }
-    }
-
     pub fn open() -> Result<Conf> {
         let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
         if !path.exists() {
