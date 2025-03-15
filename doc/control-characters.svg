@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   sodipodi:docname="control-characters.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#373737"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="2.9255611"
+     inkscape:cx="134.84593"
+     inkscape:cy="237.39036"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="图层 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#121212;fill-opacity:0;stroke:#dadada;stroke-width:0.740115;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0;paint-order:stroke fill markers"
+       id="rect8-8-0"
+       width="29.538828"
+       height="10.259886"
+       x="14.370057"
+       y="84.794113"
+       ry="0.63556808"
+       inkscape:label="padding 3" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#dadada;stroke-width:0.34035;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1-8-3"
+       sodipodi:type="arc"
+       sodipodi:cx="23.128014"
+       sodipodi:cy="88.965347"
+       sodipodi:rx="1.973193"
+       sodipodi:ry="1.3976464"
+       sodipodi:start="0.0013058452"
+       sodipodi:end="0"
+       sodipodi:arc-type="slice"
+       d="m 25.101205,88.967172 a 1.973193,1.3976464 0 0 1 -1.975124,1.395821 1.973193,1.3976464 0 0 1 -1.97126,-1.398558 1.973193,1.3976464 0 0 1 1.973837,-1.396734 1.973193,1.3976464 0 0 1 1.972549,1.397646 h -1.973193 z"
+       inkscape:label="filling 3" />
+    <text
+       xml:space="preserve"
+       style="font-style:italic;font-size:52.9167px;font-family:Consolas;-inkscape-font-specification:'Consolas Italic';fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+       x="14.483533"
+       y="92.57795"
+       id="text6-6"
+       inkscape:export-filename="..\Documents\Rust Projects\Ajemi\doc\control-long-glyph.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"
+       inkscape:label="control-long-glyph"><tspan
+         sodipodi:role="line"
+         id="tspan6-6"
+         style="font-size:52.9167px;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+         x="14.483533"
+         y="92.57795"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke-width:0.70555556;stroke-dasharray:none;paint-order:stroke fill markers;stroke:#fefefe;stroke-opacity:1"
+   id="tspan7">󱥍󱦗󱤔󱤨</tspan>󱦘</tspan></text>
+    <rect
+       style="opacity:1;fill:#121212;fill-opacity:0;stroke:#dadada;stroke-width:0.467647;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0;paint-order:stroke fill markers"
+       id="rect8"
+       width="29.492603"
+       height="10.532353"
+       x="14.393169"
+       y="68.866386"
+       ry="0.65244657"
+       inkscape:label="padding 2" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#dadada;stroke-width:0.34035;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1-8"
+       sodipodi:type="arc"
+       sodipodi:cx="21.156511"
+       sodipodi:cy="72.920975"
+       sodipodi:rx="1.973193"
+       sodipodi:ry="1.3976464"
+       sodipodi:start="0.0013058452"
+       sodipodi:end="0"
+       sodipodi:arc-type="slice"
+       d="m 23.129703,72.9228 a 1.973193,1.3976464 0 0 1 -1.975124,1.39582 1.973193,1.3976464 0 0 1 -1.97126,-1.398558 1.973193,1.3976464 0 0 1 1.973836,-1.396734 1.973193,1.3976464 0 0 1 1.972549,1.397647 h -1.973193 z"
+       inkscape:label="filling 2" />
+    <text
+       xml:space="preserve"
+       style="font-style:italic;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:'Consolas Italic';opacity:1;fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+       x="15.688622"
+       y="76.630829"
+       id="text6"
+       inkscape:export-filename="..\Documents\Rust Projects\Ajemi\doc\control-reverse-long-glyph.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"
+       inkscape:label="control-reverse-long-glyph"><tspan
+         sodipodi:role="line"
+         id="tspan6"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:Consolas;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+         x="15.688622"
+         y="76.630829">󱦚󱤔󱤨󱦛󱤖</tspan></text>
+    <rect
+       style="fill:#121212;fill-opacity:0;stroke:#dadada;stroke-width:0.740115;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0;paint-order:stroke fill markers"
+       id="rect8-8"
+       width="29.538828"
+       height="10.259886"
+       x="14.370057"
+       y="52.207302"
+       ry="0.63556808"
+       inkscape:label="padding 1" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#dadada;stroke-width:0.34035;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1"
+       sodipodi:type="arc"
+       sodipodi:cx="19.952301"
+       sodipodi:cy="57.234955"
+       sodipodi:rx="1.973193"
+       sodipodi:ry="1.3976464"
+       sodipodi:start="0.0013058452"
+       sodipodi:end="0"
+       sodipodi:arc-type="slice"
+       d="m 21.925492,57.23678 a 1.973193,1.3976464 0 0 1 -1.975123,1.395821 1.973193,1.3976464 0 0 1 -1.971261,-1.398559 1.973193,1.3976464 0 0 1 1.973837,-1.396734 1.973193,1.3976464 0 0 1 1.972549,1.397647 h -1.973193 z"
+       inkscape:label="filling 1" />
+    <text
+       xml:space="preserve"
+       style="font-style:italic;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:'Consolas Italic';fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+       x="14.700845"
+       y="61.552479"
+       id="text3"
+       inkscape:label="control-scaling"
+       inkscape:export-filename="..\Documents\Rust Projects\Ajemi\doc\control-scaling.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:Consolas;fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers"
+         x="14.700845"
+         y="61.552479">󱤔‍󱤨</tspan></text>
+    <rect
+       style="fill:#121212;fill-opacity:0;stroke:#dadada;stroke-width:0.740115;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:0;paint-order:stroke fill markers"
+       id="rect8-8-0-5"
+       width="29.538828"
+       height="10.259886"
+       x="14.370057"
+       y="37.925453"
+       ry="0.63556808"
+       inkscape:label="padding 0" />
+    <path
+       style="fill:#ffffff;fill-opacity:1;stroke:#dadada;stroke-width:0.34035;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="path1-4"
+       sodipodi:type="arc"
+       sodipodi:cx="19.227083"
+       sodipodi:cy="43.65205"
+       sodipodi:rx="1.973193"
+       sodipodi:ry="1.3976464"
+       sodipodi:start="0.0013058452"
+       sodipodi:end="0"
+       sodipodi:arc-type="slice"
+       d="m 21.200275,43.653875 a 1.973193,1.3976464 0 0 1 -1.975124,1.395821 1.973193,1.3976464 0 0 1 -1.97126,-1.398559 1.973193,1.3976464 0 0 1 1.973836,-1.396733 1.973193,1.3976464 0 0 1 1.972549,1.397646 h -1.973193 z"
+       inkscape:label="filling 0" />
+    <text
+       xml:space="preserve"
+       style="font-style:italic;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:'Consolas Italic';fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers;fill-opacity:1"
+       x="14.671211"
+       y="46.382229"
+       id="text1"
+       inkscape:label="control-stacking"
+       inkscape:export-filename="..\Documents\Rust Projects\Ajemi\doc\control-stacking.png"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.87778px;font-family:Consolas;-inkscape-font-specification:Consolas;fill:#000000;stroke:#fefefe;stroke-width:0.70555556;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:stroke fill markers;fill-opacity:1"
+         x="14.671211"
+         y="46.382229">󱤔󱦕󱤨</tspan></text>
+  </g>
+</svg>
