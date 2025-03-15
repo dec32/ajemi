@@ -74,6 +74,16 @@ impl CharExt for char {
     }
 }
 
+pub trait IterStr<'a> {
+    fn iter_str(&'a self) -> impl Iterator<Item = &'a str>;
+}
+
+impl<'a> IterStr<'a> for Vec<String> {
+    fn iter_str(&'a self) -> impl Iterator<Item = &'a str> {
+        self.iter().map(String::as_str)
+    }
+}
+
 pub trait LoadValue where Self: Sized {
     fn load(&mut self, value: Value);
 }
