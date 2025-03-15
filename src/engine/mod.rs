@@ -3,10 +3,11 @@ mod sentence;
 mod schema;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use std::{env, fs};
+use std::{env, fs, iter};
 use std::collections::HashSet;
 use self::schema::Schema;
 use self::schema::Candidate::*;
+use crate::extend::IterStr;
 use crate::global::IME_NAME;
 use crate::{Result, EMOJI_DICT, SITELEN_DICT};
 use crate::{conf::CJK_SPACE, CANDI_NUM};
@@ -131,30 +132,31 @@ impl Engine {
         'outer_loop:
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
-            let words: &mut dyn Iterator<Item = &String> = match self.schema().candis.get(slice) {
+            let words: &mut dyn Iterator<Item = &str> = match self.schema().candis.get(slice) {
                 Some(Exact(word, words)) => 
-                    &mut Some(word).into_iter().chain(words.iter()),
+                    &mut iter::once(word.as_str()).chain(words.iter_str()),
                 Some(Unique(word)) => 
-                    &mut Some(word).into_iter(),
+                    &mut iter::once(word.as_str()),
                 Some(Duplicates(words)) => 
-                    &mut words.iter(),
+                    &mut words.iter_str(),
                 None => {
                     continue;
                 }
             };
+
             for word in words {
-                let words: &mut dyn Iterator<Item = &String> = if let Some(alters) = self.schema().alters.get(word) {
-                    &mut Some(word).into_iter().chain(alters.iter())
+                let words: &mut dyn Iterator<Item = &str> = if let Some(alters) = self.schema().alters.get(word) {
+                    &mut iter::once(word).chain(alters.iter_str())
                 } else {
-                    &mut Some(word).into_iter()
+                    &mut iter::once(word)
                 };
                 for word in words {
-                    if exclude.contains(word.as_str()) {
+                    if exclude.contains(word) {
                         continue;
                     }
                     exclude.insert(word);
                     // append the trailing joiner(s) to the suggestion
-                    let mut output = word.clone();
+                    let mut output = word.to_string();
                     let mut to = to;
                     let bytes = spelling.as_bytes();
                     for i in to..spelling.len() {
