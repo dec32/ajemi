@@ -131,22 +131,22 @@ impl Engine {
         'outer_loop:
         for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
-            let words: Box<dyn Iterator<Item = &String>> = match self.schema().candis.get(slice) {
+            let words: &mut dyn Iterator<Item = &String> = match self.schema().candis.get(slice) {
                 Some(Exact(word, words)) => 
-                    Box::new(Some(word).into_iter().chain(words.iter())),
+                    &mut Some(word).into_iter().chain(words.iter()),
                 Some(Unique(word)) => 
-                    Box::new(Some(word).into_iter()),
+                    &mut Some(word).into_iter(),
                 Some(Duplicates(words)) => 
-                    Box::new(words.iter()),
+                    &mut words.iter(),
                 None => {
                     continue;
                 }
             };
             for word in words {
-                let words: Box<dyn Iterator<Item = &String>> = if let Some(alters) = self.schema().alters.get(word) {
-                    Box::new(Some(word).into_iter().chain(alters.iter()))
+                let words: &mut dyn Iterator<Item = &String> = if let Some(alters) = self.schema().alters.get(word) {
+                    &mut Some(word).into_iter().chain(alters.iter())
                 } else {
-                    Box::new(Some(word).into_iter())
+                    &mut Some(word).into_iter()
                 };
                 for word in words {
                     if exclude.contains(word.as_str()) {
