@@ -20,7 +20,7 @@ use crate::{global::*, extend::OsStrExt2};
 
 
 // FIXME these unwrappings...
-pub unsafe fn register_server() -> Result<()> {
+pub fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
@@ -34,7 +34,7 @@ pub unsafe fn register_server() -> Result<()> {
     Ok(())
 }
 
-pub unsafe fn unregister_server() -> Result<()> {
+pub fn unregister_server() -> Result<()> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
     hklm.delete_subkey_all(path).unwrap();
@@ -72,73 +72,77 @@ const SUPPORTED_CATEGORIES: [GUID; 16] = [
     TextServices::GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY
 ];
 
-pub unsafe fn register_ime() -> Result<()> {
-    // some COM nonsense to create the registry objects.
-    let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
-        &CLSID_TF_InputProcessorProfiles, 
-        None, 
-        CLSCTX_INPROC_SERVER)?;
-    let category_mgr: ITfCategoryMgr = CoCreateInstance(
-        &CLSID_TF_CategoryMgr, 
-        None, 
-        CLSCTX_INPROC_SERVER)?;
-    let (langid, layout) = detect_layout()
-        .inspect_err_with_log()
-        .unwrap_or((LanguageID::US as u16, HKL::default()));
+pub fn register_ime() -> Result<()> {
+    unsafe {
+        // some COM nonsense to create the registry objects.
+        let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
+            &CLSID_TF_InputProcessorProfiles, 
+            None, 
+            CLSCTX_INPROC_SERVER)?;
+        let category_mgr: ITfCategoryMgr = CoCreateInstance(
+            &CLSID_TF_CategoryMgr, 
+            None, 
+            CLSCTX_INPROC_SERVER)?;
+        let (langid, layout) = detect_layout()
+            .inspect_err_with_log()
+            .unwrap_or((LanguageID::US as u16, HKL::default()));
 
-    // three things to register:
-    // 1. the IME itself
-    // 2. language profile
-    // 3. categories(the features the IME has)
-    input_processor_profiles.Register(&IME_ID)?;
-    log::info!("Registered the input method.");
-    let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
-    let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
-    let icon_index = {
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
-        hkcu.open_subkey(path)
-            .and_then(|subkey| subkey.get_value("SystemUsesLightTheme"))
-            .map(|light_theme: u32| if light_theme == 1 { LITE_TRAY_ICON_INDEX } else { DARK_TRAY_ICON_INDEX })
-            .unwrap_or(LITE_TRAY_ICON_INDEX)
-    };
-    input_processor_profiles.AddLanguageProfile(
-        &IME_ID, langid, &LANG_PROFILE_ID, &ime_name, 
-        &icon_file, icon_index)?;
-    input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID, layout)?;
-    log::info!("Registered the language profile.");
-    for rcatid  in SUPPORTED_CATEGORIES {
-        category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
+        // three things to register:
+        // 1. the IME itself
+        // 2. language profile
+        // 3. categories(the features the IME has)
+        input_processor_profiles.Register(&IME_ID)?;
+        log::info!("Registered the input method.");
+        let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
+        let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
+        let icon_index = {
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+            hkcu.open_subkey(path)
+                .and_then(|subkey| subkey.get_value("SystemUsesLightTheme"))
+                .map(|light_theme: u32| if light_theme == 1 { LITE_TRAY_ICON_INDEX } else { DARK_TRAY_ICON_INDEX })
+                .unwrap_or(LITE_TRAY_ICON_INDEX)
+        };
+        input_processor_profiles.AddLanguageProfile(
+            &IME_ID, langid, &LANG_PROFILE_ID, &ime_name, 
+            &icon_file, icon_index)?;
+        input_processor_profiles.SubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID, layout)?;
+        log::info!("Registered the language profile.");
+        for rcatid  in SUPPORTED_CATEGORIES {
+            category_mgr.RegisterCategory(&IME_ID, &rcatid, &IME_ID)?;
+        }
+        log::info!("Registered the categories.");
+        Ok(())
     }
-    log::info!("Registered the categories.");
-    Ok(())
 }
 
 // similar process but re-doing everything
-pub unsafe fn unregister_ime() -> Result<()> {
-    let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
-        &CLSID_TF_InputProcessorProfiles, // using ::IID would cause unregister to fail
-        None, 
-        CLSCTX_INPROC_SERVER)?;
-    let category_mgr: ITfCategoryMgr = CoCreateInstance(
-        &CLSID_TF_CategoryMgr, 
-        None, 
-        CLSCTX_INPROC_SERVER)?;
-    for rcatid in SUPPORTED_CATEGORIES {
-        category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
+pub fn unregister_ime() -> Result<()> {
+    unsafe {
+        let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
+            &CLSID_TF_InputProcessorProfiles, // using ::IID would cause unregister to fail
+            None, 
+            CLSCTX_INPROC_SERVER)?;
+        let category_mgr: ITfCategoryMgr = CoCreateInstance(
+            &CLSID_TF_CategoryMgr, 
+            None, 
+            CLSCTX_INPROC_SERVER)?;
+        for rcatid in SUPPORTED_CATEGORIES {
+            category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
+        }
+        log::info!("Unregistered the categories.");
+        if let Some(langid) = Install::open().ok().and_then(|install|install.langid) {
+            input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
+        }
+        for langid in LanguageID::iter() {
+            let langid = langid as u16;
+            input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
+        }
+        log::info!("Unregistered the language profile.");
+        input_processor_profiles.Unregister(&IME_ID)?;
+        log::info!("Unregistered the input method.");
+        Ok(())
     }
-    log::info!("Unregistered the categories.");
-    if let Some(langid) = Install::open().ok().and_then(|install|install.langid) {
-        input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
-    }
-    for langid in LanguageID::iter() {
-        let langid = langid as u16;
-        input_processor_profiles.RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID).ok();
-    }
-    log::info!("Unregistered the language profile.");
-    input_processor_profiles.Unregister(&IME_ID)?;
-    log::info!("Unregistered the input method.");
-    Ok(())
 }
 
 

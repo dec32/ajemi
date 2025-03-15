@@ -66,7 +66,7 @@ pub(super) fn insert_long_glyph(text: &mut String) {
             output.push(ch);
             output.push(START_OF_LONG_GLYGH);
             open = true;
-        } else if ext_right(ch){
+        } else if ext_right(ch) {
             if open {
                 output.push(ch);
                 continue;

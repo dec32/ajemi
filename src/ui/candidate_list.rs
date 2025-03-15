@@ -54,7 +54,7 @@ pub fn setup() -> Result<()> {
 unsafe extern "system" fn wind_proc(window: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_PAINT => paint(window),
-        _  => DefWindowProcA(window, msg, wparam, lparam),
+        _  => unsafe { DefWindowProcA(window, msg, wparam, lparam) },
     }
 }
 
@@ -243,47 +243,52 @@ struct PaintArg {
     candis: Vec<Vec<u16>>,
 }
 impl PaintArg {
-    unsafe fn to_long_ptr(self) -> LongPointer{
-        mem::transmute(ManuallyDrop::new(Box::new(self)))
+    fn to_long_ptr(self) -> LongPointer {
+        unsafe { mem::transmute(ManuallyDrop::new(Box::new(self))) }
     }
     unsafe fn from_long_ptr(long_ptr: LongPointer) -> Option<Box<PaintArg>>{
         if long_ptr == 0 {
             None
         } else {
-            Some(mem::transmute(long_ptr))
+            unsafe { Some(mem::transmute(long_ptr)) }
         }
     }
 }
-
-unsafe fn paint(window: HWND) -> LRESULT{
+fn paint(window: HWND) -> LRESULT {
     let conf = conf::get();
     // load the extra arg
-    let Some(arg) = PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) else {
+    let arg = unsafe { PaintArg::from_long_ptr(GetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default())) };
+    let Some(arg) = arg else {
         error!("Args for repaint is not found.");
         return LRESULT::default();
     };
-    SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0);
+    unsafe { SetWindowLongPtrA(window, WINDOW_LONG_PTR_INDEX::default(), 0) };
     let mut ps = PAINTSTRUCT::default();
-    let dc: HDC = BeginPaint(window, &mut ps);
+    let dc: HDC = unsafe { BeginPaint(window, &mut ps) };
     if dc.is_invalid() {
         error!("BeginPaint failed.");
         return LRESULT::default();
     }
+    unsafe {
     // window
-    FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, conf.color.background);
-    // clip
-    FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, conf.color.clip);
-    // highlight
-    FillRect(dc, BORDER_WIDTH + CLIP_WIDTH, BORDER_WIDTH, arg.highlight_width, arg.label_height, conf.color.highlight);
+        FillRect(dc, 0, 0, arg.wnd_width, arg.wnd_height, conf.color.background);
+        // clip
+        FillRect(dc, BORDER_WIDTH, BORDER_WIDTH, CLIP_WIDTH, arg.label_height, conf.color.clip);
+        // highlight
+        FillRect(dc, BORDER_WIDTH + CLIP_WIDTH, BORDER_WIDTH, arg.highlight_width, arg.label_height, conf.color.highlight);
+    }
+
     // highlighted text
     let mut index_x = BORDER_WIDTH + CLIP_WIDTH + LABEL_PADDING_LEFT;
     let mut candi_x = BORDER_WIDTH + index_x + arg.index_width;
     let mut index_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.index_height) / 2;
     let mut candi_y = BORDER_WIDTH + LABEL_PADDING_TOP + (arg.row_height - arg.candi_height) / 2;
-    
-    SetBkMode(dc, TRANSPARENT);
-    TextOut(dc, index_x, index_y, &arg.indice[0], conf.color.index, arg.index_font);
-    TextOut(dc, candi_x, candi_y, &arg.candis[0], conf.color.highlighted, arg.candi_font);
+    unsafe {
+        SetBkMode(dc, TRANSPARENT);
+        TextOut(dc, index_x, index_y, &arg.indice[0], conf.color.index, arg.index_font);
+        TextOut(dc, candi_x, candi_y, &arg.candis[0], conf.color.highlighted, arg.candi_font);
+
+    }
     // normal text
     for i in 1..arg.candis.len() {
         if conf.layout.vertical {
@@ -293,19 +298,26 @@ unsafe fn paint(window: HWND) -> LRESULT{
             index_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
             candi_x += arg.index_width + arg.candi_widths[i - 1] + LABEL_PADDING_LEFT + LABEL_PADDING_RIGHT;
         }
-        TextOut(dc, index_x, index_y, &arg.indice[i], conf.color.index, arg.index_font);
-        TextOut(dc, candi_x, candi_y, &arg.candis[i], conf.color.candidate, arg.candi_font);
+        unsafe {
+            TextOut(dc, index_x, index_y, &arg.indice[i], conf.color.index, arg.index_font);
+            TextOut(dc, candi_x, candi_y, &arg.candis[i], conf.color.candidate, arg.candi_font);
+        }
     }
-    ReleaseDC(window, dc);
-    EndPaint(window, &mut ps);
+    unsafe {
+        ReleaseDC(window, dc);
+        EndPaint(window, &mut ps);
+    }
     LRESULT::default()
 }
 
 #[allow(non_snake_case)]
 unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars:&[u16], color: u32, font: HFONT) {
-    SelectObject(hdc, font);
-    SetTextColor(hdc, color.to_color_ref());
-    TextOutW(hdc, x, y, wchars);
+    unsafe {
+        SelectObject(hdc, font);
+        SetTextColor(hdc, color.to_color_ref());
+        TextOutW(hdc, x, y, wchars);
+    }
+
 }
 
 #[allow(non_snake_case)]
@@ -316,7 +328,7 @@ unsafe fn FillRect(hdc: HDC, x: i32, y: i32, width: i32, height: i32, color: u32
         right: x + width,
         bottom: height,
     };
-    Gdi::FillRect(hdc, &rect, color.to_hbrush());
+    unsafe { Gdi::FillRect(hdc, &rect, color.to_hbrush()) };
 }
 
 
