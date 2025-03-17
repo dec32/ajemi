@@ -42,7 +42,7 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 
 // Register the IME into the OS. See register.rs.
 #[unsafe(no_mangle)]
-unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
+extern "stdcall" fn DllRegisterServer() -> HRESULT {
     fn reg() -> Result<()> {
         register_server()?;
         register_ime()
@@ -58,7 +58,7 @@ unsafe extern "stdcall" fn DllRegisterServer() -> HRESULT {
 
 // Unregister the IME from the OS. See register.rs.
 #[unsafe(no_mangle)]
-unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
+extern "stdcall" fn DllUnregisterServer() -> HRESULT {
     fn unreg() -> Result<()> {
         unregister_ime()?;
         unregister_server()
@@ -74,7 +74,7 @@ unsafe extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 
 // Returns the required object. For a COM dll like an IME, the required object is always a class factory.
 #[unsafe(no_mangle)]
-unsafe extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
     // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
@@ -95,7 +95,7 @@ unsafe extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const 
 }
 
 #[unsafe(no_mangle)]
-unsafe extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
+extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
     // it seems not that of a important thing to do according to 
     // https://github.com/microsoft/windows-rs/issues/2472 tho

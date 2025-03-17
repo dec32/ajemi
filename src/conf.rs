@@ -2,6 +2,21 @@ use std::{env, fs, path::PathBuf, sync::OnceLock};
 use serde::Deserialize;
 use crate::{extend::ResultExt, Error, Result, DEFAULT_CONF, IME_NAME};
 
+
+// use parking_lot::{RwLock, RwLockReadGuard};
+//
+// static CONF: OnceLock<RwLock<Conf>> = OnceLock::new();
+//
+// pub fn get() -> RwLockReadGuard<'static, Conf> {
+//     CONF2.get_or_init(||RwLock::new(Conf::open_or_default())).read_recursive()
+// }
+//
+// pub fn reload() {
+//     // todo check for last modified
+//     let mut conf = CONF2.get().unwrap().write();
+//     *conf = Conf::open_or_default();
+// }
+
 static CONF: OnceLock<Conf> = OnceLock::new();
 
 pub fn get() -> &'static Conf {
