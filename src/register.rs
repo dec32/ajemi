@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use log_derive::logfn;
 use strum::IntoEnumIterator;
 use windows::core::GUID;
 use windows::Win32::UI::Input::KeyboardAndMouse::{ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA, KLF_SETFORPROCESS};
@@ -8,7 +9,7 @@ use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
 use winreg::RegKey;
 use crate::install::{Install, Layout};
 use crate::{Error, Result};
-use crate::extend::{GUIDExt, ResultExt};
+use crate::extend::GUIDExt;
 use crate::{global::*, extend::OsStrExt2};
 
 //----------------------------------------------------------------------------
@@ -18,7 +19,7 @@ use crate::{global::*, extend::OsStrExt2};
 //
 //----------------------------------------------------------------------------
 
-
+#[logfn(err = "Error")]
 pub fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
@@ -33,6 +34,7 @@ pub fn register_server() -> Result<()> {
     Ok(())
 }
 
+#[logfn(err = "Error")]
 pub fn unregister_server() -> Result<()> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
@@ -71,6 +73,7 @@ const SUPPORTED_CATEGORIES: [GUID; 16] = [
     TextServices::GUID_TFCAT_DISPLAYATTRIBUTEPROPERTY
 ];
 
+#[logfn(err = "Error")]
 pub fn register_ime() -> Result<()> {
     unsafe {
         // some COM nonsense to create the registry objects.
@@ -83,7 +86,6 @@ pub fn register_ime() -> Result<()> {
             None, 
             CLSCTX_INPROC_SERVER)?;
         let (langid, layout) = detect_layout()
-            .inspect_err_with_log()
             .unwrap_or((LanguageID::US as u16, HKL::default()));
 
         // three things to register:
@@ -116,6 +118,7 @@ pub fn register_ime() -> Result<()> {
 }
 
 // similar process but re-doing everything
+#[logfn(err = "Error")]
 pub fn unregister_ime() -> Result<()> {
     unsafe {
         let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(

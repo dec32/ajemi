@@ -7,6 +7,7 @@ mod edit_session;
 mod langbar_item;
 
 use std::time::{Duration, Instant};
+use log_derive::logfn;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use log::{debug, error, warn};
 
@@ -66,7 +67,8 @@ struct TextServiceInner {
 }
 
 impl TextService {
-    pub fn create<I: Interface>() -> Result<I> {
+    #[logfn(err = "Error")]
+    pub fn create() -> Result<ITfTextInputProcessor> {
         let inner = TextServiceInner {
             engine: Engine::build_or_default(),
             tid: 0,
@@ -85,7 +87,7 @@ impl TextService {
             display_attribute: None,
             interface: None,
         };
-        let text_service = TextService{
+        let text_service = TextService {
             inner: RwLock::new(inner)
         };
         // from takes ownership of the object and returns a smart pointer

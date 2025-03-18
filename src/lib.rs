@@ -9,13 +9,12 @@ mod tsf;
 mod engine;
 mod ui;
 
-use std::{ffi::c_void, fmt::Debug, mem, ptr};
-use extend::ResultExt;
+use std::ffi::c_void;
 use ui::candidate_list;
-use windows::{core::{implement, IUnknown, Interface, GUID, HRESULT}, Win32::{Foundation::{BOOL, CLASS_E_CLASSNOTAVAILABLE, E_FAIL, E_NOINTERFACE, HINSTANCE, S_FALSE, S_OK, WIN32_ERROR}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}, UI::TextServices::{ITfTextInputProcessor, ITfTextInputProcessorEx}}};
+use windows::{core::{implement, IUnknown, Interface, GUID, HRESULT}, Win32::{Foundation::{BOOL, E_FAIL, HINSTANCE, S_FALSE, WIN32_ERROR}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}}};
 use global::*;
 use register::*;
-use crate::{extend::GUIDExt, tsf::TextService};
+use crate::tsf::TextService;
 
 //----------------------------------------------------------------------------
 //
@@ -43,55 +42,32 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 // Register the IME into the OS. See register.rs.
 #[unsafe(no_mangle)]
 extern "stdcall" fn DllRegisterServer() -> HRESULT {
-    fn reg() -> Result<()> {
+    fn reg() -> windows::core::Result<()> {
         register_server()?;
-        register_ime()
+        register_ime()?;
+        Ok(())
     }
-    match reg() {
-        Ok(_) => S_OK,
-        Err(err) => {
-            log::error!("Failed to register server. {:?}", err);
-            err.into()
-        }
-    }
+    reg().into()
 }
 
 // Unregister the IME from the OS. See register.rs.
 #[unsafe(no_mangle)]
 extern "stdcall" fn DllUnregisterServer() -> HRESULT {
-    fn unreg() -> Result<()> {
+    fn unreg() -> windows::core::Result<()> {
         unregister_ime()?;
-        unregister_server()
+        unregister_server()?;
+        Ok(())
     }
-    match unreg() {
-        Ok(_) => S_OK,
-        Err(err) => {
-            log::error!("Failed to unregister server. {:?}", err);
-            err.into()
-        }
-    }
+    unreg().into()
 }
 
 // Returns the required object. For a COM dll like an IME, the required object is always a class factory.
 #[unsafe(no_mangle)]
 extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
-    // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime and management
+    // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime
     // the return value is a C++ vptr pointing to the moved object under the hood
-    // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and cause gray screen.
-    unsafe {
-        log::debug!("DllGetClassObject({})", (*riid).to_rfc4122());
-        let mut result = S_OK;
-        *ppv = match *riid {
-            IUnknown::IID => mem::transmute(IUnknown::from(ClassFactory::new())),
-            IClassFactory::IID => mem::transmute(IClassFactory::from(ClassFactory::new())),
-            guid => {
-                log::error!("The required class object {} is not available.", guid.to_rfc4122());
-                result = CLASS_E_CLASSNOTAVAILABLE;
-                ptr::null_mut()
-            }
-        };
-        result
-    }
+    // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and causes the Grey Screen of Death.
+    unsafe { IUnknown::from(ClassFactory::new()).query(riid, ppv) }
 }
 
 #[unsafe(no_mangle)]
@@ -117,27 +93,11 @@ impl ClassFactory {
 }
 
 impl IClassFactory_Impl for ClassFactory {
-    fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut*mut c_void) -> windows::core::Result<()> {
-        log::debug!("CreateInstance({})", unsafe{ (*riid).to_rfc4122() });
-        let mut result = Ok(());
-        unsafe {
-            *ppvobject = match *riid {
-                ITfTextInputProcessor::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessor>().inspect_err_with_log()?),
-                ITfTextInputProcessorEx::IID => mem::transmute(
-                    TextService::create::<ITfTextInputProcessorEx>().inspect_err_with_log()?),
-                guid => {
-                    log::error!("The required instance {} is not available.", guid.to_rfc4122());
-                    result = Err(E_NOINTERFACE.into());
-                    ptr::null_mut()
-                }
-            };
-        }
-        result
+    fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut *mut c_void) -> windows::core::Result<()> {
+        unsafe { TextService::create()?.query(riid, ppvobject).ok() }
     }
 
-    fn LockServer(&self, flock: BOOL) -> windows::core::Result<()> {
-        log::debug!("LockServer({})", flock.as_bool());
+    fn LockServer(&self, _flock: BOOL) -> windows::core::Result<()> {
         Ok(())
     }
 }
