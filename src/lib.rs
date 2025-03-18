@@ -133,7 +133,7 @@ pub enum Error {
 impl From<WIN32_ERROR> for Error { fn from(value: WIN32_ERROR) -> Self { Self::Win(value.into()) } }
 impl From<HRESULT> for Error { fn from(value: HRESULT) -> Self { Self::Win(value.into()) } }
 
-// cast to windows Error when requied, keeping the original error message
+// cast to windows Error when required, keeping the original error message
 impl From<Error> for windows::core::Error {
     fn from(value: Error) -> Self {
         match value {
