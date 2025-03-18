@@ -89,7 +89,7 @@ extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
 struct ClassFactory;
 
 impl ClassFactory {
-    fn new() -> ClassFactory {ClassFactory{}.into()}
+    fn new() -> ClassFactory { ClassFactory {} }
 }
 
 impl IClassFactory_Impl for ClassFactory {
