@@ -19,25 +19,24 @@ use crate::{global::*, extend::OsStrExt2};
 //----------------------------------------------------------------------------
 
 
-// FIXME these unwrappings...
 pub fn register_server() -> Result<()> {
     // Register the IME's ASCII name under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
-    let (clsid, _) = hklm.create_subkey(path).unwrap();
-    clsid.set_value("", &IME_NAME_ASCII).unwrap();
+    let (clsid, _) = hklm.create_subkey(path)?;
+    clsid.set_value("", &IME_NAME_ASCII)?;
     // Register the dll's path under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32 
-    let (inproc_server_32, _) = clsid.create_subkey("InprocServer32").unwrap();
-    inproc_server_32.set_value("", &dll_path()?).unwrap();
+    let (inproc_server_32, _) = clsid.create_subkey("InprocServer32")?;
+    inproc_server_32.set_value("", &dll_path()?)?;
     // Register the threading model under HKLM\SOFTWARE\Classes\CLSID\{IME_ID}\InprocServer32
-    inproc_server_32.set_value("ThreadingModel", &"Apartment").unwrap();
+    inproc_server_32.set_value("ThreadingModel", &"Apartment")?;
     Ok(())
 }
 
 pub fn unregister_server() -> Result<()> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let path = format!("SOFTWARE\\Classes\\CLSID\\{{{}}}", IME_ID.to_rfc4122());
-    hklm.delete_subkey_all(path).unwrap();
+    hklm.delete_subkey_all(path)?;
     Ok(())
 }
 
