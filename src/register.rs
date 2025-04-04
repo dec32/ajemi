@@ -161,7 +161,7 @@ fn detect_layout() -> Result<(u16, HKL)> {
     let mut hkls = [HKL::default(); 16];
     let len = unsafe { GetKeyboardLayoutList(Some(&mut hkls)) } as usize;
     let hkls = &hkls[..len];
-    for hkl in hkls.iter().cloned() {
+    for hkl in hkls.iter().copied() {
         let id = unsafe {
             let mut buf = [0; 9];
             ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS)?;

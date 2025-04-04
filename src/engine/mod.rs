@@ -111,7 +111,7 @@ impl Engine {
             }
             punct => self.schema().puncts
                 .get(&punct)
-                .cloned()
+                .copied()
                 .filter(|it| *it != '\u{3000}' || !conf::get().behavior.cjk_space )
                 .unwrap_or(punct)
         }
@@ -160,7 +160,7 @@ impl Engine {
                     let mut to = to;
                     let bytes = spelling.as_bytes();
                     for i in to..spelling.len() {
-                        if let Some(joiner) = char::try_from(bytes[i]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
+                        if let Some(joiner) = char::try_from(bytes[i]).ok().and_then(|char|self.schema().puncts.get(&char)).copied() {
                             output.push(joiner);
                             to += 1;
                         } else {

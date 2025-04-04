@@ -28,7 +28,7 @@ impl Sentence {
         if self.output.chars().last().map(|char|char.is_joiner()).unwrap_or(false) {
             *self.groupping.last_mut().unwrap() += len;
         } else {
-            self.groupping.push(self.groupping.last().cloned().unwrap_or(0) + len);
+            self.groupping.push(self.groupping.last().copied().unwrap_or(0) + len);
         }
         self.output.push_str(word);
         self.wc += 1;
@@ -84,8 +84,8 @@ impl Engine {
     {
         // push leading joiners into the sentence directly
         let mut spelling = spelling;
-        for (i, byte) in spelling.as_bytes().iter().cloned().enumerate() {
-            if let Some(joiner) = char::try_from(spelling.as_bytes()[i]).ok().and_then(|char|self.schema().puncts.get(&char)).cloned() {
+        for (i, byte) in spelling.as_bytes().iter().copied().enumerate() {
+            if let Some(joiner) = char::try_from(spelling.as_bytes()[i]).ok().and_then(|char|self.schema().puncts.get(&char)).copied() {
                 sent.push_joiner(joiner);
                 continue;
             } else {

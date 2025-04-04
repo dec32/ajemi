@@ -11,7 +11,7 @@ pub fn setup(dll_module: HINSTANCE) {
 // global variables
 static DLL_MODULE: OnceLock<HINSTANCE> = OnceLock::new();
 pub fn dll_module() -> HINSTANCE {
-    DLL_MODULE.get().cloned().unwrap()
+    DLL_MODULE.get().copied().unwrap()
 }
 
 pub fn dll_path() -> Result<OsString> {
