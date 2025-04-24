@@ -95,7 +95,7 @@ begin
       SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Azerty"', False);
     end;
     if Layout3.Checked then begin
-      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="QWERTZ"', False);
+      SaveStringToFile(ExpandConstant('{userappdata}\{#MyAppName}\install.toml'), 'layout="Qwertz"', False);
     end;
   end;
 end;
