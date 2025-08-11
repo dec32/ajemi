@@ -1,12 +1,20 @@
 use log::trace;
-use windows::Win32::Foundation::{POINT, RECT, BOOL};
-use windows::Win32::UI::WindowsAndMessaging::HICON;
-use windows::core::{Result, BSTR};
-use windows::Win32::UI::TextServices::{ITfLangBarItemButton_Impl, ITfMenu, TfLBIClick, ITfLangBarItem_Impl, TF_LANGBARITEMINFO, TF_LBI_STYLE_BTN_BUTTON};
-use crate::{IME_ID, LANGBAR_ITEM_ID};
+use windows::{
+    Win32::{
+        Foundation::{BOOL, POINT, RECT},
+        UI::{
+            TextServices::{
+                ITfLangBarItem_Impl, ITfLangBarItemButton_Impl, ITfMenu, TF_LANGBARITEMINFO,
+                TF_LBI_STYLE_BTN_BUTTON, TfLBIClick,
+            },
+            WindowsAndMessaging::HICON,
+        },
+    },
+    core::{BSTR, Result},
+};
 
 use super::TextService;
-
+use crate::{IME_ID, LANGBAR_ITEM_ID};
 
 #[allow(non_snake_case, unused)]
 impl ITfLangBarItem_Impl for TextService {
@@ -22,7 +30,7 @@ impl ITfLangBarItem_Impl for TextService {
     fn GetStatus(&self) -> Result<u32> {
         Ok(0)
     }
-    fn Show(&self,fshow:BOOL) -> Result<()> {
+    fn Show(&self, fshow: BOOL) -> Result<()> {
         Ok(())
     }
     fn GetTooltipString(&self) -> Result<BSTR> {
@@ -31,7 +39,7 @@ impl ITfLangBarItem_Impl for TextService {
 }
 #[allow(non_snake_case, unused)]
 impl ITfLangBarItemButton_Impl for TextService {
-    fn OnClick(&self, click:TfLBIClick, pt: &POINT, prcarea: *const RECT) -> Result<()> {
+    fn OnClick(&self, click: TfLBIClick, pt: &POINT, prcarea: *const RECT) -> Result<()> {
         trace!("OnClick");
         Ok(())
     }
@@ -42,7 +50,7 @@ impl ITfLangBarItemButton_Impl for TextService {
         // todo add menu item
         Ok(())
     }
-    fn OnMenuSelect(&self, wid:u32) -> Result<()> {
+    fn OnMenuSelect(&self, wid: u32) -> Result<()> {
         Ok(())
     }
     fn GetIcon(&self) -> Result<HICON> {

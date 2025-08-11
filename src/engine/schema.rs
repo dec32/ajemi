@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use log::error;
+
 use Candidate::*;
+use log::error;
 
 /// To expain why a certain spelling is mapped to certain word(s)
 #[derive(Debug)]
@@ -14,7 +15,7 @@ pub enum Candidate {
     Unique(String),
     /// The spelling is not an exact spelling or a unique prefix.
     /// For example, `"an"` is `Duplicates(["anpa", "ante", "anu"])`.
-    Duplicates(Vec<String>)
+    Duplicates(Vec<String>),
 }
 
 /// Stores the dictionary and the remapped punctuators.
@@ -37,7 +38,7 @@ pub struct Schema {
 #[derive(Clone, Copy)]
 enum Atom<'a> {
     Text(&'a str),
-    Punct(char)
+    Punct(char),
 }
 
 impl<'a> From<&'a str> for Atom<'a> {
@@ -48,9 +49,12 @@ impl<'a> From<&'a str> for Atom<'a> {
         if !first_ch.is_alphanumeric() && chars.nth(1).is_none() {
             Punct(first_ch)
         } else if first_ch == '#' {
-            match u32::from_str_radix(&str[1..], 16).ok().and_then(|codepoint|char::from_u32(codepoint)) {
+            match u32::from_str_radix(&str[1..], 16)
+                .ok()
+                .and_then(|codepoint| char::from_u32(codepoint))
+            {
                 Some(punct) => Punct(punct),
-                None => Text(str)
+                None => Text(str),
             }
         } else if str == "space" {
             Punct(' ')
@@ -89,7 +93,11 @@ impl From<&str> for Schema {
                 continue;
             }
             atoms.clear();
-            atoms.extend(list.split(char::is_whitespace).filter(|str|!str.is_empty()).map(Atom::from));
+            atoms.extend(
+                list.split(char::is_whitespace)
+                    .filter(|str| !str.is_empty())
+                    .map(Atom::from),
+            );
             match atoms[..] {
                 [Punct('\''), Punct(open), Punct(close)] => {
                     squote = (open, close);
@@ -106,7 +114,7 @@ impl From<&str> for Schema {
                 [Punct(punct), Punct(remapped)] => {
                     puncts.insert(punct, remapped);
                 }
-                [Text(spelling), word, .. ] => {
+                [Text(spelling), word, ..] => {
                     // store exact spelling -> word
                     candis.insert(spelling.to_string(), Exact(word.to_string(), Vec::new()));
                     // store prefixes -> word
@@ -115,13 +123,13 @@ impl From<&str> for Schema {
                         match candis.get_mut(prefix) {
                             None => {
                                 candis.insert(prefix.to_string(), Unique(word.to_string()));
-                            },
+                            }
                             Some(Unique(unique)) => {
                                 let mut duplicates = Vec::new();
                                 duplicates.push(unique.clone());
                                 duplicates.push(word.to_string());
                                 candis.insert(prefix.to_string(), Duplicates(duplicates));
-                            },
+                            }
                             Some(Duplicates(duplicates)) | Some(Exact(_, duplicates)) => {
                                 duplicates.push(word.to_string());
                             }
@@ -131,11 +139,11 @@ impl From<&str> for Schema {
                     let word = word.to_string();
                     for alter in atoms.iter().skip(2) {
                         match alters.get_mut(&word) {
-                            None => { 
-                                alters.insert(word.clone(), vec![alter.to_string()]); 
+                            None => {
+                                alters.insert(word.clone(), vec![alter.to_string()]);
                             }
-                            Some(alters) => { 
-                                alters.push(alter.to_string()); 
+                            Some(alters) => {
+                                alters.push(alter.to_string());
                             }
                         }
                     }
@@ -145,7 +153,13 @@ impl From<&str> for Schema {
                 }
             }
         }
-        Schema {candis, alters, puncts, squote, dquote}
+        Schema {
+            candis,
+            alters,
+            puncts,
+            squote,
+            dquote,
+        }
     }
 }
 
@@ -154,7 +168,6 @@ fn test() {
     test_schema(crate::SITELEN_DICT);
     test_schema(crate::EMOJI_DICT);
 }
-
 
 #[allow(unused)]
 fn test_schema(str: &str) {

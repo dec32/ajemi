@@ -1,11 +1,19 @@
-use std::{char::DecodeUtf16Error, ffi::{OsStr, OsString}, os::windows::ffi::OsStrExt};
-use windows::{core::GUID, Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}};
+use std::{
+    char::DecodeUtf16Error,
+    ffi::{OsStr, OsString},
+    os::windows::ffi::OsStrExt,
+};
 
-pub trait ResultExt{
+use windows::{
+    Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY},
+    core::GUID,
+};
+
+pub trait ResultExt {
     fn inspect_err_with_log(self) -> Self;
 }
 
-impl<T,E: std::error::Error> ResultExt for std::result::Result<T, E> {
+impl<T, E: std::error::Error> ResultExt for std::result::Result<T, E> {
     fn inspect_err_with_log(self) -> Self {
         if let Err(e) = self.as_ref() {
             log::error!("{e:#}")
@@ -41,19 +49,19 @@ pub trait OsStrExt2 {
 }
 
 impl OsStrExt2 for OsStr {
-    fn wchars(&self) -> Vec<u16>{
+    fn wchars(&self) -> Vec<u16> {
         self.encode_wide().collect()
     }
-    fn null_terminated_wchars(&self) -> Vec<u16>{
+    fn null_terminated_wchars(&self) -> Vec<u16> {
         self.encode_wide().chain(Some(0).into_iter()).collect()
     }
 }
 
 impl OsStrExt2 for OsString {
-    fn wchars(&self) -> Vec<u16>{
+    fn wchars(&self) -> Vec<u16> {
         self.encode_wide().collect()
     }
-    fn null_terminated_wchars(&self) -> Vec<u16>{
+    fn null_terminated_wchars(&self) -> Vec<u16> {
         self.encode_wide().chain(Some(0).into_iter()).collect()
     }
 }
@@ -67,7 +75,7 @@ impl CharExt for char {
     fn is_joiner(self) -> bool {
         matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{200D}')
     }
-    
+
     fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error> {
         char::decode_utf16(std::iter::once(value)).next().unwrap()
     }
@@ -90,14 +98,10 @@ pub trait VKExt {
 
 impl VKExt for VIRTUAL_KEY {
     fn is_down(self) -> bool {
-        unsafe {
-            GetKeyState(self.0 as i32) as u16 & 0x8000 != 0
-        }
+        unsafe { GetKeyState(self.0 as i32) as u16 & 0x8000 != 0 }
     }
 
     fn is_toggled(self) -> bool {
-        unsafe {
-            GetKeyState(self.0 as i32) as u16 & 1 != 0
-        }
+        unsafe { GetKeyState(self.0 as i32) as u16 & 1 != 0 }
     }
 }

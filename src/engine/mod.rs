@@ -1,16 +1,14 @@
 mod long_glyph;
-mod sentence;
 mod schema;
-use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::{env, fs, iter};
-use std::collections::HashSet;
-use self::schema::Schema;
-use self::schema::Candidate::*;
-use crate::extend::IterStr;
-use crate::global::IME_NAME;
-use crate::{conf, Result, EMOJI_DICT, SITELEN_DICT};
-use crate::CANDI_NUM;
+mod sentence;
+use std::{
+    collections::{HashSet, VecDeque},
+    env, fs, iter,
+    path::PathBuf,
+};
+
+use self::schema::{Candidate::*, Schema};
+use crate::{CANDI_NUM, EMOJI_DICT, Result, SITELEN_DICT, conf, extend::IterStr, global::IME_NAME};
 
 /// Suggestions from engine
 #[derive(Default, Clone)]
@@ -31,7 +29,7 @@ impl Default for Engine {
         Engine {
             schemas: VecDeque::from([Schema::from(SITELEN_DICT), Schema::from(EMOJI_DICT)]),
             squote_open: false,
-            dquote_open: false
+            dquote_open: false,
         }
     }
 }
@@ -40,7 +38,9 @@ impl Engine {
     pub fn build() -> Result<Engine> {
         let mut schemas = VecDeque::new();
         let mut default_schema = None;
-        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("dict");
+        let path = PathBuf::from(env::var("APPDATA")?)
+            .join(IME_NAME)
+            .join("dict");
         fs::create_dir_all(&path)?;
         for entry in fs::read_dir(&path)? {
             let entry = entry?;
@@ -66,9 +66,13 @@ impl Engine {
             let emoji_path = path.join("emoji.dict");
             fs::write(sitelen_path, SITELEN_DICT)?;
             fs::write(emoji_path, EMOJI_DICT)?;
-            return Ok(Engine::default())
+            return Ok(Engine::default());
         }
-        Ok(Engine { schemas, squote_open: false, dquote_open: false })
+        Ok(Engine {
+            schemas,
+            squote_open: false,
+            dquote_open: false,
+        })
     }
 
     pub fn build_or_default() -> Engine {
@@ -96,7 +100,7 @@ impl Engine {
             '\'' => {
                 let remmaped = match self.squote_open {
                     false => self.schema().squote.0,
-                    true =>  self.schema().squote.1
+                    true => self.schema().squote.1,
                 };
                 self.squote_open = !self.squote_open;
                 remmaped
@@ -104,22 +108,24 @@ impl Engine {
             '"' => {
                 let remmaped = match self.dquote_open {
                     false => self.schema().dquote.0,
-                    true =>  self.schema().dquote.1
+                    true => self.schema().dquote.1,
                 };
                 self.dquote_open = !self.dquote_open;
                 remmaped
             }
-            punct => self.schema().puncts
+            punct => self
+                .schema()
+                .puncts
                 .get(&punct)
                 .copied()
-                .filter(|it| *it != '\u{3000}' || !conf::get().behavior.cjk_space )
-                .unwrap_or(punct)
+                .filter(|it| *it != '\u{3000}' || !conf::get().behavior.cjk_space)
+                .unwrap_or(punct),
         }
     }
 
     pub fn suggest(&self, spelling: &str) -> Vec<Suggestion> {
         if !spelling.is_ascii() {
-            return Vec::new(); 
+            return Vec::new();
         }
         let mut suggs = Vec::with_capacity(CANDI_NUM);
         // suggest a sentence
@@ -129,27 +135,24 @@ impl Engine {
         // suggest single words
         let mut remains = CANDI_NUM - suggs.len();
         let mut exclude: HashSet<&str> = HashSet::new();
-        'outer_loop:
-        for to in (1..=spelling.len()).rev() {
+        'outer_loop: for to in (1..=spelling.len()).rev() {
             let slice = &spelling[0..to];
             let words: &mut dyn Iterator<Item = &str> = match self.schema().candis.get(slice) {
-                Some(Exact(word, words)) => 
-                    &mut iter::once(word.as_str()).chain(words.iter_str()),
-                Some(Unique(word)) => 
-                    &mut iter::once(word.as_str()),
-                Some(Duplicates(words)) => 
-                    &mut words.iter_str(),
+                Some(Exact(word, words)) => &mut iter::once(word.as_str()).chain(words.iter_str()),
+                Some(Unique(word)) => &mut iter::once(word.as_str()),
+                Some(Duplicates(words)) => &mut words.iter_str(),
                 None => {
                     continue;
                 }
             };
 
             for word in words {
-                let words: &mut dyn Iterator<Item = &str> = if let Some(alters) = self.schema().alters.get(word) {
-                    &mut iter::once(word).chain(alters.iter_str())
-                } else {
-                    &mut iter::once(word)
-                };
+                let words: &mut dyn Iterator<Item = &str> =
+                    if let Some(alters) = self.schema().alters.get(word) {
+                        &mut iter::once(word).chain(alters.iter_str())
+                    } else {
+                        &mut iter::once(word)
+                    };
                 for word in words {
                     if exclude.contains(word) {
                         continue;
@@ -160,14 +163,21 @@ impl Engine {
                     let mut to = to;
                     let bytes = spelling.as_bytes();
                     for i in to..spelling.len() {
-                        if let Some(joiner) = char::try_from(bytes[i]).ok().and_then(|char|self.schema().puncts.get(&char)).copied() {
+                        if let Some(joiner) = char::try_from(bytes[i])
+                            .ok()
+                            .and_then(|char| self.schema().puncts.get(&char))
+                            .copied()
+                        {
                             output.push(joiner);
                             to += 1;
                         } else {
                             break;
                         }
                     }
-                    suggs.push(Suggestion{ output, groupping: vec![to] });
+                    suggs.push(Suggestion {
+                        output,
+                        groupping: vec![to],
+                    });
                     remains -= 1;
                     if remains <= 0 {
                         break 'outer_loop;
@@ -178,7 +188,6 @@ impl Engine {
         suggs
     }
 }
-
 
 #[test]
 fn repl() {
@@ -192,6 +201,5 @@ fn repl() {
         for sugg in suggs {
             println!("{}", sugg.output);
         }
-        
     }
 }

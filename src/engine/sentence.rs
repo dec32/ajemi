@@ -1,5 +1,5 @@
+use super::{Engine, Suggestion, long_glyph::insert_long_glyph, schema::Candidate::*};
 use crate::extend::CharExt;
-use super::{long_glyph::insert_long_glyph, schema::Candidate::*, Engine, Suggestion};
 
 #[derive(Default, Clone)]
 struct Sentence {
@@ -17,18 +17,26 @@ impl Sentence {
 
     fn push_exact(&mut self, exact: &str, len: usize) {
         self.push_word(exact, len);
-        self.score += len * match len {
-            1 => 10, // a, e and n can be very annoying
-            2 => 29, // a unique prefix of length 3 is favored over an exact match of length 2 (so pim > pi'm)
-            _ => 30, // use a 3 : 2 ratio by default
-        };
+        self.score += len
+            * match len {
+                1 => 10, // a, e and n can be very annoying
+                2 => 29, // a unique prefix of length 3 is favored over an exact match of length 2 (so pim > pi'm)
+                _ => 30, // use a 3 : 2 ratio by default
+            };
     }
 
     fn push_word(&mut self, word: &str, len: usize) {
-        if self.output.chars().last().map(|char|char.is_joiner()).unwrap_or(false) {
+        if self
+            .output
+            .chars()
+            .last()
+            .map(|char| char.is_joiner())
+            .unwrap_or(false)
+        {
             *self.groupping.last_mut().unwrap() += len;
         } else {
-            self.groupping.push(self.groupping.last().copied().unwrap_or(0) + len);
+            self.groupping
+                .push(self.groupping.last().copied().unwrap_or(0) + len);
         }
         self.output.push_str(word);
         self.wc += 1;
@@ -43,10 +51,10 @@ impl Sentence {
         }
     }
 }
-  
+
 #[allow(unused)]
 impl Engine {
-    pub(super) fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion>{
+    pub(super) fn suggest_sentence(&self, spelling: &str) -> Option<Suggestion> {
         let mut sents = self.suggest_sentences(spelling);
         let mut best_sent = None;
         let mut highest_score = 0;
@@ -64,9 +72,12 @@ impl Engine {
             return None;
         };
         insert_long_glyph(&mut best_sent.output);
-        Some(Suggestion{output:best_sent.output, groupping: best_sent.groupping})
+        Some(Suggestion {
+            output: best_sent.output,
+            groupping: best_sent.groupping,
+        })
     }
-    
+
     fn suggest_sentences(&self, spelling: &str) -> Vec<Sentence> {
         let mut sent = Sentence::default();
         let mut sents = Vec::new();
@@ -76,16 +87,19 @@ impl Engine {
     }
 
     fn suggest_sentences_recursive(
-        &self, 
-        spelling: &str, 
-        sent: &mut Sentence, 
-        sents: &mut Vec<Sentence>
-    ) 
-    {
+        &self,
+        spelling: &str,
+        sent: &mut Sentence,
+        sents: &mut Vec<Sentence>,
+    ) {
         // push leading joiners into the sentence directly
         let mut spelling = spelling;
         for (i, byte) in spelling.as_bytes().iter().copied().enumerate() {
-            if let Some(joiner) = char::try_from(spelling.as_bytes()[i]).ok().and_then(|char|self.schema().puncts.get(&char)).copied() {
+            if let Some(joiner) = char::try_from(spelling.as_bytes()[i])
+                .ok()
+                .and_then(|char| self.schema().puncts.get(&char))
+                .copied()
+            {
                 sent.push_joiner(joiner);
                 continue;
             } else {
@@ -116,7 +130,7 @@ impl Engine {
                     unique = Some(word.as_str());
                     unique_len = len;
                 }
-                _ => ()
+                _ => (),
             }
         }
         // clone if needed
@@ -164,7 +178,7 @@ fn repl() {
 fn test() {
     fn assert_sent(engine: &Engine, spelling: &str, expected: &str) {
         let sent = engine.suggest_sentence(spelling).unwrap().output;
-        let mut buf =  String::new();
+        let mut buf = String::new();
         for word in expected.split(' ') {
             buf.push_str(&engine.suggest(word)[0].output)
         }
@@ -172,6 +186,6 @@ fn test() {
     }
     let engine = Engine::build().unwrap();
     assert_sent(&engine, "lilonsewi", "li lon sewi");
-    assert_sent(&engine,"pimaka", "pi ma");
-    assert_sent(&engine,"pimkule", "pimeja kule");
+    assert_sent(&engine, "pimaka", "pi ma");
+    assert_sent(&engine, "pimkule", "pimeja kule");
 }

@@ -1,11 +1,26 @@
 use std::{ffi::OsString, sync::OnceLock};
+
 use log::{debug, error};
 use strum::EnumIter;
-use windows::{core::{GUID, Interface}, Win32::{Foundation::{GetLastError, HINSTANCE}, System::{Com::{CoCreateInstance, CLSCTX_INPROC_SERVER}, LibraryLoader::GetModuleFileNameA}, UI::TextServices::{CLSID_TF_InputProcessorProfiles, ITfInputProcessorProfileSubstituteLayout, ITfInputProcessorProfiles, HKL}}};
-use crate::{install::Install, Error, Result};
+use windows::{
+    Win32::{
+        Foundation::{GetLastError, HINSTANCE},
+        System::{
+            Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
+            LibraryLoader::GetModuleFileNameA,
+        },
+        UI::TextServices::{
+            CLSID_TF_InputProcessorProfiles, HKL, ITfInputProcessorProfileSubstituteLayout,
+            ITfInputProcessorProfiles,
+        },
+    },
+    core::{GUID, Interface},
+};
+
+use crate::{Error, Result, install::Install};
 
 pub fn setup(dll_module: HINSTANCE) {
-    DLL_MODULE.get_or_init(||dll_module);
+    DLL_MODULE.get_or_init(|| dll_module);
 }
 
 // global variables
@@ -15,7 +30,7 @@ pub fn dll_module() -> HINSTANCE {
 }
 
 pub fn dll_path() -> Result<OsString> {
-    let mut buf: Vec<u8> = vec![0;512];
+    let mut buf: Vec<u8> = vec![0; 512];
     unsafe { GetModuleFileNameA(dll_module(), &mut buf) };
     if buf[0] == 0 {
         let err = unsafe { GetLastError() };
@@ -33,7 +48,7 @@ pub fn dll_path() -> Result<OsString> {
         }
     }
     buf.truncate(to);
-    let path = unsafe{ OsString::from_encoded_bytes_unchecked(buf) };
+    let path = unsafe { OsString::from_encoded_bytes_unchecked(buf) };
     debug!("Found DLL in {}", path.to_string_lossy());
     Ok(path)
 }
@@ -43,10 +58,8 @@ pub fn registered_hkl() -> Result<HKL> {
     let langid = install.langid.ok_or(Error::LangidMissing)?;
     unsafe {
         // i fucking hate microsoft
-        let input_processor_profiles: ITfInputProcessorProfiles = CoCreateInstance(
-            &CLSID_TF_InputProcessorProfiles, 
-            None, 
-            CLSCTX_INPROC_SERVER)?;
+        let input_processor_profiles: ITfInputProcessorProfiles =
+            CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
         let hkl = input_processor_profiles
             .cast::<ITfInputProcessorProfileSubstituteLayout>()?
             .GetSubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID)?;
@@ -293,6 +306,5 @@ pub enum LanguageID {
     UzbekCyrillic = 0x00000843,
     Vietnamese = 0x0000042A,
     Wolof = 0x00000488,
-    Yoruba = 0x0000046A
+    Yoruba = 0x0000046A,
 }
-

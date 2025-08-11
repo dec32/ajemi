@@ -1,9 +1,18 @@
-use std::cell::Cell;
-use std::mem::ManuallyDrop;
+use std::{cell::Cell, mem::ManuallyDrop};
+
 use log::{error, trace};
-use windows::Win32::Foundation::{BOOL, FALSE, RECT, S_OK};
-use windows::core::{Interface, implement, AsImpl, Result, VARIANT};
-use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection, ITfRange, GUID_PROP_ATTRIBUTE, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION, TF_ST_CORRECTION};
+use windows::{
+    Win32::{
+        Foundation::{BOOL, FALSE, RECT, S_OK},
+        UI::TextServices::{
+            GUID_PROP_ATTRIBUTE, ITfComposition, ITfCompositionSink, ITfContext,
+            ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
+            ITfRange, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION,
+            TF_ST_CORRECTION,
+        },
+    },
+    core::{AsImpl, Interface, Result, VARIANT, implement},
+};
 
 //----------------------------------------------------------------------------
 //
@@ -13,37 +22,41 @@ use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink, ITfCo
 //
 //----------------------------------------------------------------------------
 
-
-pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCompositionSink) -> Result<ITfComposition> {
+pub fn start_composition(
+    tid: u32,
+    context: &ITfContext,
+    composition_sink: &ITfCompositionSink,
+) -> Result<ITfComposition> {
     trace!("start_composition");
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
         composition_sink: &'a ITfCompositionSink,
-        composition: Cell<Option<ITfComposition>>,   // out
+        composition: Cell<Option<ITfComposition>>, // out
     }
-    
+
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
         fn DoEditSession(&self, ec: u32) -> Result<()> {
             // to get the current range (namely the selected text or simply the cursor) you insert "nothing"
             // which genius came up with these APIs?
             let range = unsafe {
-                self.context.cast::<ITfInsertAtSelection>()?
+                self.context
+                    .cast::<ITfInsertAtSelection>()?
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?
             };
             let context_composition = self.context.cast::<ITfContextComposition>()?;
-            let composition = unsafe {
-                context_composition.StartComposition(
-                    ec, &range, self.composition_sink)?
-            };
+            let composition =
+                unsafe { context_composition.StartComposition(ec, &range, self.composition_sink)? };
             self.composition.set(Some(composition));
             Ok(())
         }
     }
 
     let session = ITfEditSession::from(Session {
-        context, composition_sink, composition: Cell::new(None)
+        context,
+        composition_sink,
+        composition: Cell::new(None),
     });
 
     unsafe {
@@ -57,15 +70,14 @@ pub fn start_composition(tid:u32, context: &ITfContext, composition_sink: &ITfCo
     }
 }
 
-
-pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfComposition) -> Result<()>{
+pub fn end_composition(tid: u32, context: &ITfContext, composition: &ITfComposition) -> Result<()> {
     trace!("end_composition");
     #[implement(ITfEditSession)]
-    struct Session<'a> (&'a ITfComposition);
+    struct Session<'a>(&'a ITfComposition);
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
-        fn DoEditSession(&self, ec:u32) -> Result<()> {
-            unsafe {self.0.EndComposition(ec)}
+        fn DoEditSession(&self, ec: u32) -> Result<()> {
+            unsafe { self.0.EndComposition(ec) }
         }
     }
     let session = ITfEditSession::from(Session(composition));
@@ -79,18 +91,24 @@ pub fn end_composition(tid:u32, context: &ITfContext, composition: &ITfCompositi
     }
 }
 
-pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], dispaly_attribute: Option<&VARIANT>) -> Result<()> {
+pub fn set_text(
+    tid: u32,
+    context: &ITfContext,
+    range: ITfRange,
+    text: &[u16],
+    dispaly_attribute: Option<&VARIANT>,
+) -> Result<()> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
         range: ITfRange,
         text: &'a [u16],
-        dispaly_attribute: Option<&'a VARIANT>
+        dispaly_attribute: Option<&'a VARIANT>,
     }
 
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
-        fn DoEditSession(&self, ec:u32) -> Result<()> {
+        fn DoEditSession(&self, ec: u32) -> Result<()> {
             unsafe {
                 // apply underscore
                 if let Some(display_attribute) = self.dispaly_attribute {
@@ -104,7 +122,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], di
                     self.range.SetText(ec, 0, self.text)?;
                 }
                 if self.text.is_empty() {
-                    return Ok(())
+                    return Ok(());
                 }
                 // move the cursor to the end
                 self.range.Collapse(ec, TF_ANCHOR_END)?;
@@ -118,7 +136,12 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], di
         }
     }
 
-    let session = ITfEditSession::from(Session{context, range, text, dispaly_attribute});
+    let session = ITfEditSession::from(Session {
+        context,
+        range,
+        text,
+        dispaly_attribute,
+    });
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
@@ -129,7 +152,7 @@ pub fn set_text(tid:u32, context: &ITfContext, range: ITfRange, text: &[u16], di
     }
 }
 
-pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
+pub fn insert_text(tid: u32, context: &ITfContext, text: &[u16]) -> Result<()> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
@@ -138,9 +161,11 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
 
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
-        fn DoEditSession(&self, ec:u32) -> Result<()> {
+        fn DoEditSession(&self, ec: u32) -> Result<()> {
             unsafe {
-                let range = self.context.cast::<ITfInsertAtSelection>()?
+                let range = self
+                    .context
+                    .cast::<ITfInsertAtSelection>()?
                     .InsertTextAtSelection(ec, TF_IAS_QUERYONLY, &[])?;
                 // insert text via InsertTextAtSelection directly would crash the client
                 // what's wrong with these magical APIs
@@ -149,13 +174,13 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
                 let mut selection = TF_SELECTION::default();
                 selection.range = ManuallyDrop::new(Some(range.clone()));
                 selection.style.ase = TF_AE_NONE;
-	            selection.style.fInterimChar = FALSE;
+                selection.style.fInterimChar = FALSE;
                 self.context.SetSelection(ec, &[selection])
             }
         }
     }
 
-    let session = ITfEditSession::from(Session{context, text});
+    let session = ITfEditSession::from(Session { context, text });
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {
@@ -166,7 +191,7 @@ pub fn insert_text(tid:u32, context: &ITfContext, text: &[u16]) -> Result<()>{
     }
 }
 
-pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, i32)> {
+pub fn get_pos(tid: u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, i32)> {
     #[implement(ITfEditSession)]
     struct Session<'a> {
         context: &'a ITfContext,
@@ -176,7 +201,7 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
 
     impl ITfEditSession_Impl for Session<'_> {
         #[allow(non_snake_case)]
-        fn DoEditSession(&self, ec:u32) -> Result<()> {
+        fn DoEditSession(&self, ec: u32) -> Result<()> {
             unsafe {
                 let mut rect = RECT::default();
                 let mut clipped = BOOL::default();
@@ -188,7 +213,11 @@ pub fn get_pos(tid:u32, context: &ITfContext, range: &ITfRange) -> Result<(i32, 
         }
     }
 
-    let session = ITfEditSession::from(Session{context, range, pos: Cell::new((0, 0))});
+    let session = ITfEditSession::from(Session {
+        context,
+        range,
+        pos: Cell::new((0, 0)),
+    });
     unsafe {
         let result = context.RequestEditSession(tid, &session, TF_ES_READWRITE)?;
         if result != S_OK {

@@ -1,16 +1,25 @@
-use std::sync::atomic::AtomicBool;
-use windows::Win32::Foundation::{E_INVALIDARG, E_NOTIMPL};
-use windows::Win32::UI::TextServices::{IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl, ITfDisplayAttributeInfo, ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_ATTR_INPUT, TF_DA_COLOR, TF_DISPLAYATTRIBUTE, TF_LS_SOLID};
-use windows::core::{implement, Result, BSTR, GUID};
-use std::sync::atomic::Ordering::*;
-use crate::{global, DISPLAY_ATTR_ID};
+use std::sync::atomic::{AtomicBool, Ordering::*};
+
+use windows::{
+    Win32::{
+        Foundation::{E_INVALIDARG, E_NOTIMPL},
+        UI::TextServices::{
+            IEnumTfDisplayAttributeInfo, IEnumTfDisplayAttributeInfo_Impl, ITfDisplayAttributeInfo,
+            ITfDisplayAttributeInfo_Impl, ITfDisplayAttributeProvider_Impl, TF_ATTR_INPUT,
+            TF_DA_COLOR, TF_DISPLAYATTRIBUTE, TF_LS_SOLID,
+        },
+    },
+    core::{BSTR, GUID, Result, implement},
+};
+
 use super::TextService;
+use crate::{DISPLAY_ATTR_ID, global};
 
 //---------------------------------------------------------------------------------
 //
 //  To provide display atrributes you need to implement ITfDisplayAttributeProvider
 //  and "make it available from the class factory" according to MSDN. They lied.
-//  Windows will nerver acquire the instance from class factory. It will only 
+//  Windows will nerver acquire the instance from class factory. It will only
 //  implicitly cast the ITfTextInputProcessor instance to ITfDisplayAttributeProvider.
 //
 //---------------------------------------------------------------------------------
@@ -29,7 +38,6 @@ impl ITfDisplayAttributeProvider_Impl for TextService {
     }
 }
 
-
 //----------------------------------------------------------------------------
 //
 //  An enumerator that enumerates through all possible display atrributes.
@@ -38,10 +46,14 @@ impl ITfDisplayAttributeProvider_Impl for TextService {
 //----------------------------------------------------------------------------
 
 #[implement(IEnumTfDisplayAttributeInfo)]
-struct EnumDisplayAttributeInfo { enumerated: AtomicBool }
+struct EnumDisplayAttributeInfo {
+    enumerated: AtomicBool,
+}
 impl EnumDisplayAttributeInfo {
     fn create() -> IEnumTfDisplayAttributeInfo {
-        IEnumTfDisplayAttributeInfo::from(Self{ enumerated: AtomicBool::new(false) })
+        IEnumTfDisplayAttributeInfo::from(Self {
+            enumerated: AtomicBool::new(false),
+        })
     }
 }
 
@@ -51,7 +63,12 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumDisplayAttributeInfo {
         Err(E_NOTIMPL.into())
     }
 
-    fn Next(&self, _count:u32, info: *mut Option<ITfDisplayAttributeInfo>, fetched: *mut u32) -> Result<()> {
+    fn Next(
+        &self,
+        _count: u32,
+        info: *mut Option<ITfDisplayAttributeInfo>,
+        fetched: *mut u32,
+    ) -> Result<()> {
         // Dear MS please fix these raw pointers thanks
         unsafe {
             if self.enumerated.fetch_and(true, Relaxed) {
@@ -69,7 +86,7 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumDisplayAttributeInfo {
         Ok(())
     }
 
-    fn Skip(&self, count:u32) ->  Result<()> {
+    fn Skip(&self, count: u32) -> Result<()> {
         if count > 0 {
             self.enumerated.fetch_and(true, Relaxed);
         }
@@ -88,7 +105,7 @@ impl IEnumTfDisplayAttributeInfo_Impl for EnumDisplayAttributeInfo {
 pub struct DisplayAttributeInfo;
 impl DisplayAttributeInfo {
     pub fn create() -> ITfDisplayAttributeInfo {
-        ITfDisplayAttributeInfo::from(Self{})
+        ITfDisplayAttributeInfo::from(Self {})
     }
 }
 
@@ -103,7 +120,7 @@ impl ITfDisplayAttributeInfo_Impl for DisplayAttributeInfo {
     }
 
     fn GetAttributeInfo(&self, attr: *mut TF_DISPLAYATTRIBUTE) -> Result<()> {
-        unsafe{ 
+        unsafe {
             *attr = TF_DISPLAYATTRIBUTE {
                 crText: TF_DA_COLOR::default(),
                 crBk: TF_DA_COLOR::default(),

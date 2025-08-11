@@ -1,18 +1,36 @@
-pub mod text_input_processor;
-pub mod display_attribute_provider;
-mod key_event_sink;
-mod thread_mgr_event_sink;
 mod composition;
+pub mod display_attribute_provider;
 mod edit_session;
+mod key_event_sink;
 mod langbar_item;
+pub mod text_input_processor;
+mod thread_mgr_event_sink;
 
 use std::time::{Duration, Instant};
+
+use log::{debug, error, warn};
 use log_derive::logfn;
 use parking_lot::{RwLock, RwLockWriteGuard};
-use log::{debug, error, warn};
+use windows::{
+    Win32::{
+        Foundation::E_FAIL,
+        UI::{
+            TextServices::{
+                HKL, ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider,
+                ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx,
+                ITfThreadMgr, ITfThreadMgrEventSink,
+            },
+            WindowsAndMessaging::HICON,
+        },
+    },
+    core::{AsImpl, Interface, Result, VARIANT, implement},
+};
 
-use windows::{core::{implement, AsImpl, Interface, Result, VARIANT}, Win32::{Foundation::E_FAIL, UI::{TextServices::{ITfComposition, ITfCompositionSink, ITfContext, ITfDisplayAttributeProvider, ITfKeyEventSink, ITfLangBarItem, ITfTextInputProcessor, ITfTextInputProcessorEx, ITfThreadMgr, ITfThreadMgrEventSink, HKL}, WindowsAndMessaging::HICON}}};
-use crate::{engine::{Engine, Suggestion}, global::registered_hkl, ui::candidate_list::CandidateList};
+use crate::{
+    engine::{Engine, Suggestion},
+    global::registered_hkl,
+    ui::candidate_list::CandidateList,
+};
 
 //----------------------------------------------------------------------------
 //
@@ -33,9 +51,9 @@ use crate::{engine::{Engine, Suggestion}, global::registered_hkl, ui::candidate_
     ITfDisplayAttributeProvider
 )]
 
-/// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable 
+/// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable
 /// states are hidden behind a lock. The lock is supposed to be light-weight since
-/// inputs from users can be frequent. 
+/// inputs from users can be frequent.
 pub struct TextService {
     inner: RwLock<TextServiceInner>,
 }
@@ -88,30 +106,33 @@ impl TextService {
             interface: None,
         };
         let text_service = TextService {
-            inner: RwLock::new(inner)
+            inner: RwLock::new(inner),
         };
         // from takes ownership of the object and returns a smart pointer
         let interface = ITfTextInputProcessor::from(text_service);
         // inject the smart pointer back to the object
-        let text_service: &TextService = unsafe {interface.as_impl()};
+        let text_service: &TextService = unsafe { interface.as_impl() };
         text_service.write()?.interface = Some(interface.clone());
         // cast the interface to desired type
         interface.cast()
     }
 
     fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        self.inner.try_write().or_else(||{
-            warn!("RwLock::try_write returned None.");
-            let timeout = Instant::now() + Duration::from_millis(50);
-            self.inner.try_write_until(timeout)
-        }).ok_or_else(||{
-            error!("Failed to obtain write lock.");
-            E_FAIL.into()
-        })
+        self.inner
+            .try_write()
+            .or_else(|| {
+                warn!("RwLock::try_write returned None.");
+                let timeout = Instant::now() + Duration::from_millis(50);
+                self.inner.try_write_until(timeout)
+            })
+            .ok_or_else(|| {
+                error!("Failed to obtain write lock.");
+                E_FAIL.into()
+            })
     }
 
     fn try_write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
-        self.inner.try_write().ok_or_else(||E_FAIL.into())
+        self.inner.try_write().ok_or_else(|| E_FAIL.into())
     }
 }
 
@@ -122,14 +143,14 @@ impl TextServiceInner {
     }
 
     fn thread_mgr(&self) -> Result<&ITfThreadMgr> {
-        self.thread_mgr.as_ref().ok_or_else(||{
+        self.thread_mgr.as_ref().ok_or_else(|| {
             error!("Thread manager is None.");
             E_FAIL.into()
         })
     }
 
     fn context(&self) -> Result<&ITfContext> {
-        self.context.as_ref().ok_or_else(||{
+        self.context.as_ref().ok_or_else(|| {
             error!("Context is None.");
             E_FAIL.into()
         })
@@ -140,14 +161,18 @@ impl TextServiceInner {
     }
 
     fn create_candidate_list(&mut self) -> Result<()> {
-        let parent_window = unsafe{ 
-            self.thread_mgr()?.GetFocus()?.GetTop()?.GetActiveView()?.GetWnd()? 
+        let parent_window = unsafe {
+            self.thread_mgr()?
+                .GetFocus()?
+                .GetTop()?
+                .GetActiveView()?
+                .GetWnd()?
         };
         self.candidate_list = Some(CandidateList::create(parent_window)?);
         Ok(())
     }
 
-    fn assure_candidate_list(&mut self) -> Result<()>{
+    fn assure_candidate_list(&mut self) -> Result<()> {
         if self.candidate_list.is_some() {
             return Ok(());
         } else {
@@ -155,7 +180,6 @@ impl TextServiceInner {
             self.create_candidate_list()
         }
     }
-
 }
 
 //----------------------------------------------------------------------------

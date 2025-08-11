@@ -1,4 +1,5 @@
 use std::{env, fs, os::windows::fs::MetadataExt, panic, path::PathBuf};
+
 use chrono::Local;
 use log::{Level, LevelFilter::*};
 
@@ -13,10 +14,10 @@ const ARCHITECHTURE: &str = "x64";
 const ARCHITECHTURE: &str = "x86";
 
 pub fn setup() {
-    let _= _setup();
+    let _ = _setup();
 }
 
-fn _setup() -> Result<(), fern::InitError>{
+fn _setup() -> Result<(), fern::InitError> {
     let path = if let Ok(appdata) = env::var("APPDATA") {
         PathBuf::from(appdata).join("Ajemi")
     } else {
@@ -42,7 +43,9 @@ fn _setup() -> Result<(), fern::InitError>{
         .level(if RELEASE { Info } else { Debug })
         .chain(fern::log_file(path)?)
         .apply()?;
-    panic::set_hook(Box::new(|panic_info|log::error!("Fatal error happend. {panic_info}")));
+    panic::set_hook(Box::new(|panic_info| {
+        log::error!("Fatal error happend. {panic_info}")
+    }));
     Ok(())
 }
 
@@ -54,8 +57,8 @@ impl LevelExt for Level {
     fn abbr(self) -> &'static str {
         match self {
             Level::Error => "ERR",
-            Level::Warn =>  "WRN",
-            Level::Info =>  "INF",
+            Level::Warn => "WRN",
+            Level::Info => "INF",
             Level::Debug => "DBG",
             Level::Trace => "TRC",
         }

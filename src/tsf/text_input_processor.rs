@@ -1,11 +1,19 @@
-use log::{trace, debug, warn};
-use windows::Win32::Foundation::E_FAIL;
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
-use windows::Win32::UI::TextServices::{ CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfKeyEventSink, ITfKeystrokeMgr, ITfSource, ITfTextInputProcessorEx_Impl, ITfTextInputProcessor_Impl, ITfThreadMgr, ITfThreadMgrEventSink};
-use windows::core::{Interface, Result, VARIANT};
-use crate::{conf, DISPLAY_ATTR_ID};
+use log::{debug, trace, warn};
+use windows::{
+    Win32::{
+        Foundation::E_FAIL,
+        System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
+        UI::TextServices::{
+            CLSID_TF_CategoryMgr, ITfCategoryMgr, ITfKeyEventSink, ITfKeystrokeMgr, ITfSource,
+            ITfTextInputProcessor_Impl, ITfTextInputProcessorEx_Impl, ITfThreadMgr,
+            ITfThreadMgrEventSink,
+        },
+    },
+    core::{Interface, Result, VARIANT},
+};
 
 use super::TextService;
+use crate::{DISPLAY_ATTR_ID, conf};
 
 #[allow(non_snake_case)]
 impl ITfTextInputProcessor_Impl for TextService {
@@ -19,18 +27,23 @@ impl ITfTextInputProcessor_Impl for TextService {
         unsafe {
             // Use self as event sink to subscribe to events
             thread_mgr.cast::<ITfKeystrokeMgr>()?.AdviseKeyEventSink(
-                tid, &inner.interface::<ITfKeyEventSink>()? , true)?;
+                tid,
+                &inner.interface::<ITfKeyEventSink>()?,
+                true,
+            )?;
             debug!("Added key event sink.");
             inner.cookie = Some(thread_mgr.cast::<ITfSource>()?.AdviseSink(
-                &ITfThreadMgrEventSink::IID, &inner.interface::<ITfThreadMgrEventSink>()?)?);
+                &ITfThreadMgrEventSink::IID,
+                &inner.interface::<ITfThreadMgrEventSink>()?,
+            )?);
             debug!("Added thread manager event sink.");
             let _ = inner.create_candidate_list();
             // thread_mgr.cast::<ITfLangBarItemMgr>()?.AddItem(
             //     &inner.interface::<ITfLangBarItem>()?)?;
             // debug!("Added langbar item.");
             if inner.display_attribute.is_none() {
-                let category_mgr: ITfCategoryMgr = CoCreateInstance(
-                    &CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+                let category_mgr: ITfCategoryMgr =
+                    CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 let guid_atom = category_mgr.RegisterGUID(&DISPLAY_ATTR_ID)?;
                 inner.display_attribute = Some(VARIANT::from(guid_atom as i32));
             }
@@ -43,7 +56,9 @@ impl ITfTextInputProcessor_Impl for TextService {
         let mut inner = self.write()?;
         let thread_mgr = inner.thread_mgr()?;
         unsafe {
-            thread_mgr.cast::<ITfKeystrokeMgr>()?.UnadviseKeyEventSink(inner.tid)?;
+            thread_mgr
+                .cast::<ITfKeystrokeMgr>()?
+                .UnadviseKeyEventSink(inner.tid)?;
             debug!("Removed key event sink.");
             if let Some(cookie) = inner.cookie {
                 thread_mgr.cast::<ITfSource>()?.UnadviseSink(cookie)?;
@@ -65,7 +80,7 @@ impl ITfTextInputProcessor_Impl for TextService {
 }
 
 #[allow(non_snake_case)]
-impl ITfTextInputProcessorEx_Impl for TextService {  
+impl ITfTextInputProcessorEx_Impl for TextService {
     fn ActivateEx(&self, thread_mgr: Option<&ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
         self.Activate(thread_mgr, tid)
     }

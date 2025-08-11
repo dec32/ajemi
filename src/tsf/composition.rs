@@ -1,11 +1,16 @@
 use std::ffi::OsString;
+
 use log::{debug, trace};
-use windows::Win32::Foundation::E_FAIL;
-use windows::Win32::UI::TextServices::{ITfComposition, ITfCompositionSink_Impl};
-use windows::core::Result;
-use crate::PREEDIT_DELIMITER;
-use crate::extend::OsStrExt2;
-use super::{edit_session, TextService, TextServiceInner};
+use windows::{
+    Win32::{
+        Foundation::E_FAIL,
+        UI::TextServices::{ITfComposition, ITfCompositionSink_Impl},
+    },
+    core::Result,
+};
+
+use super::{TextService, TextServiceInner, edit_session};
+use crate::{PREEDIT_DELIMITER, extend::OsStrExt2};
 
 //----------------------------------------------------------------------------
 //
@@ -18,9 +23,9 @@ use super::{edit_session, TextService, TextServiceInner};
 impl TextServiceInner {
     // there are only two states: composing or not
     pub fn start_composition(&mut self) -> Result<()> {
-        let composition = edit_session::start_composition(
-            self.tid, self.context()?, &self.interface()?)?;
-        self.composition = Some(composition); 
+        let composition =
+            edit_session::start_composition(self.tid, self.context()?, &self.interface()?)?;
+        self.composition = Some(composition);
         if let Some((x, y)) = self.get_pos() {
             self.candidate_list()?.locate(x, y)?;
         }
@@ -29,7 +34,9 @@ impl TextServiceInner {
 
     pub fn end_composition(&mut self) -> Result<()> {
         // clean up the shit as clean as possbile instead of question-markin' all the way thru
-        if let (Some(context), Some(composition)) = (self.context.as_ref(), self.composition.as_ref()) {
+        if let (Some(context), Some(composition)) =
+            (self.context.as_ref(), self.composition.as_ref())
+        {
             let _ = edit_session::end_composition(self.tid, context, composition);
         }
         self.composition = None;
@@ -60,7 +67,13 @@ impl TextServiceInner {
         }
         let range = unsafe { self.composition()?.GetRange()? };
         let text = OsString::from(&self.preedit).wchars();
-        edit_session::set_text(self.tid, self.context()?, range, &text, self.display_attribute.as_ref())
+        edit_session::set_text(
+            self.tid,
+            self.context()?,
+            range,
+            &text,
+            self.display_attribute.as_ref(),
+        )
     }
 
     fn update_candidate_list(&mut self) -> Result<()> {
@@ -77,7 +90,6 @@ impl TextServiceInner {
         Ok(())
     }
 
-
     fn set_text(&self, text: &str) -> Result<()> {
         let text = OsString::from(text).wchars();
         let range = unsafe { self.composition()?.GetRange()? };
@@ -85,7 +97,7 @@ impl TextServiceInner {
     }
 
     fn get_pos(&self) -> Option<(i32, i32)> {
-        let range = unsafe{ self.composition().ok()?.GetRange().ok()? };
+        let range = unsafe { self.composition().ok()?.GetRange().ok()? };
         let pos = edit_session::get_pos(self.tid, self.context().ok()?, &range).ok()?;
         if pos.0 <= 0 && pos.1 <= 0 {
             debug!("Abnormal position: ({}, {})", pos.0, pos.1);
@@ -103,7 +115,7 @@ impl TextServiceInner {
 // handle input and transit state
 // calling these function while not composing would cause the program to crash
 impl TextServiceInner {
-    pub fn push(&mut self, ch: char) -> Result<()>{
+    pub fn push(&mut self, ch: char) -> Result<()> {
         self.spelling.push(ch);
         self.suggestions = self.engine.suggest(&self.spelling);
         self.udpate_preedit()?;
@@ -111,7 +123,7 @@ impl TextServiceInner {
         Ok(())
     }
 
-    pub fn pop(&mut self) -> Result<()>{
+    pub fn pop(&mut self) -> Result<()> {
         // todo pop can be used to revert selection
         self.spelling.pop();
         if self.spelling.is_empty() {
@@ -124,16 +136,16 @@ impl TextServiceInner {
     }
 
     /// Commit the 1st suggestion, keeping the unrecognizable trailing characters
-    pub fn commit(&mut self) -> Result<()>{
+    pub fn commit(&mut self) -> Result<()> {
         if self.suggestions.is_empty() {
             self.force_release(' ')
         } else {
-            self.select(0)         
+            self.select(0)
         }
     }
 
     /// Commit the 1st suggestion and release the unrecognizable trailing characters.
-    pub fn force_commit(&mut self, ch: char) -> Result<()>{
+    pub fn force_commit(&mut self, ch: char) -> Result<()> {
         if self.suggestions.is_empty() {
             self.force_release(ch)
         } else {
@@ -168,7 +180,7 @@ impl TextServiceInner {
         } else {
             self.selected.push_str(&sugg.output);
             // TODO strip off the begining instead of re allocate
-            self.spelling = self.spelling[last..].to_string(); 
+            self.spelling = self.spelling[last..].to_string();
             self.suggestions = self.engine.suggest(&self.spelling);
             self.udpate_preedit()?;
             self.update_candidate_list()
@@ -215,11 +227,13 @@ impl TextServiceInner {
     }
 }
 
-
-
 #[allow(non_snake_case)]
 impl ITfCompositionSink_Impl for TextService {
-    fn OnCompositionTerminated(&self, _ecwrite:u32, _composition: Option<&ITfComposition>) -> Result<()> {
+    fn OnCompositionTerminated(
+        &self,
+        _ecwrite: u32,
+        _composition: Option<&ITfComposition>,
+    ) -> Result<()> {
         trace!("OnCompositionTerminated");
         // popping out the last letter will trigger this method.
         // `self.write()` causes deadlock(?) in such circumstances

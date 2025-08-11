@@ -1,11 +1,24 @@
 use std::ffi::OsString;
-use log::{trace, warn};
-use windows::{core::GUID, Win32::{Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM}, UI::{Input::KeyboardAndMouse::{GetKeyboardState, ToUnicodeEx, VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT, VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT}, TextServices::{ITfContext, ITfKeyEventSink_Impl}}}};
-use windows::core::Result;
-use crate::extend::{CharExt, GUIDExt, OsStrExt2, VKExt};
-use super::{edit_session, TextService, TextServiceInner};
+
 use Input::*;
 use Shortcut::*;
+use log::{trace, warn};
+use windows::{
+    Win32::{
+        Foundation::{BOOL, FALSE, LPARAM, TRUE, WPARAM},
+        UI::{
+            Input::KeyboardAndMouse::{
+                GetKeyboardState, ToUnicodeEx, VK_CAPITAL, VK_CONTROL, VK_LCONTROL, VK_LSHIFT,
+                VK_MENU, VK_RCONTROL, VK_RSHIFT, VK_SHIFT,
+            },
+            TextServices::{ITfContext, ITfKeyEventSink_Impl},
+        },
+    },
+    core::{GUID, Result},
+};
+
+use super::{TextService, TextServiceInner, edit_session};
+use crate::extend::{CharExt, GUIDExt, OsStrExt2, VKExt};
 //----------------------------------------------------------------------------
 //
 //  A "sink" for key events. From here on the processing begins.
@@ -16,19 +29,24 @@ use Shortcut::*;
 #[allow(non_snake_case)]
 impl ITfKeyEventSink_Impl for TextService {
     /// The return value suggests if the key event **will be** eaten or not **if** `OnKeyDown` is called.
-    /// 
+    ///
     /// If `true`, the client **may** ignore the actual return value of `OnTestKeyDown` afterwards.
     /// Thus you cannot always return `true` to "capture" every event and expect to "release" them later
     /// in `OnKeyDown` by returning `false`.
-    /// 
+    ///
     /// If `false`, the clinet **may** not call `OnKeyDown` afterwards.
     /// Thus try to gather any needed infomations and states in `OnTestKeyDown` if possible since it
     /// may be your only chance.
-    /// 
+    ///
     /// `wparam` indicates the key that is pressed.
-    /// The 0-15 bits of `_lparam` indicates the repeat count (ignored here because it's actually always 1). 
+    /// The 0-15 bits of `_lparam` indicates the repeat count (ignored here because it's actually always 1).
     /// (See https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown for detail).
-    fn OnTestKeyDown(&self, _context: Option<&ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+    fn OnTestKeyDown(
+        &self,
+        _context: Option<&ITfContext>,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> Result<BOOL> {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         // disable the IME completly when CapsLock is on
@@ -48,7 +66,12 @@ impl ITfKeyEventSink_Impl for TextService {
     /// The client might call `OnKeyDown` directly without calling `OnTestKeyDown` beforehand.
     /// The client might call `OnKeyDown` even if `OnTestKeyDown` returned `false`.
     /// The client can be an asshole. Remember that.
-    fn OnKeyDown(&self, context: Option<&ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
+    fn OnKeyDown(
+        &self,
+        context: Option<&ITfContext>,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         if VK_CAPITAL.is_toggled() {
@@ -63,23 +86,36 @@ impl ITfKeyEventSink_Impl for TextService {
     }
 
     /// Flip the modifiers back
-    fn OnTestKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
+    fn OnTestKeyUp(
+        &self,
+        _context: Option<&ITfContext>,
+        wparam: WPARAM,
+        _lparam: LPARAM,
+    ) -> Result<BOOL> {
         trace!("OnTestKeyUp({:#04X})", wparam.0);
         Ok(FALSE)
     }
 
-    fn OnKeyUp(&self, _context: Option<&ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
+    fn OnKeyUp(
+        &self,
+        _context: Option<&ITfContext>,
+        wparam: WPARAM,
+        _lparam: LPARAM,
+    ) -> Result<BOOL> {
         trace!("OnKeyUp({:#04X})", wparam.0);
         Ok(FALSE)
     }
 
     /// I 've never seen this thing called.
     fn OnPreservedKey(&self, _context: Option<&ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        trace!("OnPreservedKey({:?})", unsafe{ rguid.as_ref() }.map(GUID::to_rfc4122));
+        trace!(
+            "OnPreservedKey({:?})",
+            unsafe { rguid.as_ref() }.map(GUID::to_rfc4122)
+        );
         Ok(FALSE)
     }
 
-    fn OnSetFocus(&self, foreground:BOOL) -> Result<()> {
+    fn OnSetFocus(&self, foreground: BOOL) -> Result<()> {
         trace!("OnSetFocus({})", foreground.as_bool());
         if !foreground.as_bool() {
             self.write()?.abort()
@@ -88,7 +124,6 @@ impl ITfKeyEventSink_Impl for TextService {
         }
     }
 }
-
 
 impl TextServiceInner {
     fn parse_input(&self, keycode: u32, scancode: u32) -> Result<Input> {
@@ -104,8 +139,8 @@ impl TextServiceInner {
             0x27 => Right,
             0x28 => Down,
             keycode => unsafe {
-                let mut buf = [0;8];
-                let mut keyboard_state = [0;256];
+                let mut buf = [0; 8];
+                let mut keyboard_state = [0; 256];
                 GetKeyboardState(&mut keyboard_state)?;
                 let ret = ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, hkl);
                 if ret == 0 {
@@ -117,9 +152,9 @@ impl TextServiceInner {
                 match ch {
                     number @ '0'..='9' => Number(number as usize - '0' as usize),
                     letter @ 'a'..='z' | letter @ 'A'..='Z' => Letter(letter),
-                    punct => Punct(punct)
+                    punct => Punct(punct),
                 }
-            }
+            },
         };
         Ok(input)
     }
@@ -144,15 +179,22 @@ impl Shortcut {
     }
 }
 
-
 /// Inputs that are easier to understand and handle.
 /// See https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes for keycodes.
 #[derive(Debug, Clone, Copy)]
 enum Input {
-    Letter(char), Number(usize), Punct(char),
-    Space, Backspace, Enter, Tab,
-    Left, Up, Right, Down,
-    Unknown(#[allow(dead_code)] u32)
+    Letter(char),
+    Number(usize),
+    Punct(char),
+    Space,
+    Backspace,
+    Enter,
+    Tab,
+    Left,
+    Up,
+    Right,
+    Down,
+    Unknown(#[allow(dead_code)] u32),
 }
 
 //----------------------------------------------------------------------------
@@ -188,16 +230,16 @@ impl TextServiceInner {
                 Letter(letter) => {
                     self.start_composition()?;
                     self.push(letter)?
-                },
+                }
                 Punct(punct) => {
                     let ch = self.engine.remap_punct(punct);
                     self.insert_char(ch)?
-                },
+                }
                 Space => {
                     let ch = self.engine.remap_punct(' ');
                     self.insert_char(ch)?
                 }
-                _ => {return Ok(FALSE)}
+                _ => return Ok(FALSE),
             }
         } else {
             match input {
@@ -211,14 +253,14 @@ impl TextServiceInner {
                     } else {
                         self.force_commit(remmaped)?;
                     }
-                },
+                }
                 Space => self.commit()?,
                 Enter => self.release()?,
                 Backspace => self.pop()?,
                 Tab => {
                     self.push(' ')?;
                     self.release()?
-                } 
+                }
                 // disable cursor movement because I am lazy.
                 Left | Up | Right | Down => (),
                 Unknown(_) => {
@@ -250,7 +292,7 @@ impl TextServiceInner {
     fn handle_shortcut(&mut self, shortcut: Shortcut) -> Result<BOOL> {
         if self.composition.is_none() {
             match shortcut {
-                NextSchema => {    
+                NextSchema => {
                     self.engine.next_schema();
                     Ok(TRUE)
                 }
@@ -261,4 +303,3 @@ impl TextServiceInner {
         }
     }
 }
-

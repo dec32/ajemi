@@ -1,7 +1,8 @@
 use std::{env, fs, path::PathBuf, sync::OnceLock};
-use serde::Deserialize;
-use crate::{extend::ResultExt, Error, Result, DEFAULT_CONF, IME_NAME};
 
+use serde::Deserialize;
+
+use crate::{DEFAULT_CONF, Error, IME_NAME, Result, extend::ResultExt};
 
 // use parking_lot::{RwLock, RwLockReadGuard};
 //
@@ -23,16 +24,14 @@ pub fn get() -> &'static Conf {
     CONF.get_or_init(Conf::open_or_default)
 }
 
-pub fn reload() {
-
-}
+pub fn reload() {}
 
 #[derive(Deserialize, Debug)]
 pub struct Conf {
     pub font: Font,
     pub layout: Layout,
     pub color: Color,
-    pub behavior: Behavior
+    pub behavior: Behavior,
 }
 
 impl Default for Conf {
@@ -43,14 +42,16 @@ impl Default for Conf {
 
 impl Conf {
     pub fn open() -> Result<Conf> {
-        let path = PathBuf::from(env::var("APPDATA")?).join(IME_NAME).join("conf.toml");
+        let path = PathBuf::from(env::var("APPDATA")?)
+            .join(IME_NAME)
+            .join("conf.toml");
         if !path.exists() {
             fs::create_dir_all(path.parent().unwrap())?;
             fs::write(path, DEFAULT_CONF)?;
             return Ok(Conf::default());
         }
         let conf = fs::read_to_string(path)?;
-        let conf = toml::from_str(&conf).map_err(|e|Error::ParseError("conf.toml", e))?;
+        let conf = toml::from_str(&conf).map_err(|e| Error::ParseError("conf.toml", e))?;
         Ok(conf)
     }
 
@@ -72,19 +73,19 @@ pub struct Color {
     pub background: u32,
     pub clip: u32,
     pub highlight: u32,
-    pub highlighted: u32
+    pub highlighted: u32,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Layout {
-    pub vertical: bool
+    pub vertical: bool,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Behavior {
     pub long_pi: bool,
     pub long_glyph: bool,
-    pub cjk_space: bool
+    pub cjk_space: bool,
 }
 
 #[test]

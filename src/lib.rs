@@ -1,19 +1,30 @@
 #![allow(non_camel_case_types)]
-mod register;
-mod install;
-mod global;
-mod logger;
 mod conf;
-mod extend;
-mod tsf;
 mod engine;
+mod extend;
+mod global;
+mod install;
+mod logger;
+mod register;
+mod tsf;
 mod ui;
 
 use std::ffi::c_void;
-use ui::candidate_list;
-use windows::{core::{implement, IUnknown, Interface, GUID, HRESULT}, Win32::{Foundation::{BOOL, E_FAIL, HINSTANCE, S_FALSE, WIN32_ERROR}, System::{Com::{IClassFactory, IClassFactory_Impl}, SystemServices::DLL_PROCESS_ATTACH}}};
+
 use global::*;
 use register::*;
+use ui::candidate_list;
+use windows::{
+    Win32::{
+        Foundation::{BOOL, E_FAIL, HINSTANCE, S_FALSE, WIN32_ERROR},
+        System::{
+            Com::{IClassFactory, IClassFactory_Impl},
+            SystemServices::DLL_PROCESS_ATTACH,
+        },
+    },
+    core::{GUID, HRESULT, IUnknown, Interface, implement},
+};
+
 use crate::tsf::TextService;
 
 //----------------------------------------------------------------------------
@@ -23,7 +34,7 @@ use crate::tsf::TextService;
 //----------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut()) -> bool {
+extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut ()) -> bool {
     if call_reason != DLL_PROCESS_ATTACH {
         return true;
     }
@@ -37,7 +48,6 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 //  The four exposed functions.
 //
 //----------------------------------------------------------------------------
-
 
 // Register the IME into the OS. See register.rs.
 #[unsafe(no_mangle)]
@@ -63,7 +73,11 @@ extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 
 // Returns the required object. For a COM dll like an IME, the required object is always a class factory.
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, ppv: *mut *mut c_void) -> HRESULT {
+extern "stdcall" fn DllGetClassObject(
+    _rclsid: *const GUID,
+    riid: *const GUID,
+    ppv: *mut *mut c_void,
+) -> HRESULT {
     // SomeInterface::from will move the object, thus we don't need to worry about the object's lifetime
     // the return value is a C++ vptr pointing to the moved object under the hood
     // *ppv = mem::transmute(&ClassFactory::new()) is incorrect and causes the Grey Screen of Death.
@@ -73,11 +87,10 @@ extern "stdcall" fn DllGetClassObject(_rclsid: *const GUID, riid: *const GUID, p
 #[unsafe(no_mangle)]
 extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
-    // it seems not that of a important thing to do according to 
+    // it seems not that of a important thing to do according to
     // https://github.com/microsoft/windows-rs/issues/2472 tho
     S_FALSE
 }
-
 
 //----------------------------------------------------------------------------
 //
@@ -89,11 +102,18 @@ extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
 struct ClassFactory;
 
 impl ClassFactory {
-    fn new() -> ClassFactory { ClassFactory {} }
+    fn new() -> ClassFactory {
+        ClassFactory {}
+    }
 }
 
 impl IClassFactory_Impl for ClassFactory {
-    fn CreateInstance(&self, _punkouter: Option<&IUnknown>, riid: *const GUID, ppvobject: *mut *mut c_void) -> windows::core::Result<()> {
+    fn CreateInstance(
+        &self,
+        _punkouter: Option<&IUnknown>,
+        riid: *const GUID,
+        ppvobject: *mut *mut c_void,
+    ) -> windows::core::Result<()> {
         unsafe { TextService::create()?.query(riid, ppvobject).ok() }
     }
 
@@ -126,19 +146,27 @@ pub enum Error {
     #[error("Requested keyboard layout is invalid.")]
     LayoutInvalid,
     #[error("Failed to parse '{0}'. {1:?}")]
-    ParseError(&'static str, toml::de::Error)
+    ParseError(&'static str, toml::de::Error),
 }
 
 // bonus From<E> for alternative windows Error types
-impl From<WIN32_ERROR> for Error { fn from(value: WIN32_ERROR) -> Self { Self::Win(value.into()) } }
-impl From<HRESULT> for Error { fn from(value: HRESULT) -> Self { Self::Win(value.into()) } }
+impl From<WIN32_ERROR> for Error {
+    fn from(value: WIN32_ERROR) -> Self {
+        Self::Win(value.into())
+    }
+}
+impl From<HRESULT> for Error {
+    fn from(value: HRESULT) -> Self {
+        Self::Win(value.into())
+    }
+}
 
 // cast to windows Error when required, keeping the original error message
 impl From<Error> for windows::core::Error {
     fn from(value: Error) -> Self {
         match value {
             Error::Win(e) => e,
-            other => windows::core::Error::new(E_FAIL, other.to_string())
+            other => windows::core::Error::new(E_FAIL, other.to_string()),
         }
     }
 }

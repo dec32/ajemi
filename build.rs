@@ -1,5 +1,5 @@
-use std::env;
-use std::io;
+use std::{env, io};
+
 use winres::WindowsResource;
 
 fn main() -> io::Result<()> {
