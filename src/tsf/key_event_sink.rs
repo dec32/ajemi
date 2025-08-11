@@ -138,7 +138,7 @@ impl TextServiceInner {
             0x26 => Up,
             0x27 => Right,
             0x28 => Down,
-            keycode @ 0x00..0x20 | 0x7F => Unknown(keycode),
+            keycode @ 0x00..0x20 | keycode @ 0x7F => Unknown(keycode),
             keycode => {
                 let mut buf = [0; 8];
                 let mut keyboard_state = [0; 256];
