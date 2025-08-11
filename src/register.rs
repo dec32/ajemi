@@ -5,16 +5,12 @@ use strum::IntoEnumIterator;
 use windows::{
     Win32::{
         System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
-        UI::{
-            Input::KeyboardAndMouse::{
-                ActivateKeyboardLayout, GetKeyboardLayoutList, GetKeyboardLayoutNameA,
-                KLF_SETFORPROCESS,
-            },
+        UI::
             TextServices::{
                 self, CLSID_TF_CategoryMgr, CLSID_TF_InputProcessorProfiles, HKL, ITfCategoryMgr,
                 ITfInputProcessorProfiles,
-            },
-        },
+            }
+        ,
     },
     core::GUID,
 };
@@ -24,10 +20,7 @@ use winreg::{
 };
 
 use crate::{
-    Error, Result,
-    extend::{GUIDExt, OsStrExt2},
-    global::*,
-    install::{Install, Layout},
+    extend::{GUIDExt, HKLExt, OsStrExt2}, global::{self, *}, Result
 };
 
 //----------------------------------------------------------------------------
@@ -98,7 +91,10 @@ pub fn register_ime() -> Result<()> {
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
         let category_mgr: ITfCategoryMgr =
             CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-        let (langid, layout) = detect_layout().unwrap_or((LanguageID::US as u16, HKL::default()));
+        let (langid, hkl) = global::hkl()  
+            .map(|hkl|(hkl.langid(), hkl))
+            .inspect_err(|e|log::error!("Failed to detect layout. {e}"))
+            .unwrap_or((LanguageID::US as u16, HKL::default()));
 
         // three things to register:
         // 1. the IME itself
@@ -134,7 +130,7 @@ pub fn register_ime() -> Result<()> {
             &IME_ID,
             langid,
             &LANG_PROFILE_ID,
-            layout,
+            hkl,
         )?;
         log::info!("Registered the language profile.");
         for rcatid in SUPPORTED_CATEGORIES {
@@ -160,7 +156,7 @@ pub fn unregister_ime() -> Result<()> {
             category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
         }
         log::info!("Unregistered the categories.");
-        if let Some(langid) = Install::open().ok().and_then(|install| install.langid) {
+        if let Ok(langid) = global::hkl().map(HKLExt::langid) {
             input_processor_profiles
                 .RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID)
                 .ok();
@@ -176,38 +172,4 @@ pub fn unregister_ime() -> Result<()> {
         log::info!("Unregistered the input method.");
         Ok(())
     }
-}
-
-//----------------------------------------------------------------------------
-//
-//  Detection of keyboard layouts
-//
-//----------------------------------------------------------------------------
-
-/// Detect if there's any preferred keyboard layout.
-fn detect_layout() -> Result<(u16, HKL)> {
-    let mut install = Install::open()?;
-    let prefered_layout = install.layout.ok_or(Error::LayoutMissing)?;
-    let mut hkls = [HKL::default(); 16];
-    let len = unsafe { GetKeyboardLayoutList(Some(&mut hkls)) } as usize;
-    let hkls = &hkls[..len];
-    for hkl in hkls.iter().copied() {
-        let id = unsafe {
-            let mut buf = [0; 9];
-            ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS)?;
-            GetKeyboardLayoutNameA(&mut buf)?;
-            u32::from_str_radix(std::str::from_utf8_unchecked(&buf[..8]), 16).expect(&format!(
-                "`GetKeyboardLayoutNameA` returned malformed data. {buf:?}"
-            ))
-        };
-        let layout = Layout::from_lang_id(id);
-        if layout == prefered_layout {
-            log::info!("Detected language ID: {id:08x}");
-            let lang_id = id as u16;
-            install.langid = Some(lang_id);
-            install.save()?;
-            return Ok((lang_id, hkl));
-        }
-    }
-    Err(Error::LayoutInvalid)
 }

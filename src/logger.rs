@@ -18,7 +18,7 @@ pub fn setup() {
 }
 
 fn _setup() -> Result<(), fern::InitError> {
-    let path = if let Ok(appdata) = env::var("APPDATA") {
+    let path = if let Ok(appdata) = env::var("LOCALAPPDATA") {
         PathBuf::from(appdata).join("Ajemi")
     } else {
         return Ok(());

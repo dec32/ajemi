@@ -5,8 +5,7 @@ use std::{
 };
 
 use windows::{
-    Win32::UI::Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY},
-    core::GUID,
+    core::GUID, Win32::UI::{Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}, TextServices::HKL}
 };
 
 pub trait ResultExt {
@@ -19,6 +18,16 @@ impl<T, E: std::error::Error> ResultExt for std::result::Result<T, E> {
             log::error!("{e:#}")
         }
         self
+    }
+}
+
+pub trait HKLExt {
+    fn langid(self) -> u16;
+}
+
+impl HKLExt for HKL {
+    fn langid(self) -> u16 {
+        (self.0 & 0xFFFF) as u16
     }
 }
 
@@ -105,3 +114,5 @@ impl VKExt for VIRTUAL_KEY {
         unsafe { GetKeyState(self.0 as i32) as u16 & 1 != 0 }
     }
 }
+
+

@@ -3,13 +3,12 @@ mod conf;
 mod engine;
 mod extend;
 mod global;
-mod install;
 mod logger;
 mod register;
 mod tsf;
 mod ui;
 
-use std::ffi::c_void;
+use std::{ffi::c_void, num::ParseIntError};
 
 use global::*;
 use register::*;
@@ -34,7 +33,7 @@ use crate::tsf::TextService;
 //----------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut ()) -> bool {
+extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: *mut ()) -> bool {
     if call_reason != DLL_PROCESS_ATTACH {
         return true;
     }
@@ -51,7 +50,7 @@ extern "stdcall" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _reserved: 
 
 // Register the IME into the OS. See register.rs.
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllRegisterServer() -> HRESULT {
+extern "system" fn DllRegisterServer() -> HRESULT {
     fn reg() -> windows::core::Result<()> {
         register_server()?;
         register_ime()?;
@@ -62,7 +61,7 @@ extern "stdcall" fn DllRegisterServer() -> HRESULT {
 
 // Unregister the IME from the OS. See register.rs.
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllUnregisterServer() -> HRESULT {
+extern "system" fn DllUnregisterServer() -> HRESULT {
     fn unreg() -> windows::core::Result<()> {
         unregister_ime()?;
         unregister_server()?;
@@ -73,7 +72,7 @@ extern "stdcall" fn DllUnregisterServer() -> HRESULT {
 
 // Returns the required object. For a COM dll like an IME, the required object is always a class factory.
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllGetClassObject(
+extern "system" fn DllGetClassObject(
     _rclsid: *const GUID,
     riid: *const GUID,
     ppv: *mut *mut c_void,
@@ -85,7 +84,7 @@ extern "stdcall" fn DllGetClassObject(
 }
 
 #[unsafe(no_mangle)]
-extern "stdcall" fn DllCanUnloadNow() -> HRESULT {
+extern "system" fn DllCanUnloadNow() -> HRESULT {
     // todo: add ref count.
     // it seems not that of a important thing to do according to
     // https://github.com/microsoft/windows-rs/issues/2472 tho
@@ -147,6 +146,8 @@ pub enum Error {
     LayoutInvalid,
     #[error("Failed to parse '{0}'. {1:?}")]
     ParseError(&'static str, toml::de::Error),
+    #[error("install.dat is corrupted. {0}")]
+    HklCorrupted(ParseIntError),
 }
 
 // bonus From<E> for alternative windows Error types

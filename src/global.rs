@@ -1,23 +1,21 @@
-use std::{ffi::OsString, sync::OnceLock};
+use std::{env, ffi::OsString, fs, path::PathBuf, sync::OnceLock};
 
 use log::{debug, error};
 use strum::EnumIter;
 use windows::{
     Win32::{
         Foundation::{GetLastError, HINSTANCE},
-        System::{
-            Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
-            LibraryLoader::GetModuleFileNameA,
-        },
-        UI::TextServices::{
-            CLSID_TF_InputProcessorProfiles, HKL, ITfInputProcessorProfileSubstituteLayout,
-            ITfInputProcessorProfiles,
-        },
+        System::
+            LibraryLoader::GetModuleFileNameA
+        ,
+        UI::TextServices::
+            HKL
+        ,
     },
-    core::{GUID, Interface},
+    core::GUID,
 };
 
-use crate::{Error, Result, install::Install};
+use crate::{Error, Result};
 
 pub fn setup(dll_module: HINSTANCE) {
     DLL_MODULE.get_or_init(|| dll_module);
@@ -53,18 +51,16 @@ pub fn dll_path() -> Result<OsString> {
     Ok(path)
 }
 
-pub fn registered_hkl() -> Result<HKL> {
-    let install = Install::open()?;
-    let langid = install.langid.ok_or(Error::LangidMissing)?;
-    unsafe {
-        // i fucking hate microsoft
-        let input_processor_profiles: ITfInputProcessorProfiles =
-            CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
-        let hkl = input_processor_profiles
-            .cast::<ITfInputProcessorProfileSubstituteLayout>()?
-            .GetSubstituteKeyboardLayout(&IME_ID, langid, &LANG_PROFILE_ID)?;
-        Ok(hkl)
-    }
+pub fn hkl() -> Result<HKL> {
+    // TODO: save the result in memory
+    let hkl = PathBuf::from(env::var("LOCALAPPDATA")?)
+            .join(IME_NAME)
+            .join("install.dat");
+    let hkl = fs::read_to_string(hkl)?;
+    let hkl = u32::from_str_radix(&hkl, 16)
+        .map_err(Error::HklCorrupted)?;
+    let hkl = HKL(hkl as isize);
+    Ok(hkl)
 }
 
 // registration stuff
@@ -86,15 +82,7 @@ pub const PREEDIT_DELIMITER: &str = "'";
 pub const DEFAULT_CONF: &str = include_str!("../res/conf.toml");
 pub const SITELEN_DICT: &str = include_str!("../res/dict/sitelen.dict");
 pub const EMOJI_DICT: &str = include_str!("../res/dict/emoji.dict");
-// Keyboard Indentifiers
-pub const CANADIAN_FRENCH: u32 = 0x00001009;
-pub const FRENCH: u32 = 0x0000_040C;
-pub const BELGIAN_FRENCH: u32 = 0x0000_080C;
-pub const BELGIAN_FRENCH_COMMA: u32 = 0x0001_080C;
-pub const BELGIAN_FRENCH_PERIOD: u32 = 0x0000_0813;
-pub const GERMAN: u32 = 0x0000_0407;
-pub const GERMAN_IBM: u32 = 0x0001_0407;
-pub const SWISS_FRENCH: u32 = 0x0000_100C;
+
 // language IDs
 #[derive(EnumIter)]
 pub enum LanguageID {
