@@ -113,3 +113,29 @@ long_glyph = false
 cjk_space = false
 ```
 
+## Build from Source
+
+Have Rust with the MSVC toolchain installed and then run the following commands to setup the envirorment:
+
+```
+cargo install just
+just setup
+```
+
+To build the project and register the newly built IME for testing, run:
+
+```
+just build
+```
+
+When you're done testing, you can unregister the IME with:
+
+```
+just unreg
+```
+
+Create an installer for the project by running:
+
+```
+just pack
+```
