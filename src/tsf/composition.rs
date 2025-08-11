@@ -149,7 +149,7 @@ impl TextServiceInner {
         if self.suggestions.is_empty() {
             self.force_release(ch)
         } else {
-            let sugg = self.suggestions.get(0).unwrap();
+            let sugg = self.suggestions.first().unwrap();
             self.selected.push_str(&sugg.output);
             let last = *sugg.groupping.last().unwrap();
             if last != self.spelling.len() {
@@ -221,7 +221,7 @@ impl TextServiceInner {
                 self.selected.push(' ');
                 self.selected.push_str(&self.spelling);
             }
-            let _ = self.set_text(&self.selected)?;
+            self.set_text(&self.selected)?;
         }
         self.end_composition()
     }

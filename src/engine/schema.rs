@@ -51,7 +51,7 @@ impl<'a> From<&'a str> for Atom<'a> {
         } else if first_ch == '#' {
             match u32::from_str_radix(&str[1..], 16)
                 .ok()
-                .and_then(|codepoint| char::from_u32(codepoint))
+                .and_then(char::from_u32)
             {
                 Some(punct) => Punct(punct),
                 None => Text(str),

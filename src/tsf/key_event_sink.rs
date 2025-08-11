@@ -271,7 +271,7 @@ impl TextServiceInner {
                 }
             }
         }
-        return Ok(TRUE);
+        Ok(TRUE)
     }
 
     fn insert_char(&mut self, ch: char) -> Result<()> {

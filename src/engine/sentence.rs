@@ -58,8 +58,8 @@ impl Engine {
         let mut sents = self.suggest_sentences(spelling);
         let mut best_sent = None;
         let mut highest_score = 0;
-        while !sents.is_empty() {
-            let sent = sents.pop().unwrap();
+        while let Some(sent) = sents.pop() {
+            
             if sent.wc <= 1 {
                 continue;
             }

@@ -179,7 +179,7 @@ impl Engine {
                         groupping: vec![to],
                     });
                     remains -= 1;
-                    if remains <= 0 {
+                    if remains == 0 {
                         break 'outer_loop;
                     }
                 }

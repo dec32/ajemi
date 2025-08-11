@@ -117,7 +117,7 @@ impl TextService {
         interface.cast()
     }
 
-    fn write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+    fn write(&self) -> Result<RwLockWriteGuard<'_, TextServiceInner>> {
         self.inner
             .try_write()
             .or_else(|| {
@@ -131,7 +131,7 @@ impl TextService {
             })
     }
 
-    fn try_write(&self) -> Result<RwLockWriteGuard<TextServiceInner>> {
+    fn try_write(&self) -> Result<RwLockWriteGuard<'_, TextServiceInner>> {
         self.inner.try_write().ok_or_else(|| E_FAIL.into())
     }
 }
@@ -174,7 +174,7 @@ impl TextServiceInner {
 
     fn assure_candidate_list(&mut self) -> Result<()> {
         if self.candidate_list.is_some() {
-            return Ok(());
+            Ok(())
         } else {
             debug!("Previous creation of candidate list failed. Recreating now.");
             self.create_candidate_list()

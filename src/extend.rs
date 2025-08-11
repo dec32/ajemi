@@ -1,6 +1,7 @@
 use std::{
     char::DecodeUtf16Error,
     ffi::{OsStr, OsString},
+    iter::{self},
     os::windows::ffi::OsStrExt,
 };
 
@@ -62,7 +63,7 @@ impl OsStrExt2 for OsStr {
         self.encode_wide().collect()
     }
     fn null_terminated_wchars(&self) -> Vec<u16> {
-        self.encode_wide().chain(Some(0).into_iter()).collect()
+        self.encode_wide().chain(iter::once(0)).collect()
     }
 }
 
@@ -71,7 +72,7 @@ impl OsStrExt2 for OsString {
         self.encode_wide().collect()
     }
     fn null_terminated_wchars(&self) -> Vec<u16> {
-        self.encode_wide().chain(Some(0).into_iter()).collect()
+        self.encode_wide().chain(iter::once(0)).collect()
     }
 }
 
