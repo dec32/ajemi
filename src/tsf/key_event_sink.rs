@@ -138,11 +138,14 @@ impl TextServiceInner {
             0x26 => Up,
             0x27 => Right,
             0x28 => Down,
-            keycode => unsafe {
+            keycode @ 0x00..0x20 | 0x7F => Unknown(keycode),
+            keycode => {
                 let mut buf = [0; 8];
                 let mut keyboard_state = [0; 256];
-                GetKeyboardState(&mut keyboard_state)?;
-                let ret = ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, hkl);
+                let ret = unsafe {
+                    GetKeyboardState(&mut keyboard_state)?;
+                    ToUnicodeEx(keycode, scancode, &keyboard_state, &mut buf, 0, hkl)
+                };
                 if ret == 0 {
                     return Ok(Unknown(keycode));
                 }
