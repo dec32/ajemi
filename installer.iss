@@ -40,25 +40,46 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 
 [Code]
-// --- 1. Type Declaration ---
-type
-  TLayoutArray = array[0..255] of DWORD;
+// --- 1. API & Constant Declarations ---
+const
+  KL_NAMELENGTH = 9;
+  KLF_SETFORPROCESS = $00000100;
 
-// --- 2. API Declaration ---
-function GetKeyboardLayoutList(nBuff: Integer; var lpList: TLayoutArray): Integer;
+type
+  HKL = DWORD;
+
+function GetKeyboardLayout(idThread: DWORD): HKL;
+  external 'GetKeyboardLayout@user32.dll stdcall';
+function ActivateKeyboardLayout(hkl: HKL; Flags: UINT): HKL;
+  external 'ActivateKeyboardLayout@user32.dll stdcall';
+function GetKeyboardLayoutNameA(pwszKLID: AnsiString): BOOL;
+  external 'GetKeyboardLayoutNameA@user32.dll stdcall';
+function GetKeyboardLayoutList(nBuff: Integer; var lpList: HKL): Integer;
   external 'GetKeyboardLayoutList@user32.dll stdcall';
 
-function GetLayoutFriendlyName(hkl: DWORD): String;
+// --- 2. Core Functions ---
+
+function GetKlidFromHkl(hkl: HKL): String;
 var
-  langID: Word;
-  klidString: String;
+  originalHkl: HKL;
+  klidBuffer: AnsiString;
 begin
-  langID := hkl and $FFFF;
-  klidString := Format('%.8x', [langID]);
-  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Keyboard Layouts\' + klidString, 'Layout Text', Result) then
-  begin
-    Result := klidString;
-  end;
+  originalHkl := GetKeyboardLayout(0);
+  ActivateKeyboardLayout(hkl, KLF_SETFORPROCESS);
+  
+  klidBuffer := StringOfChar(#0, KL_NAMELENGTH);
+  if GetKeyboardLayoutNameA(klidBuffer) then
+    Result := klidBuffer
+  else
+    Result := 'error';
+  
+  ActivateKeyboardLayout(originalHkl, KLF_SETFORPROCESS);
+end;
+
+function GetLayoutFriendlyName(klid: String): String;
+begin
+  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Keyboard Layouts\' + klid, 'Layout Text', Result) then
+    Result := klid;
 end;
 
 // --- 3. Globals ---
@@ -66,15 +87,16 @@ var
   CustomPage: TWizardPage;
   LayoutRadioButtons: array of TNewRadioButton;
   SelectedHKL: DWORD;
-  Layouts: TLayoutArray;
-  LayoutCount: Integer;
 
 // --- 4. Wizard UI and Event Handlers ---
 procedure InitializeWizard;
 var
   i: Integer;
+  LayoutCount: Integer;
+  Layouts: array[0..255] of HKL; 
   GuideLabel: TLabel;
   RadioButton: TNewRadioButton;
+  klid: String;
 begin
   CustomPage := CreateCustomPage(wpSelectDir, 'Layout Selection', 'Choose your preferred keyboard layout.');
 
@@ -83,17 +105,18 @@ begin
   GuideLabel.Caption := 'Which keyboard layout do you wish to use with this application?';
   GuideLabel.AutoSize := True;
   
-  LayoutCount := GetKeyboardLayoutList(256, Layouts);
-
+  LayoutCount := GetKeyboardLayoutList(256, Layouts[0]);
+  
   if LayoutCount > 0 then
   begin
     SetArrayLength(LayoutRadioButtons, LayoutCount);
-    
     for i := 0 to LayoutCount - 1 do
     begin
       RadioButton := TNewRadioButton.Create(WizardForm);
       RadioButton.Parent := CustomPage.Surface;
-      RadioButton.Caption := GetLayoutFriendlyName(Layouts[i]);
+      
+      klid := GetKlidFromHkl(Layouts[i]);
+      RadioButton.Caption := GetLayoutFriendlyName(klid);
       RadioButton.Tag := Layouts[i];
       RadioButton.Top := GuideLabel.Top + GuideLabel.Height + 16 + (i * RadioButton.Height);
       
