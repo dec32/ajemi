@@ -160,16 +160,10 @@ impl Engine {
                     exclude.insert(word);
                     // append the trailing joiner(s) to the suggestion
                     let mut output = word.to_string();
-                    let mut to = to;
                     let bytes = spelling.as_bytes();
-                    for i in to..spelling.len() {
-                        if let Some(joiner) = char::try_from(bytes[i])
-                            .ok()
-                            .and_then(|char| self.schema().puncts.get(&char))
-                            .copied()
-                        {
+                    for byte in bytes.iter().copied().skip(to) {
+                        if let Some(joiner) = self.schema().puncts.get(&char::from(byte)).copied() {
                             output.push(joiner);
-                            to += 1;
                         } else {
                             break;
                         }

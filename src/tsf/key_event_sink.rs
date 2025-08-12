@@ -53,11 +53,7 @@ impl ITfKeyEventSink_Impl for TextService {
         trace!("OnTestKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
         // track ctrl
-        if is_ctrl(wparam) {
-            inner.fresh_ctrl = true;
-        } else {
-            inner.fresh_ctrl = false;
-        }
+        inner.fresh_ctrl = is_ctrl(wparam);
         // detect shortcut
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.test_shortcut(shortcut);
@@ -92,11 +88,7 @@ impl ITfKeyEventSink_Impl for TextService {
     ) -> Result<BOOL> {
         trace!("OnKeyDown({:#04X})", wparam.0);
         let mut inner = self.write()?;
-        if is_ctrl(wparam) {
-            inner.fresh_ctrl = true;
-        } else {
-            inner.fresh_ctrl = false;
-        }
+        inner.fresh_ctrl = is_ctrl(wparam);
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.handle_shortcut(shortcut);
         }

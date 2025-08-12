@@ -119,9 +119,7 @@ impl From<&str> for Schema {
                                 candis.insert(prefix.to_string(), Unique(word.to_string()));
                             }
                             Some(Unique(unique)) => {
-                                let mut duplicates = Vec::new();
-                                duplicates.push(unique.clone());
-                                duplicates.push(word.to_string());
+                                let duplicates = vec![unique.clone(), word.to_string()];
                                 candis.insert(prefix.to_string(), Duplicates(duplicates));
                             }
                             Some(Duplicates(duplicates)) | Some(Exact(_, duplicates)) => {

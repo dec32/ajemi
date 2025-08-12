@@ -81,12 +81,12 @@ impl OsStrExt2 for OsString {
 }
 
 pub trait CharExt {
-    fn is_joiner(self) -> bool;
+    fn is_joiner(&self) -> bool;
     fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error>;
 }
 
 impl CharExt for char {
-    fn is_joiner(self) -> bool {
+    fn is_joiner(&self) -> bool {
         matches!(self, '\u{F1995}' | '\u{F1996}' | '\u{200D}')
     }
 
@@ -106,16 +106,16 @@ impl<'a> IterStr<'a> for Vec<String> {
 }
 
 pub trait VKExt {
-    fn is_down(self) -> bool;
-    fn is_toggled(self) -> bool;
+    fn is_down(&self) -> bool;
+    fn is_toggled(&self) -> bool;
 }
 
 impl VKExt for VIRTUAL_KEY {
-    fn is_down(self) -> bool {
+    fn is_down(&self) -> bool {
         unsafe { GetKeyState(self.0 as i32) as u16 & 0x8000 != 0 }
     }
 
-    fn is_toggled(self) -> bool {
+    fn is_toggled(&self) -> bool {
         unsafe { GetKeyState(self.0 as i32) as u16 & 1 != 0 }
     }
 }

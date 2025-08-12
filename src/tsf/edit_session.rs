@@ -8,7 +8,7 @@ use windows::{
             GUID_PROP_ATTRIBUTE, ITfComposition, ITfCompositionSink, ITfContext,
             ITfContextComposition, ITfEditSession, ITfEditSession_Impl, ITfInsertAtSelection,
             ITfRange, TF_AE_NONE, TF_ANCHOR_END, TF_ES_READWRITE, TF_IAS_QUERYONLY, TF_SELECTION,
-            TF_ST_CORRECTION,
+            TF_SELECTIONSTYLE, TF_ST_CORRECTION,
         },
     },
     core::{AsImpl, Interface, Result, VARIANT, implement},
@@ -126,10 +126,13 @@ pub fn set_text(
                 }
                 // move the cursor to the end
                 self.range.Collapse(ec, TF_ANCHOR_END)?;
-                let mut selection = TF_SELECTION::default();
-                selection.range = ManuallyDrop::new(Some(self.range.clone()));
-                selection.style.ase = TF_AE_NONE;
-                selection.style.fInterimChar = FALSE;
+                let selection = TF_SELECTION {
+                    range: ManuallyDrop::new(Some(self.range.clone())),
+                    style: TF_SELECTIONSTYLE {
+                        ase: TF_AE_NONE,
+                        fInterimChar: FALSE,
+                    },
+                };
                 self.context.SetSelection(ec, &[selection])?;
                 Ok(())
             }
@@ -171,10 +174,13 @@ pub fn insert_text(tid: u32, context: &ITfContext, text: &[u16]) -> Result<()> {
                 // what's wrong with these magical APIs
                 range.SetText(ec, TF_ST_CORRECTION, self.text)?;
                 range.Collapse(ec, TF_ANCHOR_END)?;
-                let mut selection = TF_SELECTION::default();
-                selection.range = ManuallyDrop::new(Some(range.clone()));
-                selection.style.ase = TF_AE_NONE;
-                selection.style.fInterimChar = FALSE;
+                let selection = TF_SELECTION {
+                    range: ManuallyDrop::new(Some(range.clone())),
+                    style: TF_SELECTIONSTYLE {
+                        ase: TF_AE_NONE,
+                        fInterimChar: FALSE,
+                    },
+                };
                 self.context.SetSelection(ec, &[selection])
             }
         }

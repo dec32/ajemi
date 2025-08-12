@@ -1,7 +1,7 @@
 use std::{
     cmp::max,
     ffi::{CString, OsString},
-    mem::{self, ManuallyDrop, size_of},
+    mem::{ManuallyDrop, size_of},
 };
 
 use log::{debug, error, trace};
@@ -177,14 +177,13 @@ impl CandidateList {
                 index_font = candi_font;
             }
 
-            let index_suffix;
-            let lowercase_font_name = conf.font.name.to_ascii_lowercase();
             // TODO this is no reliable at all
-            if lowercase_font_name.contains("mono") || lowercase_font_name.contains("fairfax") {
-                index_suffix = CANDI_INDEX_SUFFIX_MONO;
+            let font_name = conf.font.name.to_ascii_lowercase();
+            let index_suffix = if font_name.contains("mono") || font_name.contains("fairfax") {
+                CANDI_INDEX_SUFFIX_MONO
             } else {
-                index_suffix = CANDI_INDEX_SUFFIX;
-            }
+                CANDI_INDEX_SUFFIX
+            };
             ReleaseDC(window, dc);
             Ok(CandidateList {
                 window,
@@ -212,7 +211,7 @@ impl CandidateList {
         Ok(())
     }
 
-    pub fn show(&self, suggs: &Vec<Suggestion>) -> Result<()> {
+    pub fn show(&self, suggs: &[Suggestion]) -> Result<()> {
         unsafe {
             let conf = conf::get();
             let mut indice = Vec::with_capacity(suggs.len());
@@ -291,7 +290,7 @@ impl CandidateList {
                 index_font: self.index_font,
                 candi_font: self.candi_font,
             };
-            let long_ptr = arg.to_long_ptr();
+            let long_ptr = arg.into_long_ptr();
             SetWindowLongPtrA(self.window, WINDOW_LONG_PTR_INDEX::default(), long_ptr);
             // resize and show
             SetWindowPos(
@@ -337,14 +336,14 @@ struct PaintArg {
     candis: Vec<Vec<u16>>,
 }
 impl PaintArg {
-    fn to_long_ptr(self) -> LongPointer {
-        unsafe { mem::transmute(ManuallyDrop::new(Box::new(self))) }
+    fn into_long_ptr(self) -> LongPointer {
+        ManuallyDrop::new(Box::new(self)).as_ref() as *const PaintArg as LongPointer
     }
     unsafe fn from_long_ptr(long_ptr: LongPointer) -> Option<Box<PaintArg>> {
         if long_ptr == 0 {
             None
         } else {
-            unsafe { Some(mem::transmute(long_ptr)) }
+            Some(unsafe { Box::from_raw(long_ptr as *mut PaintArg) })
         }
     }
 }
@@ -455,7 +454,7 @@ fn paint(window: HWND) -> LRESULT {
     }
     unsafe {
         ReleaseDC(window, dc);
-        EndPaint(window, &mut ps);
+        EndPaint(window, &ps);
     }
     LRESULT::default()
 }

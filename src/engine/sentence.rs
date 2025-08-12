@@ -67,9 +67,7 @@ impl Engine {
                 best_sent = Some(sent);
             }
         }
-        let Some(mut best_sent) = best_sent else {
-            return None;
-        };
+        let mut best_sent = best_sent?;
         insert_long_glyph(&mut best_sent.output);
         Some(Suggestion {
             output: best_sent.output,
@@ -94,9 +92,10 @@ impl Engine {
         // push leading joiners into the sentence directly
         let mut spelling = spelling;
         for (i, byte) in spelling.as_bytes().iter().copied().enumerate() {
-            if let Some(joiner) = char::try_from(spelling.as_bytes()[i])
-                .ok()
-                .and_then(|char| self.schema().puncts.get(&char))
+            if let Some(joiner) = self
+                .schema()
+                .puncts
+                .get(&char::from(spelling.as_bytes()[i]))
                 .copied()
             {
                 sent.push_joiner(joiner);
@@ -143,8 +142,8 @@ impl Engine {
             self.suggest_sentences_recursive(&spelling[exact_len..], sent, sents)
         }
         if let Some(unique) = unique {
-            let sent = if extra_sent.is_some() {
-                extra_sent.as_mut().unwrap()
+            let sent = if let Some(sent) = extra_sent.as_mut() {
+                sent
             } else {
                 sent
             };
