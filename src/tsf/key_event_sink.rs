@@ -19,7 +19,7 @@ use windows::{
 
 use super::{TextService, TextServiceInner, edit_session};
 use crate::{
-    conf,
+    conf::{self, Toggle},
     extend::{CharExt, GUIDExt, OsStrExt2, VKExt},
 };
 //----------------------------------------------------------------------------
@@ -73,6 +73,7 @@ impl ITfKeyEventSink_Impl for TextService {
         // typer uppercase letters with the good old capslock.
         // Simply disable the IME completely solves the problem.
         if inner.disabled_naively() || VK_CAPITAL.is_toggled() {
+            log::debug!("disabled naively");
             inner.abort()?;
             return Ok(FALSE);
         }
@@ -99,6 +100,7 @@ impl ITfKeyEventSink_Impl for TextService {
         if let Some(shortcut) = Shortcut::try_from(wparam.0) {
             return inner.handle_shortcut(shortcut);
         }
+        let input = inner.parse_input(wparam.0 as u32, lparam.0 as u32)?;
         if inner.disabled_by_capslock() {
             inner.abort()?;
             return inner.handle_uppercase_input(input, context);
@@ -363,16 +365,16 @@ impl TextServiceInner {
 impl TextServiceInner {
     fn disabled_naively(&self) -> bool {
         match conf::get().behavior.toggle {
-            Toggle::Ctrl => self.disabled_by_ctrl,
-            Toggle::Eisu => !VK_KANJI.is_toggled(),
-            Toggle::CapsLock => false,
+            Some(Toggle::Ctrl) => self.disabled_by_ctrl,
+            Some(Toggle::Eisu) => VK_KANJI.is_toggled(),
+            Some(Toggle::CapsLock) | None => false,
         }
     }
 
     fn disabled_by_capslock(&self) -> bool {
         match conf::get().behavior.toggle {
-            Toggle::Ctrl | Toggle::Eisu => false,
-            Toggle::CapsLock => VK_CAPITAL.is_toggled(),
+            Some(Toggle::Ctrl) | Some(Toggle::Eisu) | None => false,
+            Some(Toggle::CapsLock) => VK_CAPITAL.is_toggled(),
         }
     }
 
@@ -380,7 +382,7 @@ impl TextServiceInner {
         trace!("test_uppercase_input({:?})", input);
         // non-ascii letters are actually categorized under Punct... my bad.
         match input {
-            Letter(ch) | Punct(ch) => Ok(TRUE),
+            Letter(_) | Punct(_) => Ok(TRUE),
             _ => Ok(FALSE),
         }
     }
@@ -398,7 +400,7 @@ impl TextServiceInner {
         self.context = Some(context.clone());
         match input {
             Letter(ch) | Punct(ch) => {
-                self.insert_char(ch.to_lowercase())?;
+                self.insert_char(ch.to_lowercase().next().unwrap_or(ch))?;
                 Ok(TRUE)
             }
             _ => Ok(FALSE),

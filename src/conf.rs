@@ -83,23 +83,25 @@ pub struct Layout {
 
 #[derive(Deserialize, Debug)]
 pub struct Behavior {
+    pub toggle: Option<Toggle>,
     pub long_pi: bool,
     pub long_glyph: bool,
     pub cjk_space: bool,
-    #[serde(default)]
-    pub toggle: Toggle,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub enum Toggle {
+    #[serde(alias = "eisu", alias = "英数")]
     Eisu,
+    #[serde(alias = "ctrl", alias = "Control", alias = "control")]
     Ctrl,
+    #[serde(alias = "capslock", alias = "caps_lock")]
     CapsLock,
 }
 
 impl Default for Toggle {
     fn default() -> Self {
-        Self::Eisu
+        Self::Ctrl
     }
 }
 
