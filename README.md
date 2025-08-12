@@ -89,7 +89,7 @@ alasa 🏹
 ] #1F58C
 ```
 
-You can also customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. The configuration file is self-explanatory. Here's the default one for reference:
+You can also customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. Here's the default one for reference:
 
 ```Toml
 [font]
@@ -108,6 +108,9 @@ highlight = 0xE8E8FF
 highlighted = 0x000000
 
 [behavior]
+# For toggling off the input method temporarily.
+# Available ones are Ctrl/CapsLock/Eisu
+toggle = "Ctrl" 
 long_pi = false
 long_glyph = false
 cjk_space = false
