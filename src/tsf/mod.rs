@@ -41,6 +41,10 @@ use crate::{
 //
 //----------------------------------------------------------------------------
 
+
+/// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable
+/// states are hidden behind a lock. The lock is supposed to be light-weight since
+/// inputs from users can be frequent.
 #[implement(
     ITfTextInputProcessor,
     ITfTextInputProcessorEx,
@@ -50,10 +54,6 @@ use crate::{
     ITfLangBarItem,
     ITfDisplayAttributeProvider
 )]
-
-/// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable
-/// states are hidden behind a lock. The lock is supposed to be light-weight since
-/// inputs from users can be frequent.
 pub struct TextService {
     inner: RwLock<TextServiceInner>,
 }
@@ -69,6 +69,8 @@ struct TextServiceInner {
     // KeyEventSink
     hkl: HKL,
     char_buf: String,
+    fresh_ctrl: bool,
+    disabled_by_ctrl: bool,
     // Composition
     composition: Option<ITfComposition>,
     spelling: String,
@@ -94,6 +96,8 @@ impl TextService {
             context: None,
             hkl: hkl()?,
             char_buf: String::with_capacity(4),
+            fresh_ctrl: false,
+            disabled_by_ctrl: false,
             cookie: None,
             composition: None,
             spelling: String::with_capacity(32),

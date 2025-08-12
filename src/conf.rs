@@ -86,6 +86,21 @@ pub struct Behavior {
     pub long_pi: bool,
     pub long_glyph: bool,
     pub cjk_space: bool,
+    #[serde(default)]
+    pub toggle: Toggle,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Toggle {
+    Eisu,
+    Ctrl,
+    CapsLock,
+}
+
+impl Default for Toggle {
+    fn default() -> Self {
+        Self::Eisu
+    }
 }
 
 #[test]
