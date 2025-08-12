@@ -41,7 +41,6 @@ use crate::{
 //
 //----------------------------------------------------------------------------
 
-
 /// Methods of TSF interfaces don't allow mutation of any kind. Thus all mutable
 /// states are hidden behind a lock. The lock is supposed to be light-weight since
 /// inputs from users can be frequent.

@@ -6,7 +6,11 @@ use std::{
 };
 
 use windows::{
-    core::GUID, Win32::UI::{Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY}, TextServices::HKL}
+    Win32::UI::{
+        Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY},
+        TextServices::HKL,
+    },
+    core::GUID,
 };
 
 pub trait ResultExt {
@@ -115,5 +119,3 @@ impl VKExt for VIRTUAL_KEY {
         unsafe { GetKeyState(self.0 as i32) as u16 & 1 != 0 }
     }
 }
-
-

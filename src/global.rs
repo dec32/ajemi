@@ -5,12 +5,8 @@ use strum::EnumIter;
 use windows::{
     Win32::{
         Foundation::{GetLastError, HINSTANCE},
-        System::
-            LibraryLoader::GetModuleFileNameA
-        ,
-        UI::TextServices::
-            HKL
-        ,
+        System::LibraryLoader::GetModuleFileNameA,
+        UI::TextServices::HKL,
     },
     core::GUID,
 };
@@ -54,11 +50,10 @@ pub fn dll_path() -> Result<OsString> {
 pub fn hkl() -> Result<HKL> {
     // TODO: save the result in memory
     let hkl = PathBuf::from(env::var("LOCALAPPDATA")?)
-            .join(IME_NAME)
-            .join("install.dat");
+        .join(IME_NAME)
+        .join("install.dat");
     let hkl = fs::read_to_string(hkl)?;
-    let hkl = u32::from_str_radix(&hkl, 16)
-        .map_err(Error::HklCorrupted)?;
+    let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::HklCorrupted)?;
     let hkl = HKL(hkl as isize);
     Ok(hkl)
 }

@@ -92,9 +92,15 @@ pub(super) fn insert_long_glyph(text: &mut String) {
                             Some(START_OF_REVERSE_LONG_GLYGH),
                         ) => temp.push(prev),
                         _ => {
-                            if let Some(it) = c { output.push(it) }
-                            if let Some(it) = b { output.push(it) }
-                            if let Some(it) = a { output.push(it) }
+                            if let Some(it) = c {
+                                output.push(it)
+                            }
+                            if let Some(it) = b {
+                                output.push(it)
+                            }
+                            if let Some(it) = a {
+                                output.push(it)
+                            }
                             break;
                         }
                     }

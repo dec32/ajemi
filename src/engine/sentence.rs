@@ -59,7 +59,6 @@ impl Engine {
         let mut best_sent = None;
         let mut highest_score = 0;
         while let Some(sent) = sents.pop() {
-            
             if sent.wc <= 1 {
                 continue;
             }

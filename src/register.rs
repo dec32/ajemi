@@ -5,12 +5,10 @@ use strum::IntoEnumIterator;
 use windows::{
     Win32::{
         System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
-        UI::
-            TextServices::{
-                self, CLSID_TF_CategoryMgr, CLSID_TF_InputProcessorProfiles, HKL, ITfCategoryMgr,
-                ITfInputProcessorProfiles,
-            }
-        ,
+        UI::TextServices::{
+            self, CLSID_TF_CategoryMgr, CLSID_TF_InputProcessorProfiles, HKL, ITfCategoryMgr,
+            ITfInputProcessorProfiles,
+        },
     },
     core::GUID,
 };
@@ -20,7 +18,9 @@ use winreg::{
 };
 
 use crate::{
-    extend::{GUIDExt, HKLExt, OsStrExt2}, global::{self, *}, Result
+    Result,
+    extend::{GUIDExt, HKLExt, OsStrExt2},
+    global::{self, *},
 };
 
 //----------------------------------------------------------------------------
@@ -91,9 +91,9 @@ pub fn register_ime() -> Result<()> {
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
         let category_mgr: ITfCategoryMgr =
             CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-        let (langid, hkl) = global::hkl()  
-            .map(|hkl|(hkl.langid(), hkl))
-            .inspect_err(|e|log::error!("Failed to detect layout. {e}"))
+        let (langid, hkl) = global::hkl()
+            .map(|hkl| (hkl.langid(), hkl))
+            .inspect_err(|e| log::error!("Failed to detect layout. {e}"))
             .unwrap_or((LanguageID::US as u16, HKL::default()));
 
         // three things to register:

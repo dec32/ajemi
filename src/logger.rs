@@ -26,9 +26,10 @@ fn _setup() -> Result<(), fern::InitError> {
     fs::create_dir_all(&path)?;
     let path = path.join("log.txt");
     if let Ok(meta) = fs::metadata(&path)
-        && meta.file_size() >= 5 * 1024 * 1024 {
-            let _ = fs::remove_file(&path);
-        }
+        && meta.file_size() >= 5 * 1024 * 1024
+    {
+        let _ = fs::remove_file(&path);
+    }
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
