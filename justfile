@@ -20,5 +20,8 @@ pack:
     iscc ./installer.iss
 release:
     just pack
-    git push --delete origin nightly
+    git push --delete origin nightly || true
+    git tag -d nightly || true
+    git tag nightly
+    git push origin nightly
     gh release create nightly ./target/release/ajemi-installer_x64.exe -t "Nightly Build" -n "Nightly Build"   
