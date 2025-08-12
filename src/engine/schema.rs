@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use Candidate::*;
 use log::error;
@@ -37,43 +37,41 @@ pub struct Schema {
 
 #[derive(Clone, Copy)]
 enum Atom<'a> {
+    /// non-alphanumeric character
+    Nanch(char),
+    /// everthing else
     Text(&'a str),
-    Punct(char),
 }
 
 impl<'a> From<&'a str> for Atom<'a> {
     fn from(str: &'a str) -> Atom<'a> {
         use Atom::*;
         let mut chars = str.chars();
-        let first_ch = chars.nth(0).unwrap();
-        if !first_ch.is_alphanumeric() && chars.nth(1).is_none() {
-            Punct(first_ch)
+        let first_ch = chars.next().unwrap();
+        if !first_ch.is_alphanumeric() && chars.next().is_none() {
+            Nanch(first_ch)
         } else if first_ch == '#' {
             match u32::from_str_radix(&str[1..], 16)
                 .ok()
                 .and_then(char::from_u32)
             {
-                Some(punct) => Punct(punct),
+                Some(nanch) => Nanch(nanch),
                 None => Text(str),
             }
         } else if str == "space" {
-            Punct(' ')
+            Nanch(' ')
         } else {
             Text(str)
         }
     }
 }
 
-impl<'a> ToString for Atom<'a> {
-    fn to_string(&self) -> String {
+impl Display for Atom<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Atom::*;
         match self {
-            Text(text) => text.to_string(),
-            Punct(punct) => {
-                let mut string = String::with_capacity(4);
-                string.push(*punct);
-                string
-            }
+            Text(text) => write!(f, "{text}"),
+            Nanch(punct) => write!(f, "{punct}"),
         }
     }
 }
@@ -93,25 +91,21 @@ impl From<&str> for Schema {
                 continue;
             }
             atoms.clear();
-            atoms.extend(
-                list.split(char::is_whitespace)
-                    .filter(|str| !str.is_empty())
-                    .map(Atom::from),
-            );
+            atoms.extend(list.split_whitespace().map(Atom::from));
             match atoms[..] {
-                [Punct('\''), Punct(open), Punct(close)] => {
+                [Nanch('\''), Nanch(open), Nanch(close)] => {
                     squote = (open, close);
                 }
-                [Punct('"'), Punct(open), Punct(close)] => {
+                [Nanch('"'), Nanch(open), Nanch(close)] => {
                     dquote = (open, close);
                 }
-                [Punct('\''), Punct(dumb)] => {
+                [Nanch('\''), Nanch(dumb)] => {
                     squote = (dumb, dumb);
                 }
-                [Punct('"'), Punct(dumb)] => {
+                [Nanch('"'), Nanch(dumb)] => {
                     dquote = (dumb, dumb);
                 }
-                [Punct(punct), Punct(remapped)] => {
+                [Nanch(punct), Nanch(remapped)] => {
                     puncts.insert(punct, remapped);
                 }
                 [Text(spelling), word, ..] => {
