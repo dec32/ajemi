@@ -41,18 +41,13 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 [Code]
 // --- 1. Type Declaration ---
-// The correct method requires defining a static array type with a fixed size.
-// 256 is more than enough to hold all possible keyboard layouts.
 type
   TLayoutArray = array[0..255] of DWORD;
 
 // --- 2. API Declaration ---
-// The function declaration is changed to accept the new static array type by reference (var).
-// This is the standard Inno Setup way to pass a buffer to an API function.
 function GetKeyboardLayoutList(nBuff: Integer; var lpList: TLayoutArray): Integer;
   external 'GetKeyboardLayoutList@user32.dll stdcall';
 
-// This helper function was correct and remains the same.
 function GetLayoutFriendlyName(hkl: DWORD): String;
 var
   langID: Word;
@@ -69,10 +64,10 @@ end;
 // --- 3. Globals ---
 var
   CustomPage: TWizardPage;
-  LayoutRadioButtons: array of TNewRadioButton; // This can remain dynamic
+  LayoutRadioButtons: array of TNewRadioButton;
   SelectedHKL: DWORD;
-  Layouts: TLayoutArray; // The variable for the static array
-  LayoutCount: Integer;  // A global to store the count
+  Layouts: TLayoutArray;
+  LayoutCount: Integer;
 
 // --- 4. Wizard UI and Event Handlers ---
 procedure InitializeWizard;
@@ -88,13 +83,10 @@ begin
   GuideLabel.Caption := 'Which keyboard layout do you wish to use with this application?';
   GuideLabel.AutoSize := True;
   
-  // Call the function correctly by passing the static array variable directly.
-  // The compiler handles passing its address because of the 'var' keyword.
   LayoutCount := GetKeyboardLayoutList(256, Layouts);
 
   if LayoutCount > 0 then
   begin
-    // This dynamic array for the UI controls is still fine.
     SetArrayLength(LayoutRadioButtons, LayoutCount);
     
     for i := 0 to LayoutCount - 1 do
@@ -120,7 +112,7 @@ begin
   end;
 end;
 
-procedure CurPageChanged(CurPageID: Integer);
+function NextButtonClick(CurPageID: Integer): Boolean;
 var
   i: Integer;
 begin
@@ -135,6 +127,7 @@ begin
       end;
     end;
   end;
+  Result := True;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
