@@ -69,7 +69,6 @@ impl ITfKeyEventSink_Impl for TextService {
         // typer uppercase letters with the good old capslock.
         // Simply disable the IME completely solves the problem.
         if inner.disabled_naively() || VK_CAPITAL.is_toggled() {
-            log::debug!("disabled naively");
             inner.abort()?;
             return Ok(FALSE);
         }
