@@ -53,7 +53,7 @@ pub fn hkl() -> Result<HKL> {
         .join(IME_NAME)
         .join("install.dat");
     let hkl = fs::read_to_string(hkl)?;
-    let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::HklCorrupted)?;
+    let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::InstallDatCorrupted)?;
     let hkl = HKL(hkl as isize);
     Ok(hkl)
 }

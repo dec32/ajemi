@@ -147,7 +147,7 @@ pub enum Error {
     #[error("Failed to parse '{0}'. {1:?}")]
     ParseError(&'static str, toml::de::Error),
     #[error("install.dat is corrupted. {0}")]
-    HklCorrupted(ParseIntError),
+    InstallDatCorrupted(ParseIntError),
 }
 
 // bonus From<E> for alternative windows Error types
