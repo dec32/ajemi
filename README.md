@@ -18,7 +18,7 @@ To type and see the Sitelen Pona characters, you need to:
 1. Press <kbd>Win</kbd> + <kbd>Space</kbd> to switch to the input method.
 2. Set the font of your editor to ***sitelen seli kiwen juniko*** that comes with the input method.
 
-You can also use [***Fairfax HD***](https://www.kreativekorp.com/software/fonts/fairfaxhd/), [***Nishiki-Teki***](https://umihotaru.work/) or any other UCSUR-compliant font listed on [this page](http://antetokipona.infinityfreeapp.com/font).
+You can also use [***Fairfax HD***](https://www.kreativekorp.com/software/fonts/fairfaxhd/), [***Nishiki-Teki***](https://umihotaru.work/) or any other [UCSUR-compliant font](http://antetokipona.infinityfreeapp.com/font).
 
 ## Use
 
@@ -26,7 +26,7 @@ To type a glyph, simply type its spelling, and press <kbd>Space</kbd> to confirm
 
 ![](./doc/soweli.gif)
 
-Pressing <kbd>Enter</kbd> releases the raw ASCII text instead.
+Pressing <kbd>Enter</kbd> releases the raw text instead[^toggle].
 
 ![](./doc/soweli-ascii.gif)
 
@@ -79,17 +79,17 @@ The dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their names end with 
 Here's a minimal example:
 
 ```
-// This is a line of comment
-a 🅰️ 
-akesi 🦎 🐸
-ala ❌ 
-alasa 🏹 
-
-[ #1F58C
-] #1F58C
+a      𓍼
+akesi  𓆐
+ala    𓂜
+alasa  𓌔 𓌸
+[      #1F58C
+]      #1F58C
 ```
 
-You can also customize the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. Here's the default one for reference:
+## Configure
+
+Configure the appearance and behavior of the input method by editing `%APPDATA%/Ajemi/conf.toml`. Here's the default one for reference:
 
 ```Toml
 [font]
@@ -108,9 +108,7 @@ highlight = 0xE8E8FF
 highlighted = 0x000000
 
 [behavior]
-# For toggling off the input method temporarily.
-# Available ones are Ctrl/CapsLock/Eisu
-toggle = "Ctrl" 
+toggle = "Ctrl"
 long_pi = false
 long_glyph = false
 cjk_space = false
@@ -118,7 +116,14 @@ cjk_space = false
 
 ## Build from Source
 
-Have Rust with the MSVC toolchain installed and then run the following commands to setup the envirorment:
+
+Prerequisites:
+
+1. Rust (with the MSVC toolchain)
+2. Git Bash[^for-just-to-work]
+3. Inno Setup (only for creating installers)[^inno-setup-path]
+
+Run the following commands to setup the development envirorment:
 
 ```
 cargo install just
@@ -142,3 +147,9 @@ Create an installer for the project by running:
 ```
 just pack
 ```
+
+[^toggle]: Alternatively, press <kbd>Ctrl</kbd> to toggle off the input method temporarily. <kbd>CapsLock</kbd> and <kbd>英数</kbd> also functions as toggles if configured. 
+
+[^for-just-to-work]: [Just](https://github.com/casey/just) does not utilize Powershell and relies on Git Bash to function on Windows. Make sure the `bin` folder of Git is added to your `PATH`.
+
+[^inno-setup-path]: Make sure `iscc` is accessible from shell by editting `PATH`
