@@ -4,6 +4,7 @@ use std::{
     mem::{ManuallyDrop, size_of},
 };
 
+use csscolorparser::Color;
 use log::{debug, error, trace};
 use windows::{
     Win32::{
@@ -29,7 +30,7 @@ use crate::{
     CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO, CANDI_INDEXES,
     conf::{self},
     engine::Suggestion,
-    extend::OsStrExt2,
+    extend::{ColorExt, OsStrExt2},
     global,
 };
 
@@ -372,7 +373,7 @@ fn paint(window: HWND) -> LRESULT {
             0,
             arg.wnd_width,
             arg.wnd_height,
-            conf.color.background,
+            &conf.color.background,
         );
         // clip
         FillRect(
@@ -381,7 +382,7 @@ fn paint(window: HWND) -> LRESULT {
             BORDER_WIDTH,
             CLIP_WIDTH,
             arg.label_height,
-            conf.color.clip,
+            &conf.color.clip,
         );
         // highlight
         FillRect(
@@ -390,7 +391,7 @@ fn paint(window: HWND) -> LRESULT {
             BORDER_WIDTH,
             arg.highlight_width,
             arg.label_height,
-            conf.color.highlight,
+            &conf.color.highlight,
         );
     }
 
@@ -406,7 +407,7 @@ fn paint(window: HWND) -> LRESULT {
             index_x,
             index_y,
             &arg.indice[0],
-            conf.color.index,
+            &conf.color.index,
             arg.index_font,
         );
         TextOut(
@@ -414,7 +415,7 @@ fn paint(window: HWND) -> LRESULT {
             candi_x,
             candi_y,
             &arg.candis[0],
-            conf.color.highlighted,
+            &conf.color.highlighted,
             arg.candi_font,
         );
     }
@@ -439,7 +440,7 @@ fn paint(window: HWND) -> LRESULT {
                 index_x,
                 index_y,
                 &arg.indice[i],
-                conf.color.index,
+                &conf.color.index,
                 arg.index_font,
             );
             TextOut(
@@ -447,7 +448,7 @@ fn paint(window: HWND) -> LRESULT {
                 candi_x,
                 candi_y,
                 &arg.candis[i],
-                conf.color.candidate,
+                &conf.color.candidate,
                 arg.candi_font,
             );
         }
@@ -460,7 +461,7 @@ fn paint(window: HWND) -> LRESULT {
 }
 
 #[allow(non_snake_case)]
-unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars: &[u16], color: u32, font: HFONT) {
+unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars: &[u16], color: &Color, font: HFONT) {
     unsafe {
         SelectObject(hdc, font);
         SetTextColor(hdc, color.to_color_ref());
@@ -469,7 +470,7 @@ unsafe fn TextOut(hdc: HDC, x: i32, y: i32, wchars: &[u16], color: u32, font: HF
 }
 
 #[allow(non_snake_case)]
-unsafe fn FillRect(hdc: HDC, x: i32, y: i32, width: i32, height: i32, color: u32) {
+unsafe fn FillRect(hdc: HDC, x: i32, y: i32, width: i32, height: i32, color: &Color) {
     let rect = RECT {
         left: x,
         top: y,

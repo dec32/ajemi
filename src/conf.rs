@@ -68,12 +68,12 @@ pub struct Font {
 
 #[derive(Deserialize, Debug)]
 pub struct Color {
-    pub candidate: u32,
-    pub index: u32,
-    pub background: u32,
-    pub clip: u32,
-    pub highlight: u32,
-    pub highlighted: u32,
+    pub candidate: csscolorparser::Color,
+    pub index: csscolorparser::Color,
+    pub background: csscolorparser::Color,
+    pub clip: csscolorparser::Color,
+    pub highlight: csscolorparser::Color,
+    pub highlighted: csscolorparser::Color,
 }
 
 #[derive(Deserialize, Debug)]

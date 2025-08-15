@@ -6,12 +6,12 @@ size = 20
 vertical = false
 
 [color]
-candidate = 0x000000
-index = 0xA0A0A0
-background = 0xFAFAFA
-clip = 0x0078D7
-highlight = 0xE8E8FF
-highlighted = 0x000000
+candidate = "#000000"
+index = "#A0A0A0"
+background = "#FAFAFA"
+clip = "#0078D7"
+highlight = "#E8E8FF"
+highlighted = "#000000"
 
 [behavior]
 toggle = "Ctrl"

@@ -14,6 +14,7 @@ serde = { version = "1.0", features = ["derive"] }
 strum = { version = "0.27.1", features = ["derive"] }
 thiserror = "2.0.12"
 log-derive = "0.4.1"
+csscolorparser = "0.7.2"
 
 [dependencies.windows]
 version = "0.54.0"
