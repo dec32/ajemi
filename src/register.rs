@@ -99,8 +99,8 @@ pub fn register_ime() -> Result<()> {
         // 3. categories(the features the IME has)
         input_processor_profiles.Register(&IME_ID)?;
         log::info!("Registered the input method.");
-        let ime_name: Vec<u16> = OsStr::new(IME_NAME).null_terminated_wchars();
-        let icon_file: Vec<u16> = dll_path()?.null_terminated_wchars();
+        let ime_name: Vec<u16> = OsStr::new(IME_NAME).to_null_terminated_wchars();
+        let icon_file: Vec<u16> = dll_path()?.to_null_terminated_wchars();
         let icon_index = {
             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
             let path = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";

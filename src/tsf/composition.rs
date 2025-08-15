@@ -66,7 +66,7 @@ impl TextServiceInner {
             }
         }
         let range = unsafe { self.composition()?.GetRange()? };
-        let text = OsString::from(&self.preedit).wchars();
+        let text = OsString::from(&self.preedit).to_wchars();
         edit_session::set_text(
             self.tid,
             self.context()?,
@@ -91,7 +91,7 @@ impl TextServiceInner {
     }
 
     fn set_text(&self, text: &str) -> Result<()> {
-        let text = OsString::from(text).wchars();
+        let text = OsString::from(text).to_wchars();
         let range = unsafe { self.composition()?.GetRange()? };
         edit_session::set_text(self.tid, self.context()?, range, &text, None)
     }

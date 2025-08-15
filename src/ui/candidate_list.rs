@@ -227,14 +227,14 @@ impl CandidateList {
             for (index, sugg) in suggs.iter().enumerate() {
                 let mut size = SIZE::default();
                 let index = format!("{}{}", CANDI_INDEXES[index], self.index_suffix);
-                let index = OsString::from(index).wchars();
+                let index = OsString::from(index).to_wchars();
                 SelectObject(dc, self.index_font);
                 GetTextExtentPoint32W(dc, &index, &mut size);
                 index_height = max(index_height, size.cy);
                 index_width = max(index_width, size.cx);
                 indice.push(index);
 
-                let candi = OsString::from(&sugg.output).wchars();
+                let candi = OsString::from(&sugg.output).to_wchars();
                 SelectObject(dc, self.candi_font);
                 GetTextExtentPoint32W(dc, &candi, &mut size);
                 candi_height = max(candi_height, size.cy);

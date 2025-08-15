@@ -315,7 +315,7 @@ impl TextServiceInner {
     fn insert_char(&mut self, ch: char) -> Result<()> {
         self.char_buf.clear();
         self.char_buf.push(ch);
-        let text = OsString::from(&self.char_buf).wchars();
+        let text = OsString::from(&self.char_buf).to_wchars();
         edit_session::insert_text(self.tid, self.context()?, &text)
     }
 

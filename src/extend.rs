@@ -1,6 +1,6 @@
 use std::{
     char::DecodeUtf16Error,
-    ffi::{OsStr, OsString},
+    ffi::OsStr,
     iter::{self},
     os::windows::ffi::OsStrExt,
 };
@@ -63,24 +63,15 @@ impl GUIDExt for GUID {
 }
 
 pub trait OsStrExt2 {
-    fn wchars(&self) -> Vec<u16>;
-    fn null_terminated_wchars(&self) -> Vec<u16>;
+    fn to_wchars(&self) -> Vec<u16>;
+    fn to_null_terminated_wchars(&self) -> Vec<u16>;
 }
 
 impl OsStrExt2 for OsStr {
-    fn wchars(&self) -> Vec<u16> {
+    fn to_wchars(&self) -> Vec<u16> {
         self.encode_wide().collect()
     }
-    fn null_terminated_wchars(&self) -> Vec<u16> {
-        self.encode_wide().chain(iter::once(0)).collect()
-    }
-}
-
-impl OsStrExt2 for OsString {
-    fn wchars(&self) -> Vec<u16> {
-        self.encode_wide().collect()
-    }
-    fn null_terminated_wchars(&self) -> Vec<u16> {
+    fn to_null_terminated_wchars(&self) -> Vec<u16> {
         self.encode_wide().chain(iter::once(0)).collect()
     }
 }
@@ -96,7 +87,7 @@ impl CharExt for char {
     }
 
     fn try_from_utf16(value: u16) -> Result<char, DecodeUtf16Error> {
-        char::decode_utf16(std::iter::once(value)).next().unwrap()
+        char::decode_utf16(iter::once(value)).next().unwrap()
     }
 }
 
