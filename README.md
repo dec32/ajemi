@@ -73,8 +73,8 @@ Here's a rough demonstration of the behavior of the control characters:
 The dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their names end with `.dict` suffix. The format follows these 3 rules:
 
 1. Entries are written as `{spelling} {output_0} {output_1}...{output_n}`
-2. Single-character outputs can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `#`
-3. Comments start with `//`
+2. Single-character outputs can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `U+`
+3. Comments start with `#`
 
 Here's a minimal example:
 
@@ -83,8 +83,8 @@ a      𓍼
 akesi  𓆐
 ala    𓂜
 alasa  𓌔 𓌸
-[      #1F58C
-]      #1F58C
+[      U+1F58C
+]      U+1F58C
 ```
 
 ## Configure
@@ -100,12 +100,12 @@ size = 20
 vertical = false
 
 [color]
-candidate = 0x000000
-index = 0xA0A0A0
-background = 0xFAFAFA
-clip = 0x0078D7
-highlight = 0xE8E8FF
-highlighted = 0x000000
+clip = "#0078D7"
+background = "#FAFAFA"
+highlight = "#E8E8FF"
+index = "#A0A0A0"
+candidate = "black"
+highlighted = "black"
 
 [behavior]
 toggle = "Ctrl"
