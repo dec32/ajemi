@@ -56,7 +56,7 @@ impl Conf {
     }
 
     pub fn open_or_default() -> Conf {
-        Conf::open().inspect_err_with_log().unwrap_or_default()
+        Conf::open().log_err().unwrap_or_default()
     }
 }
 

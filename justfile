@@ -11,6 +11,8 @@ build *args:
     cargo build --target=i686-pc-windows-msvc {{args}}
     regsvr32 -s ./target/debug/ajemi.dll
     regsvr32 -s ./target/i686-pc-windows-msvc/debug/ajemi.dll
+follow:
+    tail -f $LOCALAPPDATA/Ajemi/log.txt
 unreg: 
     regsvr32 -s -u  ./target/debug/ajemi.dll || true
     regsvr32 -s -u  ./target/i686-pc-windows-msvc/debug/ajemi.dll || true

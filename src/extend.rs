@@ -19,11 +19,11 @@ use windows::{
 };
 
 pub trait ResultExt {
-    fn inspect_err_with_log(self) -> Self;
+    fn log_err(self) -> Self;
 }
 
 impl<T, E: std::error::Error> ResultExt for std::result::Result<T, E> {
-    fn inspect_err_with_log(self) -> Self {
+    fn log_err(self) -> Self {
         if let Err(e) = self.as_ref() {
             log::error!("{e:#}")
         }

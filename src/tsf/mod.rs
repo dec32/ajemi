@@ -28,7 +28,7 @@ use windows::{
 
 use crate::{
     engine::{Engine, Suggestion},
-    global::hkl,
+    global::hkl_or_us,
     ui::candidate_list::CandidateList,
 };
 
@@ -93,7 +93,7 @@ impl TextService {
             tid: 0,
             thread_mgr: None,
             context: None,
-            hkl: hkl()?,
+            hkl: hkl_or_us(),
             char_buf: String::with_capacity(4),
             fresh_ctrl: false,
             disabled_by_ctrl: false,

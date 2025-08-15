@@ -11,7 +11,7 @@ use windows::{
     core::GUID,
 };
 
-use crate::{Error, Result};
+use crate::{Error, Result, extend::ResultExt};
 
 pub fn setup(dll_module: HINSTANCE) {
     DLL_MODULE.get_or_init(|| dll_module);
@@ -56,6 +56,10 @@ pub fn hkl() -> Result<HKL> {
     let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::InstallDatCorrupted)?;
     let hkl = HKL(hkl as isize);
     Ok(hkl)
+}
+
+pub fn hkl_or_us() -> HKL {
+    hkl().log_err().unwrap_or(HKL(LanguageID::US as isize))
 }
 
 // registration stuff

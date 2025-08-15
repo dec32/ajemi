@@ -6,7 +6,7 @@ use windows::{
     Win32::{
         System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance},
         UI::TextServices::{
-            self, CLSID_TF_CategoryMgr, CLSID_TF_InputProcessorProfiles, HKL, ITfCategoryMgr,
+            self, CLSID_TF_CategoryMgr, CLSID_TF_InputProcessorProfiles, ITfCategoryMgr,
             ITfInputProcessorProfiles,
         },
     },
@@ -91,11 +91,8 @@ pub fn register_ime() -> Result<()> {
             CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
         let category_mgr: ITfCategoryMgr =
             CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-        let (langid, hkl) = global::hkl()
-            .map(|hkl| (hkl.langid(), hkl))
-            .inspect_err(|e| log::error!("Failed to detect layout. {e}"))
-            .unwrap_or((LanguageID::US as u16, HKL::default()));
-
+        let hkl = global::hkl_or_us();
+        let langid = hkl.langid();
         // three things to register:
         // 1. the IME itself
         // 2. language profile
@@ -156,11 +153,10 @@ pub fn unregister_ime() -> Result<()> {
             category_mgr.UnregisterCategory(&IME_ID, &rcatid, &IME_ID)?;
         }
         log::info!("Unregistered the categories.");
-        if let Ok(langid) = global::hkl().map(HKLExt::langid) {
-            input_processor_profiles
-                .RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID)
-                .ok();
-        }
+        let langid = global::hkl_or_us().langid();
+        input_processor_profiles
+            .RemoveLanguageProfile(&IME_ID, langid, &LANG_PROFILE_ID)
+            .ok();
         for langid in LanguageID::iter() {
             let langid = langid as u16;
             input_processor_profiles
