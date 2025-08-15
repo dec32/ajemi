@@ -1,4 +1,4 @@
-// pu words
+# pu words
 a 󱤀
 akesi 󱤁
 ala 󱤂
@@ -120,7 +120,7 @@ wawa 󱥵
 weka 󱥶
 wile 󱥷
 
-// ku words that are widely recognized
+# ku words that are widely recognized
 namako 󱥸
 kin 󱥹
 oko 󱥺
@@ -139,27 +139,27 @@ n 󱦆
 misikeke 󱦇
 ku 󱦈
 
-// ku words that aren't widely recognized
+# ku words that aren't widely recognized
 pake 󱦠
 apeja 󱦡
 majuna 󱦢
 powe 󱦣
 
-// punctuations and control characters
-( #F1997
-) #F1998
-[ #F1990
-] #F1991
-{ #F199A
-} #F199B
-^ #F1995
-* #F1996
+# punctuations and control characters
+( U+F1997
+) U+F1998
+[ U+F1990
+] U+F1991
+{ U+F199A
+} U+F199B
+^ U+F1995
+* U+F1996
 . 󱦜
 : 󱦝
 
-// punctuations and control characters (non-UCSUR)
-space #3000
-- #200D
+# punctuations and control characters (non-UCSUR)
+space U+3000
+- U+200D
 " 「 」
 
 

@@ -50,8 +50,8 @@ impl<'a> From<&'a str> for Atom<'a> {
         let first_ch = chars.next().unwrap();
         if !first_ch.is_alphanumeric() && chars.next().is_none() {
             Nanch(first_ch)
-        } else if first_ch == '#' {
-            match u32::from_str_radix(&str[1..], 16)
+        } else if str.starts_with("U+") || str.starts_with("u+") {
+            match u32::from_str_radix(&str[2..], 16)
                 .ok()
                 .and_then(char::from_u32)
             {
@@ -87,7 +87,7 @@ impl From<&str> for Schema {
 
         let mut atoms = Vec::new();
         for list in value.lines() {
-            if list.is_empty() || list.starts_with("//") {
+            if list.is_empty() || list.starts_with("#") {
                 continue;
             }
             atoms.clear();
