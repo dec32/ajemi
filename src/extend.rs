@@ -9,7 +9,7 @@ use csscolorparser::Color;
 use windows::{
     Win32::{
         Foundation::COLORREF,
-        Graphics::Gdi::HBRUSH,
+        Graphics::Gdi::{CreateSolidBrush, HBRUSH},
         UI::{
             Input::KeyboardAndMouse::{GetKeyState, VIRTUAL_KEY},
             TextServices::HKL,

@@ -25,7 +25,6 @@ use windows::{
     core::{PCSTR, Result, s},
 };
 
-use super::Color;
 use crate::{
     CANDI_INDEX_SUFFIX, CANDI_INDEX_SUFFIX_MONO, CANDI_INDEXES,
     conf::{self},
@@ -62,7 +61,7 @@ pub fn setup() -> Result<()> {
         hInstance: global::dll_module(),
         hIcon: HICON::default(),
         hCursor: unsafe { LoadCursorW(None, IDC_ARROW)? },
-        hbrBackground: 0xFFFFFFu32.to_hbrush(),
+        hbrBackground: unsafe { Color::from_linear_rgba8(0, 0, 0, 0).to_hbrush() },
         lpszMenuName: PCSTR::null(),
         lpszClassName: WINDOW_CLASS,
         hIconSm: HICON::default(),
