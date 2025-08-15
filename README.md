@@ -76,13 +76,12 @@ The dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their names end with 
 2. Single-character outputs can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `U+`
 3. Comments start with `#`
 
-Here's a minimal example:
+Here's a minimal example (using look-alikes):
 
 ```
-a      𓍼
-akesi  𓆐
-ala    𓂜
-alasa  𓌔 𓌸
+jan    🜶 ⍜
+musi   ☋
+pakala ⍯
 [      U+1F58C
 ]      U+1F58C
 ```
