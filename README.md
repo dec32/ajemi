@@ -70,18 +70,18 @@ Here's a rough demonstration of the behavior of the control characters:
 
 ## Customize
 
-The dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their names end with `.dict` suffix. The format follows these 3 rules:
+Dictionary files are stored in `%APPDATA%/Ajemi/dict`. Their format follows these 3 rules:
 
-1. Entries are written as `{spelling} {output_0} {output_1}...{output_n}`
-2. Single-character outputs can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `U+`
+1. Entries are written as `{spelling} {option 1} {option 2} ... {option n}`
+2. Single-character options can be written in their [Unicode code points](https://www.kreativekorp.com/ucsur/charts/sitelen.html) with a leading `U+`
 3. Comments start with `#`
 
 Here's a minimal example (using look-alikes):
 
 ```
-jan    🜶 ⍜
+jan    🜶
 musi   ☋
-pakala ⍯
+pakala ⍯ ⍃
 [      U+1F58C
 ]      U+1F58C
 ```
@@ -149,6 +149,6 @@ just pack
 
 [^toggle]: Alternatively, press <kbd>Ctrl</kbd> to toggle off the input method temporarily. <kbd>CapsLock</kbd> and <kbd>英数</kbd> also functions as toggles if configured. 
 
-[^for-just-to-work]: [Just](https://github.com/casey/just) does not utilize Powershell and relies on Git Bash to function on Windows. Make sure the `bin` folder of Git is added to your `PATH`.
+[^for-just-to-work]: [Just](https://github.com/casey/just) does not utilize PowerShell and relies on Git Bash to function on Windows. Make sure the `bin` folder of Git is added to your `PATH`.
 
 [^inno-setup-path]: Make sure `iscc` is accessible from shell by editting `PATH`
