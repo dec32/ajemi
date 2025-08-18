@@ -49,7 +49,7 @@ pub fn dll_path() -> Result<OsString> {
 
 pub fn hkl_or_us() -> HKL {
     static INSTANCE: OnceLock<HKL> = OnceLock::new();
-    INSTANCE.get_or_init(|| {
+    *INSTANCE.get_or_init(|| {
         // I need try block
         let result: Result<HKL> = (|| {
             let hkl = PathBuf::from(env::var("LOCALAPPDATA")?)

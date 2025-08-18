@@ -13,13 +13,12 @@ use windows::{
 };
 
 use super::TextService;
-use crate::{DISPLAY_ATTR_ID, conf};
+use crate::{DISPLAY_ATTR_ID};
 
 #[allow(non_snake_case)]
 impl ITfTextInputProcessor_Impl for TextService {
     fn Activate(&self, thread_mgr: Option<&ITfThreadMgr>, tid: u32) -> Result<()> {
         trace!("Activate({tid})");
-        conf::reload();
         let mut inner = self.write()?;
         let thread_mgr = thread_mgr.ok_or(E_FAIL)?;
         inner.tid = tid;

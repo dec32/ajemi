@@ -24,8 +24,6 @@ pub fn get() -> &'static Conf {
     CONF.get_or_init(Conf::open_or_default)
 }
 
-pub fn reload() {}
-
 #[derive(Deserialize, Debug)]
 pub struct Conf {
     pub font: Font,
