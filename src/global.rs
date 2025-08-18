@@ -47,19 +47,21 @@ pub fn dll_path() -> Result<OsString> {
     Ok(path)
 }
 
-pub fn hkl() -> Result<HKL> {
-    // TODO: save the result in memory
-    let hkl = PathBuf::from(env::var("LOCALAPPDATA")?)
-        .join(IME_NAME)
-        .join("install.dat");
-    let hkl = fs::read_to_string(hkl)?;
-    let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::InstallDatCorrupted)?;
-    let hkl = HKL(hkl as isize);
-    Ok(hkl)
-}
-
 pub fn hkl_or_us() -> HKL {
-    hkl().log_err().unwrap_or(HKL(LanguageID::US as isize))
+    static INSTANCE: OnceLock<HKL> = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        // I need try block
+        let result: Result<HKL> = (|| {
+            let hkl = PathBuf::from(env::var("LOCALAPPDATA")?)
+                .join(IME_NAME)
+                .join("install.dat");
+            let hkl = fs::read_to_string(hkl)?;
+            let hkl = u32::from_str_radix(&hkl, 16).map_err(Error::InstallDatCorrupted)?;
+            let hkl = HKL(hkl as isize);
+            Ok(hkl)
+        })();
+        result.log_err().unwrap_or(HKL(LanguageID::US as isize))
+    })
 }
 
 // registration stuff
