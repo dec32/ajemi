@@ -118,7 +118,7 @@ impl Engine {
                 .puncts
                 .get(&punct)
                 .copied()
-                .filter(|it| *it != '\u{3000}' || conf::get().behavior.cjk_space)
+                .filter(|it| *it != '\u{3000}' || conf::get().behavior.ideographic_space)
                 .unwrap_or(punct),
         }
     }

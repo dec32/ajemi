@@ -17,4 +17,4 @@ highlighted = "black"
 toggle = "Ctrl"
 long_pi = false
 long_glyph = false
-cjk_space = false
+ideographic_space = false

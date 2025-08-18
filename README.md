@@ -43,7 +43,7 @@ To type punctuators, type:
 
 - `.` for middle dot
 - `:` for colon
-- `"` for CJK corner brackets
+- `"` for corner brackets
 - `[]` for proper name cartouche
 
 Joiners compose adjacent glyphs into compound glyphs. Type:
@@ -110,7 +110,7 @@ highlighted = "black"
 toggle = "Ctrl"
 long_pi = false
 long_glyph = false
-cjk_space = false
+ideographic_space = false
 ```
 
 ## Build from Source
