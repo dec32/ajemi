@@ -88,18 +88,10 @@ pub struct Behavior {
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 pub enum Toggle {
-    #[serde(alias = "eisu", alias = "英数")]
+    #[serde(alias = "英数")]
     Eisu,
-    #[serde(alias = "ctrl", alias = "Control", alias = "control")]
     Ctrl,
-    #[serde(alias = "capslock", alias = "caps_lock")]
     CapsLock,
-}
-
-impl Default for Toggle {
-    fn default() -> Self {
-        Self::Ctrl
-    }
 }
 
 #[test]
