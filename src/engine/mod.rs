@@ -113,13 +113,7 @@ impl Engine {
                 self.dquote_open = !self.dquote_open;
                 remmaped
             }
-            punct => self
-                .schema()
-                .puncts
-                .get(&punct)
-                .copied()
-                .filter(|it| *it != '\u{3000}' || conf::get().behavior.ideographic_space)
-                .unwrap_or(punct),
+            punct => self.schema().puncts.get(&punct).copied().unwrap_or(punct),
         }
     }
 

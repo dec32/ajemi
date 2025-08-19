@@ -84,7 +84,6 @@ pub struct Behavior {
     pub toggle: Option<Toggle>,
     pub long_pi: bool,
     pub long_glyph: bool,
-    pub ideographic_space: bool,
 }
 
 #[derive(Deserialize, Debug, Clone, Copy)]

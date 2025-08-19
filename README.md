@@ -110,7 +110,6 @@ highlighted = "black"
 toggle = "Ctrl"
 long_pi = false
 long_glyph = false
-ideographic_space = false
 ```
 
 ## Build from Source
