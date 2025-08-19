@@ -50,7 +50,7 @@ impl<'a> From<&'a str> for Atom<'a> {
         let first_ch = chars.next().unwrap();
         if !first_ch.is_alphanumeric() && chars.next().is_none() {
             Nanch(first_ch)
-        } else if str.starts_with("U+") || str.starts_with("u+") {
+        } else if str.starts_with("U+") {
             match u32::from_str_radix(&str[2..], 16)
                 .ok()
                 .and_then(char::from_u32)
@@ -58,8 +58,6 @@ impl<'a> From<&'a str> for Atom<'a> {
                 Some(nanch) => Nanch(nanch),
                 None => Text(str),
             }
-        } else if str == "space" {
-            Nanch(' ')
         } else {
             Text(str)
         }
